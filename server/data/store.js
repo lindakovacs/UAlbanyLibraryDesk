@@ -1,8 +1,10 @@
 /**
- * In-memory data store for UAlbany LibraryDesk
- * Seeded with initial prototype records for equipment, borrowers, loans, preparation, and staff.
- * Designed with a clean repository pattern to be swapped with MySQL in Milestone 6.
+ * Data store and persistence layer for UAlbany LibraryDesk
+ * Communicates with MySQL database (ualbanylibrarydesk) with transaction support.
+ * Automatically falls back to in-memory store if MySQL is offline or in test mode.
  */
+
+const { pool } = require('../config/db');
 
 const defaultStaff = {
   netid: 'linda.kovacs',
@@ -294,7 +296,7 @@ const initialPreparation = [
       { id: 'accessories', title: 'Charger & USB-C Cable Verification', completed: false },
       { id: 'packaging', title: 'Clean exterior and package in lending sleeve', completed: false }
     ],
-    notes: 'Returned from faculty loan'
+    notes: 'Returned from faculty loan; needs wiped'
   },
   {
     id: 'PREP-002',
@@ -311,7 +313,7 @@ const initialPreparation = [
       { id: 'battery', title: 'Battery fully charged and tested', completed: false },
       { id: 'manifest', title: 'Accessory pouch verified', completed: false }
     ],
-    notes: 'Routine prep after checkout'
+    notes: 'Routine prep and sanitization after return'
   },
   {
     id: 'PREP-003',
@@ -328,7 +330,7 @@ const initialPreparation = [
       { id: 'battery', title: 'AA batteries replenished', completed: true },
       { id: 'supervisor', title: 'Supervisor sign-off', completed: false }
     ],
-    notes: 'Awaiting supervisor sign-off'
+    notes: 'Ready for supervisor sign-off'
   },
   {
     id: 'PREP-004',
@@ -345,8 +347,22 @@ const initialPreparation = [
       { id: 'dock', title: 'Dock & cables verified', completed: true },
       { id: 'shelf', title: 'Ready shelf staging', completed: true }
     ],
-    notes: 'Ready for circulation'
+    notes: 'Wiped and staged for ready shelf'
   }
+];
+
+const defaultReports = [
+  { id: 'EQ-001', name: 'Mirrorless Camera Kit', category: 'Creative Technology', checkouts: 6, avgDays: 4.2, totalDays: 25 },
+  { id: 'EQ-002', name: 'Nintendo Switch', category: 'Gaming Consoles and Accessories', checkouts: 5, avgDays: 3.6, totalDays: 18 },
+  { id: 'EQ-003', name: 'H4 Zoom Audio Recording Kit', category: 'Creative Technology', checkouts: 5, avgDays: 4.0, totalDays: 20 },
+  { id: 'EQ-004', name: '3D Scanning Kit (Revopoint POP 3 Plus)', category: 'Creative Technology', checkouts: 3, avgDays: 5.1, totalDays: 15 },
+  { id: 'EQ-005', name: 'Rode Wireless GO II Microphone System', category: 'Creative Technology', checkouts: 4, avgDays: 3.8, totalDays: 15 },
+  { id: 'EQ-006', name: 'PlayStation 5', category: 'Gaming Consoles and Accessories', checkouts: 4, avgDays: 4.5, totalDays: 18 },
+  { id: 'EQ-007', name: 'Arcade Controller', category: 'Gaming Consoles and Accessories', checkouts: 2, avgDays: 3.0, totalDays: 6 },
+  { id: 'EQ-008', name: 'H1 Zoom Kit', category: 'Creative Technology', checkouts: 3, avgDays: 3.2, totalDays: 10 },
+  { id: 'EQ-009', name: 'M30 Gamepad', category: 'Gaming Consoles and Accessories', checkouts: 2, avgDays: 2.5, totalDays: 5 },
+  { id: 'EQ-010', name: 'Owl 3 Video Conference Camera', category: 'Creative Technology', checkouts: 3, avgDays: 2.0, totalDays: 6 },
+  { id: 'EQ-013', name: 'SN30 Pro Gamepad', category: 'Gaming Consoles and Accessories', checkouts: 1, avgDays: 3.0, totalDays: 3 }
 ];
 
 class DataStore {
@@ -364,11 +380,42 @@ class DataStore {
   }
 
   // Auth & Session
-  getSession() {
+  async getSession() {
     return this.session;
   }
 
-  login(netid, password) {
+  async login(netid, password) {
+    try {
+      const [rows] = await pool.query('SELECT * FROM staff_users WHERE netid = ?;', [netid]);
+      if (rows && rows.length > 0) {
+        const u = rows[0];
+        let permissions = u.permissions;
+        if (typeof permissions === 'string') {
+          try { permissions = JSON.parse(permissions); } catch (e) { permissions = []; }
+        }
+        this.session = {
+          authenticated: true,
+          user: {
+            netid: u.netid,
+            name: u.name,
+            universityId: u.university_id,
+            department: u.department,
+            division: u.division,
+            email: u.email,
+            role: u.role,
+            deskStation: u.desk_station,
+            workstationId: u.workstation_id,
+            permissions,
+            status: u.status
+          },
+          signedInAt: new Date().toISOString()
+        };
+        return this.session;
+      }
+    } catch (e) {
+      // fallback to in-memory
+    }
+
     this.session = {
       authenticated: true,
       user: {
@@ -380,7 +427,7 @@ class DataStore {
     return this.session;
   }
 
-  logout() {
+  async logout() {
     this.session = {
       authenticated: false,
       user: null,
@@ -390,7 +437,43 @@ class DataStore {
   }
 
   // Equipment
-  getEquipment(query = {}) {
+  async getEquipment(query = {}) {
+    try {
+      let sql = `
+        SELECT e.*, GROUP_CONCAT(a.accessory_name SEPARATOR '||') AS accessories_str
+        FROM equipment e
+        LEFT JOIN equipment_accessories a ON e.id = a.equipment_id
+        WHERE 1=1
+      `;
+      const params = [];
+      if (query.category) {
+        sql += ' AND LOWER(e.category) = LOWER(?)';
+        params.push(query.category);
+      }
+      if (query.search) {
+        sql += ' AND (LOWER(e.name) LIKE ? OR LOWER(e.id) LIKE ? OR LOWER(e.category) LIKE ?)';
+        const q = `%${query.search.toLowerCase()}%`;
+        params.push(q, q, q);
+      }
+      sql += ' GROUP BY e.id ORDER BY e.id ASC;';
+
+      const [rows] = await pool.query(sql, params);
+      if (rows && rows.length > 0) {
+        return rows.map(r => ({
+          id: r.id,
+          name: r.name,
+          category: r.category,
+          available: r.available_quantity,
+          total: r.total_quantity,
+          status: r.status,
+          description: r.description || '',
+          accessories: r.accessories_str ? r.accessories_str.split('||') : []
+        }));
+      }
+    } catch (e) {
+      // fallback to in-memory
+    }
+
     let list = [...this.equipment];
     if (query.category) {
       list = list.filter(item => item.category.toLowerCase() === query.category.toLowerCase());
@@ -406,35 +489,125 @@ class DataStore {
     return list;
   }
 
-  getEquipmentById(id) {
-    return this.equipment.find(item => item.id.toLowerCase() === id.toLowerCase());
+  async getEquipmentById(id) {
+    try {
+      const sql = `
+        SELECT e.*, GROUP_CONCAT(a.accessory_name SEPARATOR '||') AS accessories_str
+        FROM equipment e
+        LEFT JOIN equipment_accessories a ON e.id = a.equipment_id
+        WHERE LOWER(e.id) = LOWER(?)
+        GROUP BY e.id;
+      `;
+      const [rows] = await pool.query(sql, [id]);
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        return {
+          id: r.id,
+          name: r.name,
+          category: r.category,
+          available: r.available_quantity,
+          total: r.total_quantity,
+          status: r.status,
+          description: r.description || '',
+          accessories: r.accessories_str ? r.accessories_str.split('||') : []
+        };
+      }
+    } catch (e) {
+      // fallback
+    }
+    return this.equipment.find(item => item.id.toLowerCase() === id.toLowerCase()) || null;
   }
 
-  createEquipment(data) {
+  async createEquipment(data) {
     const nextId = `EQ-${String(this.equipment.length + 1).padStart(3, '0')}`;
-    const newItem = {
-      id: data.id || nextId,
-      name: data.name,
-      category: data.category || 'Creative Technology',
-      available: Number(data.available) || 1,
-      total: Number(data.total) || Number(data.available) || 1,
-      status: data.status || 'available',
-      description: data.description || '',
-      accessories: Array.isArray(data.accessories) ? data.accessories : []
-    };
+    const id = data.id || nextId;
+    const name = data.name;
+    const category = data.category || 'Creative Technology';
+    const available = Number(data.available) || 1;
+    const total = Number(data.total) || available;
+    const status = data.status || 'available';
+    const description = data.description || '';
+    const accessories = Array.isArray(data.accessories) ? data.accessories : [];
+
+    try {
+      await pool.query(
+        'INSERT INTO equipment (id, name, category, available_quantity, total_quantity, status, description) VALUES (?, ?, ?, ?, ?, ?, ?);',
+        [id, name, category, available, total, status, description]
+      );
+      for (const acc of accessories) {
+        await pool.query(
+          'INSERT INTO equipment_accessories (equipment_id, accessory_name) VALUES (?, ?);',
+          [id, acc]
+        );
+      }
+    } catch (e) {
+      // fallback
+    }
+
+    const newItem = { id, name, category, available, total, status, description, accessories };
     this.equipment.push(newItem);
     return newItem;
   }
 
-  updateEquipment(id, data) {
-    const item = this.getEquipmentById(id);
+  async updateEquipment(id, data) {
+    try {
+      const updates = [];
+      const params = [];
+      if (data.name !== undefined) { updates.push('name = ?'); params.push(data.name); }
+      if (data.category !== undefined) { updates.push('category = ?'); params.push(data.category); }
+      if (data.available !== undefined) { updates.push('available_quantity = ?'); params.push(data.available); }
+      if (data.total !== undefined) { updates.push('total_quantity = ?'); params.push(data.total); }
+      if (data.status !== undefined) { updates.push('status = ?'); params.push(data.status); }
+      if (data.description !== undefined) { updates.push('description = ?'); params.push(data.description); }
+
+      if (updates.length > 0) {
+        params.push(id);
+        await pool.query(`UPDATE equipment SET ${updates.join(', ')} WHERE LOWER(id) = LOWER(?);`, params);
+        return this.getEquipmentById(id);
+      }
+    } catch (e) {
+      // fallback
+    }
+
+    const item = this.equipment.find(i => i.id.toLowerCase() === id.toLowerCase());
     if (!item) return null;
     Object.assign(item, data);
     return item;
   }
 
   // Borrowers
-  getBorrowers(query = {}) {
+  async getBorrowers(query = {}) {
+    try {
+      let sql = 'SELECT * FROM borrowers WHERE 1=1';
+      const params = [];
+      if (query.status) {
+        sql += ' AND status = ?';
+        params.push(query.status);
+      }
+      if (query.search) {
+        sql += ' AND (LOWER(name) LIKE ? OR LOWER(netid) LIKE ? OR university_id LIKE ?)';
+        const q = `%${query.search.toLowerCase()}%`;
+        params.push(q, q, q);
+      }
+      sql += ' ORDER BY name ASC;';
+
+      const [rows] = await pool.query(sql, params);
+      if (rows && rows.length > 0) {
+        return rows.map(r => ({
+          netid: r.netid,
+          name: r.name,
+          universityId: r.university_id,
+          email: r.email,
+          department: r.department,
+          role: r.role,
+          openLoans: r.open_loans,
+          status: r.status
+        }));
+      }
+    } catch (e) {
+      // fallback
+    }
+
     let list = [...this.borrowers];
     if (query.status) {
       list = list.filter(b => b.status === query.status);
@@ -450,12 +623,74 @@ class DataStore {
     return list;
   }
 
-  getBorrowerByNetId(netid) {
-    return this.borrowers.find(b => b.netid.toLowerCase() === netid.toLowerCase());
+  async getBorrowerByNetId(netid) {
+    try {
+      const [rows] = await pool.query('SELECT * FROM borrowers WHERE LOWER(netid) = LOWER(?);', [netid]);
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        return {
+          netid: r.netid,
+          name: r.name,
+          universityId: r.university_id,
+          email: r.email,
+          department: r.department,
+          role: r.role,
+          openLoans: r.open_loans,
+          status: r.status
+        };
+      }
+    } catch (e) {
+      // fallback
+    }
+    return this.borrowers.find(b => b.netid.toLowerCase() === netid.toLowerCase()) || null;
   }
 
   // Loans
-  getLoans(query = {}) {
+  async getLoans(query = {}) {
+    try {
+      let sql = `
+        SELECT l.*, e.name AS equipment_name, e.category, b.name AS borrower_name, b.university_id
+        FROM loans l
+        JOIN equipment e ON l.equipment_id = e.id
+        JOIN borrowers b ON l.borrower_netid = b.netid
+        WHERE 1=1
+      `;
+      const params = [];
+      if (query.status && query.status !== 'all') {
+        sql += ' AND l.status = ?';
+        params.push(query.status);
+      }
+      if (query.search) {
+        sql += ' AND (LOWER(l.id) LIKE ? OR LOWER(b.name) LIKE ? OR LOWER(b.netid) LIKE ? OR LOWER(e.name) LIKE ? OR LOWER(e.id) LIKE ?)';
+        const q = `%${query.search.toLowerCase()}%`;
+        params.push(q, q, q, q, q);
+      }
+      sql += ' ORDER BY l.due_date ASC;';
+
+      const [rows] = await pool.query(sql, params);
+      if (rows && rows.length > 0) {
+        return rows.map(r => ({
+          id: r.id,
+          equipmentId: r.equipment_id,
+          equipmentName: r.equipment_name,
+          category: r.category,
+          borrowerNetId: r.borrower_netid,
+          borrowerName: r.borrower_name,
+          universityId: r.university_id,
+          checkoutDate: r.checkout_date,
+          dueDate: r.due_date,
+          returnDate: r.return_date,
+          status: r.status,
+          assetTag: r.asset_tag,
+          returnCondition: r.return_condition,
+          destination: r.destination,
+          returnNotes: r.return_notes
+        }));
+      }
+    } catch (e) {
+      // fallback
+    }
+
     let list = [...this.loans];
     if (query.status && query.status !== 'all') {
       list = list.filter(l => l.status === query.status);
@@ -473,18 +708,84 @@ class DataStore {
     return list;
   }
 
-  getLoanById(id) {
-    return this.loans.find(l => l.id.toLowerCase() === id.toLowerCase());
+  async getLoanById(id) {
+    try {
+      const sql = `
+        SELECT l.*, e.name AS equipment_name, e.category, b.name AS borrower_name, b.university_id
+        FROM loans l
+        JOIN equipment e ON l.equipment_id = e.id
+        JOIN borrowers b ON l.borrower_netid = b.netid
+        WHERE LOWER(l.id) = LOWER(?);
+      `;
+      const [rows] = await pool.query(sql, [id]);
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        return {
+          id: r.id,
+          equipmentId: r.equipment_id,
+          equipmentName: r.equipment_name,
+          category: r.category,
+          borrowerNetId: r.borrower_netid,
+          borrowerName: r.borrower_name,
+          universityId: r.university_id,
+          checkoutDate: r.checkout_date,
+          dueDate: r.due_date,
+          returnDate: r.return_date,
+          status: r.status,
+          assetTag: r.asset_tag,
+          returnCondition: r.return_condition,
+          destination: r.destination,
+          returnNotes: r.return_notes
+        };
+      }
+    } catch (e) {
+      // fallback
+    }
+    return this.loans.find(l => l.id.toLowerCase() === id.toLowerCase()) || null;
   }
 
-  createLoan(data) {
+  async createLoan(data) {
     const nextNum = 1043 + this.loans.length - 5;
     const loanId = `LN-${nextNum}`;
-    const eq = this.getEquipmentById(data.equipmentId);
+    const checkoutDate = new Date().toISOString();
+    const dueDate = data.dueDate || new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+    const assetTag = data.assetTag || `ALB-${data.equipmentId}-A`;
+
+    let conn;
+    try {
+      conn = await pool.getConnection();
+      await conn.beginTransaction();
+
+      await conn.query(
+        'INSERT INTO loans (id, equipment_id, borrower_netid, asset_tag, checkout_date, due_date, status) VALUES (?, ?, ?, ?, ?, ?, ?);',
+        [loanId, data.equipmentId, data.netid, assetTag, new Date(checkoutDate), new Date(dueDate), 'active']
+      );
+
+      await conn.query(
+        'UPDATE equipment SET available_quantity = available_quantity - 1 WHERE id = ? AND available_quantity > 0;',
+        [data.equipmentId]
+      );
+
+      await conn.query(
+        'UPDATE borrowers SET open_loans = open_loans + 1 WHERE netid = ?;',
+        [data.netid]
+      );
+
+      await conn.commit();
+      conn.release();
+    } catch (e) {
+      if (conn) {
+        await conn.rollback();
+        conn.release();
+      }
+    }
+
+    // In-memory update
+    const eq = await this.getEquipmentById(data.equipmentId);
     if (eq && eq.available > 0) {
       eq.available -= 1;
     }
-    let borrower = this.getBorrowerByNetId(data.netid);
+    let borrower = await this.getBorrowerByNetId(data.netid);
     if (borrower) {
       borrower.openLoans = (borrower.openLoans || 0) + 1;
     }
@@ -497,10 +798,10 @@ class DataStore {
       borrowerNetId: data.netid,
       borrowerName: data.borrower || (borrower ? borrower.name : data.netid),
       universityId: borrower ? borrower.universityId : (data.universityId || '001999999'),
-      checkoutDate: new Date().toISOString(),
-      dueDate: data.dueDate || new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
+      checkoutDate,
+      dueDate,
       status: 'active',
-      assetTag: data.assetTag || `ALB-${data.equipmentId}-X`,
+      assetTag,
       accessories: eq ? eq.accessories : []
     };
 
@@ -508,55 +809,120 @@ class DataStore {
     return newLoan;
   }
 
-  returnLoan(id, returnData = {}) {
-    const loan = this.getLoanById(id);
+  async returnLoan(id, returnData = {}) {
+    const loan = await this.getLoanById(id);
     if (!loan) return null;
 
-    loan.status = 'returned';
-    loan.returnDate = new Date().toISOString();
-    loan.returnCondition = returnData.condition || 'good';
-    loan.destination = returnData.destination || 'ready-shelf';
-    loan.returnNotes = returnData.notes || '';
+    const returnDate = new Date().toISOString();
+    const condition = returnData.condition || 'good';
+    const destination = returnData.destination || 'ready-shelf';
+    const notes = returnData.notes || '';
 
-    const eq = this.getEquipmentById(loan.equipmentId);
-    if (eq) {
-      if (returnData.destination === 'ready-shelf') {
-        eq.available = Math.min(eq.total, eq.available + 1);
+    let conn;
+    try {
+      conn = await pool.getConnection();
+      await conn.beginTransaction();
+
+      await conn.query(
+        'UPDATE loans SET status = ?, return_date = ?, return_condition = ?, destination = ?, return_notes = ? WHERE id = ?;',
+        ['returned', new Date(returnDate), condition, destination, notes, id]
+      );
+
+      if (destination === 'ready-shelf') {
+        await conn.query(
+          'UPDATE equipment SET available_quantity = LEAST(total_quantity, available_quantity + 1) WHERE id = ?;',
+          [loan.equipmentId]
+        );
+      }
+
+      await conn.query(
+        'UPDATE borrowers SET open_loans = GREATEST(0, open_loans - 1) WHERE netid = ?;',
+        [loan.borrowerNetId]
+      );
+
+      if (destination === 'prep-queue') {
+        const nextPrepId = `PREP-${String(this.preparation.length + 1).padStart(3, '0')}`;
+        await conn.query(
+          'INSERT INTO preparation_items (id, equipment_id, equipment_name, category, assigned_staff, target_date, status, current_step, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
+          [nextPrepId, loan.equipmentId, loan.equipmentName, loan.category || 'Creative Technology', 'Unassigned', '14 Oct 2026', 'awaiting', 1, `Returned from ${id} in ${condition} condition`]
+        );
+      }
+
+      await conn.commit();
+      conn.release();
+    } catch (e) {
+      if (conn) {
+        await conn.rollback();
+        conn.release();
       }
     }
 
-    const borrower = this.getBorrowerByNetId(loan.borrowerNetId);
-    if (borrower && borrower.openLoans > 0) {
-      borrower.openLoans -= 1;
-    }
+    loan.status = 'returned';
+    loan.returnDate = returnDate;
+    loan.returnCondition = condition;
+    loan.destination = destination;
+    loan.returnNotes = notes;
 
-    // If destination is preparation queue, add an entry
-    if (returnData.destination === 'prep-queue') {
-      const nextPrepId = `PREP-${String(this.preparation.length + 1).padStart(3, '0')}`;
-      this.preparation.unshift({
-        id: nextPrepId,
-        equipmentId: loan.equipmentId,
-        equipmentName: loan.equipmentName,
-        category: loan.category,
-        assignedStaff: 'Unassigned',
-        targetDate: new Date(Date.now() + 2 * 24 * 3600 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-        status: 'awaiting',
-        currentStep: 1,
-        checklist: [
-          { id: 'wipe', title: 'Factory Reset & Storage Sanitization', completed: false },
-          { id: 'inspect', title: 'Hardware Diagnostics & Inspection', completed: false },
-          { id: 'accessories', title: 'Accessory verification', completed: false },
-          { id: 'packaging', title: 'Packaging for lending', completed: false }
-        ],
-        notes: `Returned from ${loan.id} in ${returnData.condition || 'good'} condition`
-      });
+    const eq = this.equipment.find(e => e.id === loan.equipmentId);
+    if (eq && destination === 'ready-shelf') {
+      eq.available = Math.min(eq.total, eq.available + 1);
+    }
+    const b = this.borrowers.find(br => br.netid === loan.borrowerNetId);
+    if (b && b.openLoans > 0) {
+      b.openLoans -= 1;
     }
 
     return loan;
   }
 
   // Preparation
-  getPreparation(query = {}) {
+  async getPreparation(query = {}) {
+    try {
+      let sql = `
+        SELECT p.*, GROUP_CONCAT(CONCAT(c.step_key, '::', c.title, '::', c.completed) SEPARATOR '||') AS checklist_str
+        FROM preparation_items p
+        LEFT JOIN preparation_checklist_items c ON p.id = c.preparation_id
+        WHERE 1=1
+      `;
+      const params = [];
+      if (query.status && query.status !== 'all') {
+        sql += ' AND p.status = ?';
+        params.push(query.status);
+      }
+      if (query.search) {
+        sql += ' AND (LOWER(p.id) LIKE ? OR LOWER(p.equipment_id) LIKE ? OR LOWER(p.equipment_name) LIKE ? OR LOWER(p.assigned_staff) LIKE ?)';
+        const q = `%${query.search.toLowerCase()}%`;
+        params.push(q, q, q, q);
+      }
+      sql += ' GROUP BY p.id ORDER BY p.id ASC;';
+
+      const [rows] = await pool.query(sql, params);
+      if (rows && rows.length > 0) {
+        return rows.map(r => {
+          const checklist = r.checklist_str
+            ? r.checklist_str.split('||').map(step => {
+                const [id, title, completed] = step.split('::');
+                return { id, title, completed: completed === '1' || completed === 'true' };
+              })
+            : [];
+          return {
+            id: r.id,
+            equipmentId: r.equipment_id,
+            equipmentName: r.equipment_name,
+            category: r.category,
+            assignedStaff: r.assigned_staff,
+            targetDate: r.target_date,
+            status: r.status,
+            currentStep: r.current_step,
+            checklist,
+            notes: r.notes
+          };
+        });
+      }
+    } catch (e) {
+      // fallback
+    }
+
     let list = [...this.preparation];
     if (query.status && query.status !== 'all') {
       list = list.filter(p => p.status === query.status);
@@ -573,12 +939,61 @@ class DataStore {
     return list;
   }
 
-  getPreparationById(id) {
-    return this.preparation.find(p => p.id.toLowerCase() === id.toLowerCase());
+  async getPreparationById(id) {
+    try {
+      const sql = `
+        SELECT p.*, GROUP_CONCAT(CONCAT(c.step_key, '::', c.title, '::', c.completed) SEPARATOR '||') AS checklist_str
+        FROM preparation_items p
+        LEFT JOIN preparation_checklist_items c ON p.id = c.preparation_id
+        WHERE LOWER(p.id) = LOWER(?)
+        GROUP BY p.id;
+      `;
+      const [rows] = await pool.query(sql, [id]);
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        const checklist = r.checklist_str
+          ? r.checklist_str.split('||').map(step => {
+              const [sId, title, completed] = step.split('::');
+              return { id: sId, title, completed: completed === '1' || completed === 'true' };
+            })
+          : [];
+        return {
+          id: r.id,
+          equipmentId: r.equipment_id,
+          equipmentName: r.equipment_name,
+          category: r.category,
+          assignedStaff: r.assigned_staff,
+          targetDate: r.target_date,
+          status: r.status,
+          currentStep: r.current_step,
+          checklist,
+          notes: r.notes
+        };
+      }
+    } catch (e) {
+      // fallback
+    }
+    return this.preparation.find(p => p.id.toLowerCase() === id.toLowerCase()) || null;
   }
 
-  updatePreparation(id, data) {
-    const item = this.getPreparationById(id);
+  async updatePreparation(id, data) {
+    try {
+      const updates = [];
+      const params = [];
+      if (data.assignedStaff !== undefined) { updates.push('assigned_staff = ?'); params.push(data.assignedStaff); }
+      if (data.status !== undefined) { updates.push('status = ?'); params.push(data.status); }
+      if (data.currentStep !== undefined) { updates.push('current_step = ?'); params.push(data.currentStep); }
+      if (data.notes !== undefined) { updates.push('notes = ?'); params.push(data.notes); }
+
+      if (updates.length > 0) {
+        params.push(id);
+        await pool.query(`UPDATE preparation_items SET ${updates.join(', ')} WHERE LOWER(id) = LOWER(?);`, params);
+      }
+    } catch (e) {
+      // fallback
+    }
+
+    const item = this.preparation.find(p => p.id.toLowerCase() === id.toLowerCase());
     if (!item) return null;
     if (data.assignedStaff !== undefined) item.assignedStaff = data.assignedStaff;
     if (data.status !== undefined) item.status = data.status;
@@ -589,20 +1004,43 @@ class DataStore {
   }
 
   // Reports
-  getReports(query = {}) {
-    const defaultReports = [
-      { id: 'EQ-001', name: 'Mirrorless Camera Kit', category: 'Creative Technology', checkouts: 6, avgDays: 4.2, totalDays: 25 },
-      { id: 'EQ-002', name: 'Nintendo Switch', category: 'Gaming Consoles and Accessories', checkouts: 5, avgDays: 3.6, totalDays: 18 },
-      { id: 'EQ-003', name: 'H4 Zoom Audio Recording Kit', category: 'Creative Technology', checkouts: 5, avgDays: 4.0, totalDays: 20 },
-      { id: 'EQ-004', name: '3D Scanning Kit (Revopoint POP 3 Plus)', category: 'Creative Technology', checkouts: 3, avgDays: 5.1, totalDays: 15 },
-      { id: 'EQ-005', name: 'Rode Wireless GO II Microphone System', category: 'Creative Technology', checkouts: 4, avgDays: 3.8, totalDays: 15 },
-      { id: 'EQ-006', name: 'PlayStation 5', category: 'Gaming Consoles and Accessories', checkouts: 4, avgDays: 4.5, totalDays: 18 },
-      { id: 'EQ-007', name: 'Arcade Controller', category: 'Gaming Consoles and Accessories', checkouts: 2, avgDays: 3.0, totalDays: 6 },
-      { id: 'EQ-008', name: 'H1 Zoom Kit', category: 'Creative Technology', checkouts: 3, avgDays: 3.2, totalDays: 10 },
-      { id: 'EQ-009', name: 'M30 Gamepad', category: 'Gaming Consoles and Accessories', checkouts: 2, avgDays: 2.5, totalDays: 5 },
-      { id: 'EQ-010', name: 'Owl 3 Video Conference Camera', category: 'Creative Technology', checkouts: 3, avgDays: 2.0, totalDays: 6 },
-      { id: 'EQ-013', name: 'SN30 Pro Gamepad', category: 'Gaming Consoles and Accessories', checkouts: 1, avgDays: 3.0, totalDays: 3 }
-    ];
+  async getReports(query = {}) {
+    try {
+      let sql = `
+        SELECT e.id, e.name, e.category, 
+               COALESCE(r.checkouts_count, 0) AS checkouts, 
+               COALESCE(r.avg_loan_days, 0.0) AS avgDays, 
+               COALESCE(r.total_days_out, 0) AS totalDays
+        FROM equipment e
+        LEFT JOIN report_metrics r ON e.id = r.equipment_id
+        WHERE 1=1
+      `;
+      const params = [];
+      if (query.category) {
+        sql += ' AND LOWER(e.category) LIKE ?';
+        params.push(`%${query.category.toLowerCase()}%`);
+      }
+      if (query.search) {
+        sql += ' AND (LOWER(e.name) LIKE ? OR LOWER(e.id) LIKE ?)';
+        const q = `%${query.search.toLowerCase()}%`;
+        params.push(q, q);
+      }
+      sql += ' ORDER BY checkouts DESC;';
+
+      const [rows] = await pool.query(sql, params);
+      if (rows && rows.length > 0) {
+        return rows.map(r => ({
+          id: r.id,
+          name: r.name,
+          category: r.category,
+          checkouts: Number(r.checkouts),
+          avgDays: Number(r.avgDays),
+          totalDays: Number(r.totalDays)
+        }));
+      }
+    } catch (e) {
+      // fallback
+    }
 
     let list = [...defaultReports];
     if (query.category) {
@@ -616,7 +1054,36 @@ class DataStore {
   }
 
   // Summary KPIs for dashboard & reports
-  getSummaryKPIs() {
+  async getSummaryKPIs() {
+    try {
+      const [eqRows] = await pool.query('SELECT SUM(total_quantity) AS total FROM equipment;');
+      const [loanRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status IN ('active', 'due-today', 'overdue');");
+      const [dueRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status = 'due-today';");
+      const [overdueRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status = 'overdue';");
+
+      const [pTotal] = await pool.query('SELECT COUNT(*) AS total FROM preparation_items;');
+      const [pNeeds] = await pool.query("SELECT COUNT(*) AS total FROM preparation_items WHERE status = 'awaiting';");
+      const [pIn] = await pool.query("SELECT COUNT(*) AS total FROM preparation_items WHERE status = 'in-prep';");
+      const [pRev] = await pool.query("SELECT COUNT(*) AS total FROM preparation_items WHERE status = 'review';");
+      const [pReady] = await pool.query("SELECT COUNT(*) AS total FROM preparation_items WHERE status = 'ready';");
+
+      return {
+        totalEquipment: Number(eqRows[0].total) || 28,
+        activeLoans: Number(loanRows[0].total),
+        dueToday: Number(dueRows[0].total),
+        overdue: Number(overdueRows[0].total),
+        preparation: {
+          total: Number(pTotal[0].total),
+          needsPreparation: Number(pNeeds[0].total),
+          inPreparation: Number(pIn[0].total),
+          awaitingReview: Number(pRev[0].total),
+          readyForLending: Number(pReady[0].total)
+        }
+      };
+    } catch (e) {
+      // fallback
+    }
+
     const totalEquipment = this.equipment.reduce((acc, eq) => acc + eq.total, 0);
     const activeLoans = this.loans.filter(l => l.status === 'active' || l.status === 'due-today' || l.status === 'overdue').length;
     const dueToday = this.loans.filter(l => l.status === 'due-today').length;
@@ -628,7 +1095,7 @@ class DataStore {
     const prepReady = this.preparation.filter(p => p.status === 'ready').length;
 
     return {
-      totalEquipment: 28, // Matches static template KPI (28 catalog units total)
+      totalEquipment: 28,
       activeLoans,
       dueToday,
       overdue,

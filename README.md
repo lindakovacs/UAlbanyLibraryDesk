@@ -139,6 +139,12 @@ A Node.js and Express backend service powers the application API and can also se
 - `GET http://localhost:3000/health` or `GET http://localhost:3000/api/health` — Returns status (`200 OK`), uptime, timestamp, environment, database status, and version.
 - `GET http://localhost:3000/ready` or `GET http://localhost:3000/api/ready` — Readiness probe for monitoring and deployments.
 
+### Authentication Endpoints (JWT & bcrypt)
+- `POST /api/auth/login` — Authenticates NetID and password using bcrypt comparison; returns user profile and signed JWT Bearer token (`tokenType: Bearer`, 7-day expiration).
+- `GET /api/auth/getCurrentUser` (or `/api/auth/me`) — Protected route; requires `Authorization: Bearer <token>`; returns active staff profile and permissions.
+- `POST /api/auth/register` — Registers new staff member with bcrypt-hashed password (10 salt rounds); issues signed JWT token.
+- `POST /api/auth/logout` — Signs out staff user session.
+
 ## MySQL Database Setup & VS Code Guide
 
 A step-by-step guide for developers downloading and setting up the database in Visual Studio Code:
@@ -222,6 +228,198 @@ Open [`server/SQLQueries.sql`](./server/SQLQueries.sql) in VS Code. This file co
 
 Highlight any query in VS Code and press `Ctrl + Alt + E` (or `Cmd + Enter`) to execute it and view results in the integrated data panel.
 
+## End-to-End Integration Testing (Frontend + Backend + Database)
+
+This section guides you through testing the full-stack system with all three tiers—**Client-Side Frontend (HTML/CSS/JS)**, **Node.js/Express API Backend**, and **MySQL Database**—connected and communicating in real time. For a complete command reference and copy-paste script catalog, see [`instructions/test-connection.md`](./instructions/test-connection.md).
+
+```text
+┌───────────────────────────┐         HTTP / JSON API (Fetch)        ┌───────────────────────────┐        mysql2 / Pool & Transactions      ┌───────────────────────────┐
+│     Frontend Client       │ ◄────────────────────────────────────► │    Node.js / Express API  │ ◄──────────────────────────────────────► │       MySQL Database      │
+│  (HTML5 / CSS3 / Vanilla  │       Authorization: Bearer <JWT>      │  (Port 3000, Auth Routes, │         Connection Pooling (3306),       │  (Database: ualbanylibrary│
+│    JS & api-client.js)    │                                        │  Circulation Controllers) │         ACID Relational Storage)         │   desk, 8 Relational Tbls)│
+└───────────────────────────┘                                        └───────────────────────────┘                                          └───────────────────────────┘
+```
+
+---
+
+### Step 1: Confirm MySQL Service & Database Readiness
+
+Before starting the application, ensure MySQL is running locally and the `ualbanylibrarydesk` database contains initial tables and seed data:
+
+1. Confirm MySQL is running on your system:
+   ```bash
+   # On macOS via Homebrew:
+   brew services list
+   ```
+2. Run the database diagnostic tool to verify all 8 tables and records:
+   ```bash
+   npm run db:check
+   ```
+   *If starting fresh or tables are missing, run `npm run db:init` to create all 8 tables and populate the initial seed records.*
+
+---
+
+### Step 2: Start the Backend Server
+
+Start the Node.js Express server from the project root directory:
+
+```bash
+npm start
+```
+*(or use `npm run dev` for automatic server reload on file changes)*
+
+Verify the server and database connection banner in your terminal:
+```text
+==================================================
+  UAlbany LibraryDesk API Server
+==================================================
+  Port        : 3000
+  Environment : development
+  Frontend URL: http://localhost:3000
+==================================================
+Connecting to MySQL database 'ualbanylibrarydesk' on localhost:3306...
+✓ MySQL Connection Pool Initialized Successfully
+✓ Connected to database: ualbanylibrarydesk
+✓ Server ready to accept requests
+```
+
+---
+
+### Step 3: Verify Backend & Database Connectivity via Health Endpoint
+
+Before opening the user interface, verify the backend API can communicate with MySQL by querying the health endpoint:
+
+- **Browser URL:** [http://localhost:3000/api/health](http://localhost:3000/api/health)
+- **Terminal command:**
+  ```bash
+  curl -s http://localhost:3000/api/health
+  ```
+
+**Expected JSON Response (`200 OK`):**
+```json
+{
+  "status": "ok",
+  "uptime": 14.85,
+  "timestamp": "2026-11-08T18:00:00.000Z",
+  "environment": "development",
+  "database": {
+    "status": "connected",
+    "name": "ualbanylibrarydesk",
+    "host": "localhost"
+  },
+  "version": "1.0.0"
+}
+```
+*When `database.status` reports `"connected"`, the Express backend is actively querying the MySQL server pool.*
+
+---
+
+### Step 4: Step-by-Step End-to-End Workflow in the Browser
+
+Open your browser and navigate to the application:
+👉 **[http://localhost:3000/](http://localhost:3000/)**
+
+#### 1. Staff Authentication Test (Frontend ➔ API ➔ MySQL `staff_users` ➔ JWT)
+1. Go to the staff sign-in page: [http://localhost:3000/login.html](http://localhost:3000/login.html).
+2. Enter the default seeded staff credentials:
+   - **NetID:** `linda.kovacs`
+   - **Password:** `password123`
+3. Click **Sign in**.
+   - **Behind the scenes:**
+     - The client-side handler in `api-client.js` sends `POST /api/auth/login`.
+     - The Express server queries MySQL: `SELECT * FROM staff_users WHERE netid = 'linda.kovacs'`.
+     - The server compares the submitted password against the stored bcrypt hash with `bcrypt.compare`.
+     - A signed JWT token is issued and returned in the response payload.
+     - `api-client.js` securely saves the token in browser `localStorage` (`librarydesk_token`) and redirects to `index.html`.
+4. **Negative Test (Wrong Password):**
+   - Click **Sign out** and attempt to sign in with NetID `linda.kovacs` and password `wrongpass`.
+   - The backend responds with `401 Unauthorized` (`"Invalid NetID or password"`).
+   - An accessible error alert banner appears on the login card without a page reload.
+
+#### 2. Staff Profile & Session Verification
+1. Navigate to [http://localhost:3000/profile.html](http://localhost:3000/profile.html).
+2. The page invokes `window.LibraryDeskAPI.getCurrentUser()` with the Bearer authorization header (`Authorization: Bearer <token>`).
+3. The server validates the JWT signature and returns the authenticated staff user's name, NetID, division, workstation, and permissions.
+
+#### 3. Equipment Catalog & Filtering Test (Frontend ➔ API ➔ MySQL `equipment`)
+1. Navigate to [http://localhost:3000/equipment.html](http://localhost:3000/equipment.html).
+2. The collection displays 13 equipment items populated from `GET /api/equipment`.
+3. Select a category from the dropdown (e.g., **"Creative Technology"**, **"Computing"**, or **"Audio/Visual"**).
+4. Enter search terms in the search bar. The client filters matching items matching data in the MySQL `equipment` table.
+
+#### 4. New Equipment Checkout Test (Frontend ➔ API ➔ MySQL Transaction)
+1. Navigate to [http://localhost:3000/new-loan.html](http://localhost:3000/new-loan.html).
+2. Fill out the checkout form:
+   - **Borrower NetID:** `emma.wilson` (or choose another registered borrower)
+   - **Equipment:** Select `EQ-001` (*Sony Alpha A7 IV Kit*)
+   - **Asset Tag:** `CAM-042`
+3. Click **Complete checkout**.
+   - **Behind the scenes:**
+     - The form submits to `POST /api/loans`.
+     - The backend executes an atomic MySQL transaction (`START TRANSACTION`):
+       - Inserts a new loan record into `loans` with `status = 'active'`.
+       - Decrements `available_count` for `EQ-001` in `equipment`.
+       - Increments `active_loans_count` for `emma.wilson` in `borrowers`.
+       - Commits the transaction (`COMMIT`).
+4. You are redirected to [http://localhost:3000/loans.html](http://localhost:3000/loans.html), where the newly created active loan appears in the loans table.
+
+#### 5. Verify the Transaction Directly in MySQL (VS Code Extension or Terminal)
+In VS Code, open [`server/SQLQueries.sql`](./server/SQLQueries.sql) and run the queries under **Section 5 (Circulation & Loans Management)**:
+```sql
+-- 1. Verify the newly created loan row:
+SELECT loan_id, borrower_name, netid, equipment_name, status, checkout_date, due_date
+FROM loans
+ORDER BY loan_id DESC
+LIMIT 1;
+
+-- 2. Verify equipment available count was decremented:
+SELECT equipment_id, name, available_count, total_count
+FROM equipment
+WHERE equipment_id = 'EQ-001';
+
+-- 3. Verify borrower active loans count was incremented:
+SELECT netid, full_name, active_loans_count
+FROM borrowers
+WHERE netid = 'emma.wilson';
+```
+
+#### 6. Equipment Return Check-in Test (Frontend ➔ API ➔ MySQL Return & Preparation)
+1. Navigate to [http://localhost:3000/return-item.html](http://localhost:3000/return-item.html).
+2. Select the open loan from the dropdown selector.
+3. Choose the condition (e.g., **"Good"**) and next destination (e.g., **"Prep Queue"** or **"Ready Shelf"**).
+4. Click **Confirm return**.
+   - The frontend dispatches `POST /api/loans/:id/return`.
+   - The server updates the loan in MySQL to `status = 'returned'` and stamps `return_date = NOW()`.
+   - If destination was set to prep queue, a new record is added to `preparation_items`.
+   - The loan is closed and removed from active loans on `loans.html`.
+
+#### 7. Session Sign Out
+1. Click **Sign out** in the sidebar navigation or header profile menu.
+2. The client calls `POST /api/auth/logout`, clears the JWT Bearer token and user session from `localStorage`, and safely redirects to `login.html`.
+
+---
+
+### Step 5: Run Automated Integration Tests
+
+Execute the automated test suite to run all health check and REST API integration tests against the server and database:
+
+```bash
+npm test
+```
+
+This runs both test files:
+- **`tests/health.test.js`** — 6 tests verifying health status (`/health`, `/api/health`, `/ready`, `/api/ready`), CORS security headers, and 404 handler.
+- **`tests/api.test.js`** — 24 tests verifying staff authentication, bcrypt password hashing, JWT token validation, protected route access control, equipment catalog endpoints, borrower lookups, loan checkout transactions, return workflows, preparation pipeline, and summary KPI analytics.
+
+**Expected test output:**
+```text
+✓ 6 passed in tests/health.test.js
+✓ 24 passed in tests/api.test.js
+-----------------------------------------
+Tests: 30 passed, 0 failed, 30 total
+-----------------------------------------
+```
+
 ## Project Structure
 
 ```
@@ -231,7 +429,8 @@ Highlight any query in VS Code and press `Ctrl + Alt + E` (or `Cmd + Enter`) to 
 │   ├── favicon.svg
 │   └── library-equipment.jpg
 ├── instructions/
-│   └── README.md
+│   ├── README.md
+│   └── test-connection.md
 ├── server/
 │   ├── .env.example
 │   ├── SQLQueries.sql
@@ -239,7 +438,10 @@ Highlight any query in VS Code and press `Ctrl + Alt + E` (or `Cmd + Enter`) to 
 │   ├── config/
 │   │   ├── db.js
 │   │   └── index.js
+│   ├── data/
+│   │   └── store.js
 │   ├── middleware/
+│   │   ├── auth.js
 │   │   ├── db.js
 │   │   ├── errorHandler.js
 │   │   ├── logger.js
@@ -259,8 +461,10 @@ Highlight any query in VS Code and press `Ctrl + Alt + E` (or `Cmd + Enter`) to 
 │   ├── index.js
 │   └── server.js
 ├── tests/
+│   ├── api.test.js
 │   └── health.test.js
 ├── .env.example
+├── api-client.js
 ├── package.json
 ├── package-lock.json
 ├── borrowers.html

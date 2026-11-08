@@ -137,6 +137,7 @@ Introduce persistence after the API shape is stable.
 - Run formatting, linting, type checks, unit tests, integration tests, and a
   production build.
 - Review environment-variable documentation and startup instructions.
+- See [test-connection.md](./test-connection.md) for the complete full-stack integration and test scripts guide.
 
 ## 8. Render deployment
 

@@ -1,9 +1,13 @@
 .DS_Store
 
-# Local environment files
+# Local environment files (contain secrets, never commit)
 .env
 .env.*
+*.env
+**/.env
+**/.env.*
 !.env.example
+!server/.env.example
 
 # Python
 __pycache__/

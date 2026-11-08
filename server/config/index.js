@@ -23,6 +23,12 @@ const config = {
   isProduction: process.env.NODE_ENV === 'production',
   isTest: process.env.NODE_ENV === 'test',
 
+  // JWT Authentication settings
+  jwt: {
+    secret: process.env.JWT_SECRET || 'ualbany_librarydesk_super_secret_jwt_key_2026',
+    expiresIn: process.env.JWT_EXPIRE || '7d'
+  },
+
   // Database settings
   db: {
     host: process.env.DB_HOST || 'localhost',

@@ -174,8 +174,8 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- SEED DATA INSERTION
 -- =============================================================================
 
--- Seed Staff User
-INSERT INTO `staff_users` (`netid`, `name`, `university_id`, `department`, `division`, `email`, `role`, `desk_station`, `workstation_id`, `permissions`, `status`)
+-- Seed Staff User (Default password: password123)
+INSERT INTO `staff_users` (`netid`, `name`, `university_id`, `department`, `division`, `email`, `role`, `desk_station`, `workstation_id`, `permissions`, `password_hash`, `status`)
 VALUES (
   'linda.kovacs',
   'Linda Kovacs',
@@ -187,8 +187,9 @@ VALUES (
   'Uptown Circulation Desk #2',
   'DESK-CIRC-02 (Uptown)',
   '["checkout", "return", "review", "reports"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
   'active'
-) ON DUPLICATE KEY UPDATE `name`=VALUES(`name`);
+) ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `password_hash`=VALUES(`password_hash`);
 
 -- Seed Equipment Catalog (13 items)
 INSERT INTO `equipment` (`id`, `name`, `category`, `available_quantity`, `total_quantity`, `status`, `description`) VALUES
