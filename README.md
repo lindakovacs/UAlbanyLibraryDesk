@@ -1,8 +1,8 @@
-# UAlbany LibraryDesk (Static UI)
+# UAlbany LibraryDesk Portal
 
 UAlbany LibraryDesk is an Equipment and Resource Management System designed for University at Albany library circulation staff to streamline the tracking, preparation, sanitization, assignment, circulation, and reporting of university equipment. The system addresses challenges identified during stakeholder interviews related to equipment readiness, borrower accountability, historical usage reporting, and workflow visibility.
 
-This project provides page layouts for authentication, circulation management, borrower directories, multi-step equipment preparation workflows, administrative reporting, and shared web component modules. It is intended as a front-end template and does not include a back-end or database integration in this phase.
+This Project is a Full-stack web application, a complete production-ready solution with a modern frontend (HTML/CSS/JavaScript), backend API (Node.js/Express), and MySQL database. Features include NetID user authentication, staff profiles, equipment inventory tracking, multi-step preparation and sanitization workflows, checkouts, returns, borrower accountability, automated reporting, and real-time alerts.
 
 ## Features & Interactivity
 
@@ -88,8 +88,8 @@ Custom Web Components implemented in `components.js`:
 Clone the project to your local machine using Git:
 
 ```bash
-git clone https://github.com/lindakovacs/UAlbany_LibraryDesk.git
-cd UAlbany_LibraryDesk
+git clone https://github.com/lindakovacs/UAlbanyLibraryDesk.git
+cd UAlbanyLibraryDesk
 ```
 
 Alternatively, download the ZIP archive by clicking the green **Code** button on GitHub and selecting **Download ZIP**, then extract the folder on your computer.
@@ -99,6 +99,45 @@ Alternatively, download the ZIP archive by clicking the green **Code** button on
 Open any HTML file in your browser (for example, in VS Code, right-click on `index.html` or `login.html` and select **"Open with Live Server"**, or use the keyboard shortcut `Alt + L` then `Alt + O`). 
 
 Alternatively, open `index.html` directly in any modern web browser. No build step, bundler, or local server is required for this Static UI phase.
+
+## Backend & API Server (Node.js & Express)
+
+A Node.js and Express backend service powers the application API and can also serve the static front-end assets:
+
+### Prerequisites
+- Node.js (`>= 16.0.0`)
+- npm (`>= 8.0.0`)
+
+### Setup & Running
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+2. **Environment configuration:**
+   Copy `.env.example` to `.env` (default values run out-of-the-box on port 3000):
+   ```bash
+   cp .env.example .env
+   ```
+3. **Start the server:**
+   ```bash
+   npm start
+   ```
+   For development with hot reloading:
+   ```bash
+   npm run dev
+   ```
+4. **View the application:**
+   Open [http://localhost:3000/](http://localhost:3000/) in your web browser to view the project.
+
+5. **Run automated tests:**
+   ```bash
+   npm test
+   ```
+
+### Application & Health Check Endpoints
+- `GET http://localhost:3000/` — Main portal interface (serves the client-side JavaScript frontend)
+- `GET http://localhost:3000/health` or `GET http://localhost:3000/api/health` — Returns status (`200 OK`), uptime, timestamp, environment, and version.
+- `GET http://localhost:3000/ready` or `GET http://localhost:3000/api/ready` — Readiness probe for monitoring and deployments.
 
 ## Project Structure
 
@@ -110,6 +149,21 @@ Alternatively, open `index.html` directly in any modern web browser. No build st
 │   └── library-equipment.jpg
 ├── instructions/
 │   └── README.md
+├── server/
+│   ├── config/
+│   │   └── index.js
+│   ├── middleware/
+│   │   ├── errorHandler.js
+│   │   └── logger.js
+│   ├── routes/
+│   │   └── health.js
+│   ├── app.js
+│   └── index.js
+├── tests/
+│   └── health.test.js
+├── .env.example
+├── package.json
+├── package-lock.json
 ├── borrowers.html
 ├── components.js
 ├── equipment.html
@@ -145,7 +199,7 @@ The project implementation milestones:
 1. Repository boilerplate
 2. HTML pages and components
 3. CSS styling
-4. JavaScript, Python-rendered frontend
+4. Client-side JavaScript frontend
 5. Node.js and Express backend
 6. MySQL persistence
 7. Render deployment
@@ -154,10 +208,11 @@ See [`instructions/`](./instructions/) for the complete implementation sequence.
 
 ## Technologies
 
-Stack: HTML5, CSS3, JavaScript, Web Components, DOM, Python, Git, GitHub, Form validation, Database, and GitHub Pages.
+Stack: HTML5, CSS3, JavaScript, Web Components, DOM, Node.js, Express, Git, GitHub, Form validation, Database, and GitHub Pages.
 
 ## Project Links
 
+- [GitHub Repository - Version Control & Collaboration](https://github.com/lindakovacs/UAlbanyLibraryDesk)
 - [Figma Prototype](https://www.figma.com/proto/hOLNuCHjmtsA7JDbaTkGuS/UAlbany-LibraryDesk?node-id=81-259&p=f&t=FXax9FUBmLrjkIsb-0&scaling=scale-down-width&content-scaling=fixed&page-id=0%3A1&starting-point-node-id=81%3A259)
-- [GitHub Pages – Static Website Deployment](https://lindakovacs.github.io/UAlbany_LibraryDesk/)
-- [GitHub Repository](https://github.com/lindakovacs/UAlbany_LibraryDesk)
+- [GitHub Pages – Static Website Deployment & Hosting](https://lindakovacs.github.io/UAlbany_LibraryDesk/)
+- [GitHub Repository - Version Control & Collaboration​ - Static Version](https://github.com/lindakovacs/UAlbany_LibraryDesk)

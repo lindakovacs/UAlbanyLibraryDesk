@@ -12,8 +12,8 @@ let the project owner choose what to stage and commit.
    in a browser and commit it separately.
 3. **CSS** — Add layout, typography, color, responsive behavior, and states in
    small focused commits.
-4. **Python-rendered frontend** — Add the server-rendered frontend and connect
-   the completed HTML/CSS views without changing unrelated screens.
+4. **Client-Side JavaScript Frontend** — Pure JavaScript frontend (HTML/CSS/JS
+   Web Components and PJAX client-side architecture; no Python frontend).
 5. **Express backend** — Add the Node.js/Express API incrementally, with
    validation and focused tests for each route.
 6. **MySQL database** — Add the schema and migrations before wiring persistence
@@ -69,24 +69,24 @@ Style the completed HTML incrementally.
 Validate each cohesive styling change in a browser and commit it manually as a
 separate focused change.
 
-## 4. JavaScript, Python frontend
+## 4. Client-Side JavaScript Frontend
 
-Add Python server-rendered frontend behavior after the static views are stable.
+The frontend is implemented with client-side JavaScript, Web Components,
+and HTML5/CSS3.
 
-1. Choose and document the Python web framework and supported Python version.
-2. Create the Python application entry point and local development command.
-3. Move the shared HTML shell into templates.
-4. Move each completed page into a template without changing its visual
-   behavior.
-5. Add static asset serving for CSS, images, and browser-side JavaScript.
-6. Add server-side form parsing and validation for the login, checkout,
-   assignment, checklist, and review forms.
-7. Return clear validation errors and preserve submitted values when a form
-   fails.
-8. Add focused tests for routes, templates, validation, and error responses.
-
-Keep the frontend presentation separate from database access and external
-services. Verify the local Python application before each manual commit.
+1. Create the JavaScript application entry point and local development command.
+2. Move the shared HTML shell into templates.
+3. Move each completed page into a template without changing its visual behavior.
+4. Add static asset serving for CSS, images, and browser-side JavaScript.
+5. Add server-side form parsing and validation for the login, checkout, assignment, checklist, and review forms.
+6. Return clear validation errors and preserve submitted values when a form fails.
+7. Add focused tests for routes, templates, validation, and error responses.
+8. Static pages and custom elements (`components.js`) provide client-side layout
+   and interaction.
+9. PJAX-style client-side navigation handles responsive, flicker-free page loads.
+10. Client-side form handlers and data tables communicate directly with the
+   backend API via `fetch()`.
+11. Keep frontend presentation separate from backend database access and services.
 
 ## 5. Express backend
 
@@ -105,7 +105,7 @@ Add the Node.js/Express API as a separate backend service.
 8. Validate request bodies, route parameters, query parameters, and
    authorization for every endpoint.
 9. Add automated route and error-path tests.
-10. Connect the Python frontend to the API only after the API contract is
+10. Connect the JavaScript frontend to the API only after the API contract is
     verified.
 
 Do not place database credentials or private keys in source control.
@@ -142,7 +142,7 @@ Introduce persistence after the API shape is stable.
 
 Deploy only after local verification is complete.
 
-1. Create separate Render services for the Python frontend and Express API,
+1. Create Render service for the Express API and frontend assets,
    unless a documented alternative is selected.
 2. Provision a managed MySQL-compatible database supported by the deployment
    design.
