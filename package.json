@@ -2,22 +2,25 @@
   "name": "ualbany-librarydesk",
   "version": "1.0.0",
   "description": "Equipment and Resource Management System for University at Albany library circulation desk",
-  "main": "server/index.js",
+  "main": "server/server.js",
   "engines": {
     "node": ">=16.0.0",
     "npm": ">=8.0.0"
   },
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "nodemon server/index.js",
-    "test": "node tests/health.test.js"
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js",
+    "test": "node tests/health.test.js && node tests/api.test.js",
+    "db:check": "node server/check-db.js",
+    "db:init": "node server/scripts/run-migrations.js"
   },
   "keywords": [
     "ualbany",
     "library",
     "equipment-management",
     "express",
-    "nodejs"
+    "nodejs",
+    "mysql"
   ],
   "author": "Linda Kovacs, Veronica Dindial, Rym Mahiddine, Wendy Ouedraogo, Amari Scott",
   "license": "MIT",
@@ -25,7 +28,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "mysql2": "^3.9.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.0",

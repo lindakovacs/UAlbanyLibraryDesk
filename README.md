@@ -136,8 +136,91 @@ A Node.js and Express backend service powers the application API and can also se
 
 ### Application & Health Check Endpoints
 - `GET http://localhost:3000/` — Main portal interface (serves the client-side JavaScript frontend)
-- `GET http://localhost:3000/health` or `GET http://localhost:3000/api/health` — Returns status (`200 OK`), uptime, timestamp, environment, and version.
+- `GET http://localhost:3000/health` or `GET http://localhost:3000/api/health` — Returns status (`200 OK`), uptime, timestamp, environment, database status, and version.
 - `GET http://localhost:3000/ready` or `GET http://localhost:3000/api/ready` — Readiness probe for monitoring and deployments.
+
+## MySQL Database Setup & VS Code Guide
+
+A step-by-step guide for developers downloading and setting up the database in Visual Studio Code:
+
+### 1. Prerequisites
+- **MySQL Server** installed and running on your local machine:
+  - **macOS (Homebrew):** `brew install mysql && brew services start mysql`
+  - **Windows / Mac (MySQL Installer):** Download from [mysql.com](https://dev.mysql.com/downloads/mysql/) and ensure the MySQL service is started.
+  - **Docker:** `docker run --name ualbany-mysql -e MYSQL_ROOT_PASSWORD=your_actual_password_here -e MYSQL_DATABASE=ualbanylibrarydesk -p 3306:3306 -d mysql:latest`
+- **Recommended VS Code Extension:**
+  - **MySQL** (by Weihan Chen / cweijan) or **SQLTools** with MySQL driver.
+
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env` in the project root (or inside `server/.env`):
+```bash
+cp .env.example .env
+```
+Open `.env` in VS Code and fill in your actual MySQL credentials:
+```ini
+FRONTEND_URL=http://localhost:3000
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_actual_password_here
+DB_NAME=ualbanylibrarydesk
+```
+
+### 3. Initialize the Database Schema & Seed Data
+You can initialize the database using any of these methods:
+
+**Method A: Automated Migration Command (Fastest)**
+Run the migration script to automatically connect to MySQL, create the `ualbanylibrarydesk` database, generate all tables with foreign keys and indexes, and seed initial records:
+```bash
+npm run db:init
+```
+
+**Method B: Inside VS Code with MySQL Extension**
+1. In the VS Code Activity Bar, click the **Database** icon and click **+ Add Connection**.
+2. Enter your MySQL connection credentials:
+   - Host: `localhost`
+   - Port: `3306`
+   - User: `root`
+   - Password: `your_actual_password_here`
+3. Open [`server/scripts/init-db.sql`](./server/scripts/init-db.sql) in VS Code.
+4. Right-click anywhere inside the file and select **Run MySQL Query** (or click the **Execute** button at the top).
+
+**Method C: Via Terminal CLI**
+```bash
+mysql -u root -p < server/scripts/init-db.sql
+```
+
+### 4. Verify Database Health & Diagnostics
+Run the database diagnostic tool to verify connectivity and view record counts across all tables:
+```bash
+npm run db:check
+```
+
+Expected output:
+```text
+✓ MySQL Server Connected Successfully!
+✓ Found 8 tables in database 'ualbanylibrarydesk':
+   - borrowers                    : 5 records
+   - equipment                    : 13 records
+   - equipment_accessories        : 27 records
+   - loans                        : 5 records
+   - preparation_checklist_items  : 16 records
+   - preparation_items            : 4 records
+   - report_metrics               : 11 records
+   - staff_users                  : 1 records
+```
+
+### 5. Running Test Queries in VS Code
+Open [`server/SQLQueries.sql`](./server/SQLQueries.sql) in VS Code. This file contains structured, ready-to-run queries:
+- **System Health:** Version checks, table lists, and row counts.
+- **Staff Authentication:** Staff credential lookups and workstation status.
+- **Equipment Catalog:** Live search, category filtering, availability, and accessory manifests.
+- **Borrower Directory:** Active accounts, standing checks, and open loan counts.
+- **Circulation & Loans:** Active loans, due today, overdue items, checkout transactions, and return workflows.
+- **Preparation Pipeline:** Status queues, multi-step sanitization checklists, and supervisor reviews.
+- **Analytics & KPIs:** Dashboard KPI metrics and CSV reporting data.
+
+Highlight any query in VS Code and press `Ctrl + Alt + E` (or `Cmd + Enter`) to execute it and view results in the integrated data panel.
 
 ## Project Structure
 
@@ -150,15 +233,31 @@ A Node.js and Express backend service powers the application API and can also se
 ├── instructions/
 │   └── README.md
 ├── server/
+│   ├── .env.example
+│   ├── SQLQueries.sql
+│   ├── check-db.js
 │   ├── config/
+│   │   ├── db.js
 │   │   └── index.js
 │   ├── middleware/
+│   │   ├── db.js
 │   │   ├── errorHandler.js
-│   │   └── logger.js
+│   │   ├── logger.js
+│   │   └── validate.js
 │   ├── routes/
-│   │   └── health.js
+│   │   ├── auth.js
+│   │   ├── borrowers.js
+│   │   ├── equipment.js
+│   │   ├── health.js
+│   │   ├── loans.js
+│   │   ├── preparation.js
+│   │   └── reports.js
+│   ├── scripts/
+│   │   ├── init-db.sql
+│   │   └── run-migrations.js
 │   ├── app.js
-│   └── index.js
+│   ├── index.js
+│   └── server.js
 ├── tests/
 │   └── health.test.js
 ├── .env.example
@@ -208,7 +307,11 @@ See [`instructions/`](./instructions/) for the complete implementation sequence.
 
 ## Technologies
 
-Stack: HTML5, CSS3, JavaScript, Web Components, DOM, Node.js, Express, Git, GitHub, Form validation, Database, and GitHub Pages.
+- Frontend: HTML5, CSS3, JavaScript (Vanilla - no frameworks), DOM Manipulation, Fetch API
+- Backend: Node.js, Express.js, MySQL database, JWT Authentication, bcryptjs
+- Security: JWT tokens, bcrypt hashing, input validation, XSS prevention, CSRF protection
+- Deployment: Render (free tier with HTTPS, auto-deploy from GitHub)
+- DevTools: Git, GitHub, npm, nodemon, Postman
 
 ## Project Links
 

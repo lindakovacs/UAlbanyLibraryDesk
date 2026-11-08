@@ -1,0 +1,193 @@
+const assert = require('assert');
+const request = require('supertest');
+
+// Set NODE_ENV to test to suppress access logs during testing
+process.env.NODE_ENV = 'test';
+
+const app = require('../server/app');
+
+async function runTests() {
+  console.log('--- Running API and Resource Tests ---\n');
+  let passed = 0;
+  let failed = 0;
+
+  async function test(name, fn) {
+    try {
+      await fn();
+      console.log(`✓ PASS: ${name}`);
+      passed++;
+    } catch (err) {
+      console.error(`✗ FAIL: ${name}`);
+      console.error(err);
+      failed++;
+    }
+  }
+
+  // 1. Health & System
+  await test('GET /health returns status ok with environment and database status', async () => {
+    const res = await request(app).get('/health');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.status, 'ok');
+    assert(res.body.timestamp);
+    assert(res.body.database);
+  });
+
+  // 2. Auth & Session
+  await test('POST /api/auth/login authenticates staff credentials', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ netid: 'linda.kovacs', password: 'password123' });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.status, 'success');
+    assert.strictEqual(res.body.session.authenticated, true);
+    assert.strictEqual(res.body.session.user.netid, 'linda.kovacs');
+  });
+
+  await test('POST /api/auth/login fails without required fields', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ netid: 'linda.kovacs' });
+    assert.strictEqual(res.status, 400);
+    assert.strictEqual(res.body.error, 'Bad Request');
+  });
+
+  await test('GET /api/auth/session returns active staff session', async () => {
+    const res = await request(app).get('/api/auth/session');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.session.authenticated, true);
+    assert.strictEqual(res.body.session.user.role, 'Authorized Circulation Specialist');
+  });
+
+  // 3. Equipment
+  await test('GET /api/equipment returns full collection (13 items)', async () => {
+    const res = await request(app).get('/api/equipment');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.total, 13);
+    assert(Array.isArray(res.body.equipment));
+  });
+
+  await test('GET /api/equipment?category=Creative%20Technology filters by category', async () => {
+    const res = await request(app).get('/api/equipment?category=Creative%20Technology');
+    assert.strictEqual(res.status, 200);
+    assert(res.body.total > 0);
+    res.body.equipment.forEach(item => assert.strictEqual(item.category, 'Creative Technology'));
+  });
+
+  await test('GET /api/equipment/EQ-001 returns camera kit details', async () => {
+    const res = await request(app).get('/api/equipment/EQ-001');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.equipment.id, 'EQ-001');
+    assert.strictEqual(res.body.equipment.name, 'Mirrorless Camera Kit');
+  });
+
+  // 4. Borrowers
+  await test('GET /api/borrowers returns 5 registered borrowers', async () => {
+    const res = await request(app).get('/api/borrowers');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.total, 5);
+  });
+
+  await test('GET /api/borrowers/emma.wilson returns borrower profile and loans', async () => {
+    const res = await request(app).get('/api/borrowers/emma.wilson');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.borrower.netid, 'emma.wilson');
+    assert(Array.isArray(res.body.borrower.loans));
+  });
+
+  // 5. Loans & Circulation
+  await test('GET /api/loans returns active loan records', async () => {
+    const res = await request(app).get('/api/loans');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.total, 5);
+  });
+
+  await test('GET /api/loans?status=overdue filters overdue loans', async () => {
+    const res = await request(app).get('/api/loans?status=overdue');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.total, 1);
+    assert.strictEqual(res.body.loans[0].id, 'LN-1040');
+  });
+
+  await test('POST /api/loans creates a new equipment checkout', async () => {
+    const res = await request(app)
+      .post('/api/loans')
+      .send({
+        netid: 'emma.wilson',
+        borrower: 'Emma Wilson',
+        equipmentId: 'EQ-002',
+        dueDate: '2026-10-20T17:00:00.000Z'
+      });
+    assert.strictEqual(res.status, 201);
+    assert.strictEqual(res.body.status, 'success');
+    assert(res.body.loan.id.startsWith('LN-'));
+    assert.strictEqual(res.body.loan.equipmentId, 'EQ-002');
+  });
+
+  await test('POST /api/loans/:id/return processes equipment return check-in', async () => {
+    const res = await request(app)
+      .post('/api/loans/LN-1042/return')
+      .send({
+        condition: 'good',
+        destination: 'ready-shelf',
+        notes: 'Returned on time and verified complete'
+      });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.loan.status, 'returned');
+    assert.strictEqual(res.body.loan.destination, 'ready-shelf');
+  });
+
+  // 6. Preparation Pipeline
+  await test('GET /api/preparation returns queue items', async () => {
+    const res = await request(app).get('/api/preparation');
+    assert.strictEqual(res.status, 200);
+    assert(res.body.total >= 4);
+  });
+
+  await test('PATCH /api/preparation/PREP-002 updates preparation task', async () => {
+    const res = await request(app)
+      .patch('/api/preparation/PREP-002')
+      .send({
+        status: 'review',
+        currentStep: 4,
+        notes: 'Sanitization completed, ready for supervisor review'
+      });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.preparation.status, 'review');
+    assert.strictEqual(res.body.preparation.currentStep, 4);
+  });
+
+  // 7. Reports & KPIs
+  await test('GET /api/reports/summary returns accurate dashboard KPIs', async () => {
+    const res = await request(app).get('/api/reports/summary');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.kpis.totalEquipment, 28);
+    assert(res.body.kpis.preparation);
+  });
+
+  await test('GET /api/reports returns equipment utilization data', async () => {
+    const res = await request(app).get('/api/reports');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.total, 11);
+  });
+
+  // 8. Error handling
+  await test('GET /api/unmatched-endpoint returns 404 structured error', async () => {
+    const res = await request(app).get('/api/unmatched-endpoint');
+    assert.strictEqual(res.status, 404);
+    assert.strictEqual(res.body.error, 'Not Found');
+  });
+
+  console.log(`\n-----------------------------------------`);
+  console.log(`API Tests: ${passed} passed, ${failed} failed, ${passed + failed} total`);
+  console.log(`-----------------------------------------`);
+
+  if (failed > 0) {
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+runTests().catch(err => {
+  console.error('Test execution error:', err);
+  process.exit(1);
+});
