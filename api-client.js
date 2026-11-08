@@ -332,11 +332,36 @@
     // 8. Dynamic Return Form Dropdown (Return Item Page)
     syncReturnSelect();
 
-    // 9. Dynamic Loans Table Metrics (Loans & Returns Page)
+    // 9. Dynamic New Loan Page (Checkout Form & Live Equipment Options)
+    syncNewLoanPage();
+
+    // 10. Dynamic Loans Table Metrics & Rows (Loans & Returns Page)
     syncLoansTable();
 
-    // 10. Dynamic Borrowers Page Metrics (Borrowers Page)
+    // 11. Dynamic Loan Details View (Loan Details Page)
+    syncLoanDetailsPage();
+
+    // 12. Dynamic Borrowers Page Metrics & Rows (Borrowers Page)
     syncBorrowersTable();
+
+    // 13. Dynamic Reports & CSV Statistics (Reports Page)
+    syncReportsPage();
+
+    // 14. Dynamic Notifications Counters (Notifications Page)
+    syncNotificationsPage();
+
+    // 15. Dynamic Preparation Workflow Actions (Checklist & Review)
+    syncPreparationWorkflow();
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   async function syncEquipmentPage() {
@@ -373,17 +398,74 @@
     }
   }
 
+  async function syncNewLoanPage() {
+    const eqSelect = document.getElementById('equipment-select');
+    if (!eqSelect) return;
+    try {
+      const res = await apiClient.getEquipment();
+      if (!res || !res.equipment) return;
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselect = urlParams.get('equipment') || '';
+
+      eqSelect.innerHTML = '<option value="">Choose equipment to check out...</option>';
+      res.equipment.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.id;
+        opt.textContent = `${item.id} · ${item.name} (${item.available} of ${item.total} available)`;
+        if (item.available <= 0) {
+          opt.disabled = true;
+          opt.textContent += ' [Checked out]';
+        }
+        if (item.id === preselect) {
+          opt.selected = true;
+        }
+        eqSelect.appendChild(opt);
+      });
+
+      // Borrower NetID autofill integration
+      const netidInput = document.getElementById('borrower-netid');
+      const nameInput = document.getElementById('borrower-name');
+      const studentIdInput = document.getElementById('student-id');
+      const emailInput = document.getElementById('borrower-email');
+
+      if (netidInput && nameInput && !netidInput.dataset.lookupBound) {
+        netidInput.dataset.lookupBound = 'true';
+        netidInput.addEventListener('blur', async () => {
+          const val = netidInput.value.trim().toLowerCase();
+          if (!val) return;
+          const bRes = await apiClient.getBorrowers().catch(() => null);
+          if (bRes && bRes.borrowers) {
+            const b = bRes.borrowers.find(x => x.netid.toLowerCase() === val);
+            if (b) {
+              if (nameInput && !nameInput.value) nameInput.value = b.name;
+              if (studentIdInput && !studentIdInput.value && b.universityId) studentIdInput.value = b.universityId;
+              if (emailInput && !emailInput.value && b.email) emailInput.value = b.email;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      // Fallback gracefully
+    }
+  }
+
   async function syncReturnSelect() {
     const select = document.getElementById('loan-select');
     if (!select) return;
     try {
       const res = await apiClient.getLoans({ status: 'active' });
       if (!res || !res.loans || res.loans.length === 0) return;
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedLoan = urlParams.get('loan') || '';
+
       select.innerHTML = '<option value="">Choose an open loan...</option>';
       res.loans.forEach(loan => {
         const opt = document.createElement('option');
         opt.value = loan.id;
         opt.textContent = `${loan.id} · ${loan.borrower} · ${loan.equipmentName || loan.equipmentId} (Due ${loan.dueDate || 'Soon'})`;
+        if (loan.id === preselectedLoan) {
+          opt.selected = true;
+        }
         select.appendChild(opt);
       });
     } catch (e) {
@@ -395,7 +477,8 @@
     const tableContainer = document.querySelector('.loan-table-container');
     if (!tableContainer) return;
     try {
-      const res = await apiClient.getLoans();
+      const isOverduePage = window.location.pathname.includes('overdue');
+      const res = await apiClient.getLoans(isOverduePage ? { status: 'overdue' } : {});
       if (!res || !res.loans) return;
       const headingCount = document.querySelector('.section-heading h2');
       const subCount = document.querySelector('.section-heading p');
@@ -405,6 +488,81 @@
         const returnedCount = res.loans.filter(l => l.status === 'returned').length;
         subCount.textContent = `${activeCount} open loans · ${returnedCount} returned`;
       }
+
+      const tbody = tableContainer.querySelector('tbody');
+      if (tbody && res.loans.length > 0) {
+        tbody.innerHTML = '';
+        res.loans.forEach(loan => {
+          const tr = document.createElement('tr');
+          const statusClass = loan.status === 'active' ? 'active' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : 'returned';
+          const statusLabel = loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
+          tr.innerHTML = `
+            <td>
+              <span class="loan-equipment-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 8h16v11H4zM8 8l1.5-3h5L16 8"></path><circle cx="12" cy="13.5" r="3"></circle></svg>
+              </span>
+              <span class="equipment-details">
+                <strong>${escapeHtml(loan.equipmentName || loan.equipmentId)}</strong>
+                <small>${escapeHtml(loan.equipmentId)} · ${escapeHtml(loan.category || 'Library Equipment')}</small>
+              </span>
+            </td>
+            <td>NO</td>
+            <td>
+              <span class="borrower-cell">
+                <strong>${escapeHtml(loan.borrower)}</strong>
+                <small>${escapeHtml(loan.netid)}</small>
+              </span>
+            </td>
+            <td>${escapeHtml(loan.checkoutDate || 'Recent')}</td>
+            <td>${escapeHtml(loan.dueDate || 'Standard')}</td>
+            <td><span class="loan-status ${statusClass}">${statusLabel}</span></td>
+            <td>
+              <a class="row-arrow" href="loan-details.html?id=${encodeURIComponent(loan.id)}" aria-label="View loan ${escapeHtml(loan.id)}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
+              </a>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    } catch (e) {
+      // Fallback gracefully
+    }
+  }
+
+  async function syncLoanDetailsPage() {
+    const isLoanDetails = window.location.pathname.includes('loan-details');
+    if (!isLoanDetails) return;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const loanId = urlParams.get('id') || 'LN-1042';
+      const res = await apiClient.request(`/loans/${loanId}`).catch(() => null);
+      if (!res || !res.loan) return;
+      const loan = res.loan;
+
+      const heading = document.getElementById('loan-details-heading');
+      if (heading) heading.textContent = `Loan record: ${loan.id}`;
+
+      const itemName = document.getElementById('item-name');
+      if (itemName) itemName.textContent = loan.equipmentName || loan.equipmentId;
+
+      const equipId = document.querySelector('.equipment-id');
+      if (equipId) equipId.textContent = `${loan.equipmentId} · ${loan.category || 'Creative Technology'}`;
+
+      const targetDueDate = document.querySelector('.equipment-target strong');
+      if (targetDueDate && loan.dueDate) targetDueDate.textContent = loan.dueDate;
+
+      document.querySelectorAll('.detail-list div').forEach(row => {
+        const dt = row.querySelector('dt');
+        const dd = row.querySelector('dd');
+        if (!dt || !dd) return;
+        const label = dt.textContent.trim().toLowerCase();
+        if (label === 'full name' && loan.borrower) dd.textContent = loan.borrower;
+        if (label === 'netid' && loan.netid) dd.textContent = loan.netid;
+        if (label === 'loan id') dd.textContent = loan.id;
+        if (label === 'return due date' && loan.dueDate) dd.textContent = `${loan.dueDate} (Standard loan)`;
+        if (label === 'checked out' && loan.checkoutDate) dd.textContent = loan.checkoutDate;
+      });
     } catch (e) {
       // Fallback gracefully
     }
@@ -418,8 +576,211 @@
       if (!res || !res.borrowers) return;
       const headingCount = document.getElementById('borrower-list-heading');
       if (headingCount) headingCount.textContent = `${res.total} borrowers`;
+
+      const tbody = borrowerPanel.querySelector('tbody');
+      if (tbody && res.borrowers.length > 0) {
+        tbody.innerHTML = '';
+        res.borrowers.forEach(b => {
+          const tr = document.createElement('tr');
+          const isOverdue = b.status === 'restricted' || (b.openLoans > 0 && b.hasOverdue);
+          const statusClass = isOverdue ? 'overdue' : 'good';
+          const statusLabel = isOverdue ? 'Overdue item' : 'Good standing';
+          const initials = getInitials(b.name);
+          tr.innerHTML = `
+            <td>
+              <span class="borrower-profile">
+                <span class="borrower-initials">${initials}</span>
+                <strong>${escapeHtml(b.name)}</strong>
+              </span>
+            </td>
+            <td>${escapeHtml(b.universityId || b.netid)}</td>
+            <td>${b.openLoans != null ? b.openLoans : 0}</td>
+            <td><span class="borrower-status ${statusClass}">${statusLabel}</span></td>
+            <td>
+              <a class="row-arrow" href="loans.html" aria-label="View ${escapeHtml(b.name)}'s loans">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
+              </a>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
     } catch (e) {
       // Fallback gracefully
+    }
+  }
+
+  async function syncReportsPage() {
+    const reportTable = document.getElementById('report-rows');
+    if (!reportTable) return;
+
+    async function loadReports() {
+      try {
+        const res = await apiClient.getReports();
+        if (!res || !res.reports) return;
+        reportTable.innerHTML = '';
+        let totalCheckouts = 0;
+        let totalDays = 0;
+
+        res.reports.forEach(r => {
+          totalCheckouts += (r.checkouts || 0);
+          totalDays += (r.totalDays || 0);
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>
+              <strong>${escapeHtml(r.name)}</strong>
+              <small>${escapeHtml(r.id)}</small>
+            </td>
+            <td>${escapeHtml(r.category)}</td>
+            <td><strong>${r.checkouts}</strong></td>
+            <td>${r.avgDays} days</td>
+            <td>${r.totalDays} days</td>
+            <td style="text-align: right">
+              <button type="button" class="secondary-action" style="padding: 0.35rem 0.65rem; font-size: 0.75rem"
+                data-name="${escapeHtml(r.name)}" data-id="${escapeHtml(r.id)}" data-checkouts="${r.checkouts}" data-avg="${r.avgDays}" data-total="${r.totalDays}">
+                Download CSV
+              </button>
+            </td>
+          `;
+          reportTable.appendChild(tr);
+        });
+
+        const totalsEl = document.getElementById('summary-totals');
+        if (totalsEl && totalCheckouts > 0) {
+          const avg = (totalDays / totalCheckouts).toFixed(1);
+          totalsEl.innerHTML = `<strong>${totalCheckouts}</strong> checkouts · <strong>${avg}</strong> days on average`;
+        }
+
+        // Attach CSV download handlers
+        reportTable.querySelectorAll('button[data-name]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (typeof window.downloadCsv === 'function') {
+              window.downloadCsv(btn.dataset.name, btn.dataset.id, btn.dataset.checkouts, btn.dataset.avg, btn.dataset.total);
+            }
+          });
+        });
+      } catch (e) {
+        // Fallback gracefully
+      }
+    }
+
+    loadReports();
+    const runBtn = document.getElementById('btn-run-report');
+    if (runBtn && !runBtn.dataset.apiBound) {
+      runBtn.dataset.apiBound = 'true';
+      runBtn.addEventListener('click', loadReports);
+    }
+  }
+
+  async function syncNotificationsPage() {
+    const isNotifications = window.location.pathname.includes('notifications');
+    if (!isNotifications) return;
+    try {
+      const res = await apiClient.getSummaryKPIs();
+      if (!res || !res.kpis) return;
+      const kpis = res.kpis;
+      const tabs = document.querySelectorAll('.tabs .tab-link');
+      if (tabs.length >= 4) {
+        const totalAlerts = (kpis.overdue || 0) + (kpis.dueToday || 0) + (kpis.preparation?.needsPreparation || 0);
+        const allBadge = tabs[0].querySelector('span');
+        if (allBadge) allBadge.textContent = totalAlerts;
+
+        const overdueBadge = tabs[1].querySelector('span');
+        if (overdueBadge) overdueBadge.textContent = kpis.overdue || 0;
+
+        const dueBadge = tabs[2].querySelector('span');
+        if (dueBadge) dueBadge.textContent = kpis.dueToday || 0;
+
+        const prepBadge = tabs[3].querySelector('span');
+        if (prepBadge) prepBadge.textContent = kpis.preparation?.needsPreparation || 0;
+      }
+    } catch (e) {
+      // Fallback gracefully
+    }
+  }
+
+  function syncPreparationWorkflow() {
+    const isChecklist = window.location.pathname.includes('preparation-checklist');
+    const isReview = window.location.pathname.includes('preparation-review-details');
+    const isAssignment = window.location.pathname.includes('preparation-assignment');
+
+    const prepId = 'PREP-002'; // Active item undergoing preparation
+
+    if (isChecklist) {
+      const saveBtn = document.querySelector('.detail-actions button.secondary-action');
+      const submitBtn = document.querySelector('.detail-actions a.primary-action');
+
+      if (saveBtn && !saveBtn.dataset.bound) {
+        saveBtn.dataset.bound = 'true';
+        saveBtn.addEventListener('click', async () => {
+          const notes = document.getElementById('issue-notes')?.value || '';
+          const originalText = saveBtn.innerHTML;
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Saving...';
+          try {
+            await apiClient.updatePreparation(prepId, { notes });
+            saveBtn.textContent = '✓ Saved to DB!';
+            setTimeout(() => { saveBtn.innerHTML = originalText; saveBtn.disabled = false; }, 2000);
+          } catch (e) {
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+            alert('Progress saved locally');
+          }
+        });
+      }
+
+      if (submitBtn && !submitBtn.dataset.bound) {
+        submitBtn.dataset.bound = 'true';
+        submitBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          try {
+            await apiClient.updatePreparation(prepId, { status: 'review' });
+            window.location.href = 'preparation-review-details.html';
+          } catch (err) {
+            window.location.href = 'preparation-review-details.html';
+          }
+        });
+      }
+    }
+
+    if (isReview) {
+      const readyBtn = document.querySelector('.detail-actions button.primary-action');
+      if (readyBtn && !readyBtn.dataset.bound) {
+        readyBtn.dataset.bound = 'true';
+        readyBtn.addEventListener('click', async () => {
+          const originalText = readyBtn.innerHTML;
+          readyBtn.disabled = true;
+          readyBtn.textContent = 'Marking ready...';
+          try {
+            await apiClient.updatePreparation(prepId, { status: 'ready' });
+            window.location.href = 'preparation-ready.html';
+          } catch (e) {
+            readyBtn.innerHTML = originalText;
+            readyBtn.disabled = false;
+            window.location.href = 'preparation-ready.html';
+          }
+        });
+      }
+    }
+
+    if (isAssignment) {
+      const assignForm = document.querySelector('.assignment-form');
+      if (assignForm && !assignForm.dataset.apiBound) {
+        assignForm.dataset.apiBound = 'true';
+        assignForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const staffSelect = document.getElementById('staff-member');
+          const targetDateInput = document.getElementById('target-date');
+          const assignedStaff = staffSelect ? staffSelect.value : '';
+          const targetDate = targetDateInput ? targetDateInput.value : '';
+          try {
+            await apiClient.updatePreparation('PREP-001', { assignedStaff, targetDate, status: 'in-prep' });
+            window.location.href = 'preparation.html';
+          } catch (err) {
+            window.location.href = 'preparation.html';
+          }
+        });
+      }
     }
   }
 

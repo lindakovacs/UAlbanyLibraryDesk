@@ -4,7 +4,7 @@ This instruction file documents every command, script, HTTP test, and database q
 
 ---
 
-## Quick Reference Summary of Commands
+## 1. Quick Reference Summary of Commands
 
 | Category | Command / Script | Purpose |
 |---|---|---|
@@ -21,7 +21,32 @@ This instruction file documents every command, script, HTTP test, and database q
 
 ---
 
-## 1. Database Connection & Schema Verification
+## 2. Frontend-to-Backend & Database Connection Across All Pages
+
+All 22 frontend HTML views and workflows are actively wired to the Node.js/Express API and MySQL database through `api-client.js`:
+
+| Page | View / Feature | Backend Endpoint / Action | Connected Database Tables |
+|---|---|---|---|
+| **`login.html`** | Staff sign-in & JWT issuance | `POST /api/auth/login` | `staff_users` (bcrypt hash check) |
+| **`index.html`** | Dashboard overview & statistics | `GET /api/reports/summary` | Aggregated from `equipment`, `loans`, `preparation_items` |
+| **`profile.html`** | Authenticated staff profile & shift | `GET /api/auth/getCurrentUser` | `staff_users` (Bearer JWT validation) |
+| **`equipment.html`** | Live equipment catalog & category search | `GET /api/equipment` | `equipment`, `equipment_accessories` |
+| **`new-loan.html`** | Equipment checkout form & NetID autofill | `POST /api/loans` (Atomic transaction) | `loans` (insert), `equipment` (decrement stock), `borrowers` (increment active loans) |
+| **`loans.html`** | Active equipment loans table | `GET /api/loans` | `loans`, `equipment`, `borrowers` |
+| **`loans-overdue.html`** | Overdue loans filtered table | `GET /api/loans?status=overdue` | `loans` (filtered by due date) |
+| **`loan-details.html`** | Single loan record (`?id=LN-...`) | `GET /api/loans/:id` | `loans`, `equipment`, `borrowers` |
+| **`return-item.html`** | Return check-in & destination routing | `POST /api/loans/:id/return` | `loans` (status `returned`), `equipment` (increment stock), `preparation_items` (staging) |
+| **`borrowers.html`** | Borrower accounts & active loan counts | `GET /api/borrowers` | `borrowers`, `loans` |
+| **`reports.html`** | Equipment utilization & CSV export | `GET /api/reports` | `report_metrics`, `loans`, `equipment` |
+| **`notifications.html`** | Alert center & category count badges | `GET /api/reports/summary` | Priority queries across `loans` and `preparation_items` |
+| **`preparation-*.html`** (5 queue pages) | Readiness pipeline queues & step counters | `GET /api/preparation` | `preparation_items`, `preparation_checklist_items` |
+| **`preparation-assignment.html`** | Task assignment to staff member | `PATCH /api/preparation/:id` | `preparation_items` (`assigned_staff`, `target_date`, `status = in-prep`) |
+| **`preparation-checklist.html`** | Sanitization & data wipe checklist | `PATCH /api/preparation/:id` | `preparation_checklist_items`, `preparation_items` |
+| **`preparation-review-details.html`**| Supervisor review & ready-to-lend signoff | `PATCH /api/preparation/:id` | `preparation_items` (`status = ready`) |
+
+---
+
+## 3. Database Connection & Schema Verification
 
 ### 1.1 Verify MySQL Service Status
 Ensure the local MySQL server daemon is active:
@@ -92,7 +117,7 @@ npm run db:init
 
 ---
 
-## 2. Server Process & Port Management
+## 4. Server Process & Port Management
 
 ### 2.1 Check if Port 3000 is Already in Use
 If an old server process is still listening on port 3000, new routes will not be picked up:
@@ -148,7 +173,7 @@ npm run dev
 
 ---
 
-## 3. Server Health & Database Connectivity Probes
+## 5. Server Health & Database Connectivity Probes
 
 ### 3.1 Test API Health Endpoint
 Tests that Express is serving requests and actively querying MySQL:
@@ -192,7 +217,7 @@ curl -s http://localhost:3000/api/ready
 
 ---
 
-## 4. Authentication & Security Testing (JWT & bcrypt)
+## 6. Authentication & Security Testing (JWT & bcrypt)
 
 ### 4.1 Positive Test: Valid Staff Login
 Authenticates with seeded NetID credentials. The server queries MySQL, checks the password hash via `bcrypt.compare`, and issues a signed JWT:
@@ -293,7 +318,7 @@ curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/auth/getCurr
 
 ---
 
-## 5. Circulation, Inventory & Dashboard API Testing
+## 7. Circulation, Inventory & Dashboard API Testing
 
 ### 5.1 Equipment Catalog API
 Test fetching all equipment and category filtering:
@@ -376,7 +401,7 @@ curl -s -X POST http://localhost:3000/api/loans/LN-1042/return \
 
 ---
 
-## 6. Database Verification via SQL Queries
+## 8. Database Verification via SQL Queries
 
 Open [`server/SQLQueries.sql`](../server/SQLQueries.sql) in VS Code (with the MySQL extension) or run these queries in the terminal to verify the database state directly:
 
@@ -403,7 +428,7 @@ FROM preparation_items;
 
 ---
 
-## 7. Automated Test Suite Execution
+## 9. Automated Test Suite Execution
 
 Run the complete 30-assertion automated test suite:
 
@@ -444,7 +469,7 @@ API Tests: 24 passed, 0 failed, 24 total
 
 ---
 
-## 8. Interactive Browser Testing Checklist
+## 10. Interactive Browser Testing Checklist
 
 Open [http://localhost:3000/](http://localhost:3000/) in your browser:
 

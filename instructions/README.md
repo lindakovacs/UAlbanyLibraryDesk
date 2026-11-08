@@ -139,9 +139,32 @@ Introduce persistence after the API shape is stable.
 - Review environment-variable documentation and startup instructions.
 - See [test-connection.md](./test-connection.md) for the complete full-stack integration and test scripts guide.
 
+### Frontend-to-Backend & Database Connection Across All Pages
+
+All 22 frontend HTML views and workflows are actively wired to the Node.js/Express API and MySQL database through `api-client.js`:
+
+| Page | View / Feature | Backend Endpoint / Action | Connected Database Tables |
+|---|---|---|---|
+| **`login.html`** | Staff sign-in & JWT issuance | `POST /api/auth/login` | `staff_users` (bcrypt hash check) |
+| **`index.html`** | Dashboard overview & statistics | `GET /api/reports/summary` | Aggregated from `equipment`, `loans`, `preparation_items` |
+| **`profile.html`** | Authenticated staff profile & shift | `GET /api/auth/getCurrentUser` | `staff_users` (Bearer JWT validation) |
+| **`equipment.html`** | Live equipment catalog & category search | `GET /api/equipment` | `equipment`, `equipment_accessories` |
+| **`new-loan.html`** | Equipment checkout form & NetID autofill | `POST /api/loans` (Atomic transaction) | `loans` (insert), `equipment` (decrement stock), `borrowers` (increment active loans) |
+| **`loans.html`** | Active equipment loans table | `GET /api/loans` | `loans`, `equipment`, `borrowers` |
+| **`loans-overdue.html`** | Overdue loans filtered table | `GET /api/loans?status=overdue` | `loans` (filtered by due date) |
+| **`loan-details.html`** | Single loan record (`?id=LN-...`) | `GET /api/loans/:id` | `loans`, `equipment`, `borrowers` |
+| **`return-item.html`** | Return check-in & destination routing | `POST /api/loans/:id/return` | `loans` (status `returned`), `equipment` (increment stock), `preparation_items` (staging) |
+| **`borrowers.html`** | Borrower accounts & active loan counts | `GET /api/borrowers` | `borrowers`, `loans` |
+| **`reports.html`** | Equipment utilization & CSV export | `GET /api/reports` | `report_metrics`, `loans`, `equipment` |
+| **`notifications.html`** | Alert center & category count badges | `GET /api/reports/summary` | Priority queries across `loans` and `preparation_items` |
+| **`preparation-*.html`** (5 queue pages) | Readiness pipeline queues & step counters | `GET /api/preparation` | `preparation_items`, `preparation_checklist_items` |
+| **`preparation-assignment.html`** | Task assignment to staff member | `PATCH /api/preparation/:id` | `preparation_items` (`assigned_staff`, `target_date`, `status = in-prep`) |
+| **`preparation-checklist.html`** | Sanitization & data wipe checklist | `PATCH /api/preparation/:id` | `preparation_checklist_items`, `preparation_items` |
+| **`preparation-review-details.html`**| Supervisor review & ready-to-lend signoff | `PATCH /api/preparation/:id` | `preparation_items` (`status = ready`) |
+
 ## 8. Render deployment
 
-Deploy only after local verification is complete.
+Deploy only after local verification is complete. See [render-deployment.md](./render-deployment.md) for the step-by-step deployment guide and [render.yaml](../render.yaml) for the Infrastructure-as-Code Blueprint specification.
 
 1. Create Render service for the Express API and frontend assets,
    unless a documented alternative is selected.

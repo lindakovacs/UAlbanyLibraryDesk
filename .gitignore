@@ -24,5 +24,8 @@ dist/
 build/
 coverage/
 
+# Deployment configuration (skipped until ready to deploy)
+render.yaml
+
 # Local files
 /UAlbanyLibraryDesk/

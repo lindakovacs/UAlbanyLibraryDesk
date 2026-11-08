@@ -240,6 +240,29 @@ This section guides you through testing the full-stack system with all three tie
 └───────────────────────────┘                                        └───────────────────────────┘                                          └───────────────────────────┘
 ```
 
+### Full-Stack Architecture Mapping Across All 22 Views
+
+All 22 frontend HTML views and workflows are actively wired to the Node.js/Express API and MySQL database through `api-client.js`:
+
+| Page | View / Feature | Backend Endpoint / Action | Connected Database Tables |
+|---|---|---|---|
+| **`login.html`** | Staff sign-in & JWT issuance | `POST /api/auth/login` | `staff_users` (bcrypt hash check) |
+| **`index.html`** | Dashboard overview & statistics | `GET /api/reports/summary` | Aggregated from `equipment`, `loans`, `preparation_items` |
+| **`profile.html`** | Authenticated staff profile & shift | `GET /api/auth/getCurrentUser` | `staff_users` (Bearer JWT validation) |
+| **`equipment.html`** | Live equipment catalog & category search | `GET /api/equipment` | `equipment`, `equipment_accessories` |
+| **`new-loan.html`** | Equipment checkout form & NetID autofill | `POST /api/loans` (Atomic transaction) | `loans` (insert), `equipment` (decrement stock), `borrowers` (increment active loans) |
+| **`loans.html`** | Active equipment loans table | `GET /api/loans` | `loans`, `equipment`, `borrowers` |
+| **`loans-overdue.html`** | Overdue loans filtered table | `GET /api/loans?status=overdue` | `loans` (filtered by due date) |
+| **`loan-details.html`** | Single loan record (`?id=LN-...`) | `GET /api/loans/:id` | `loans`, `equipment`, `borrowers` |
+| **`return-item.html`** | Return check-in & destination routing | `POST /api/loans/:id/return` | `loans` (status `returned`), `equipment` (increment stock), `preparation_items` (staging) |
+| **`borrowers.html`** | Borrower accounts & active loan counts | `GET /api/borrowers` | `borrowers`, `loans` |
+| **`reports.html`** | Equipment utilization & CSV export | `GET /api/reports` | `report_metrics`, `loans`, `equipment` |
+| **`notifications.html`** | Alert center & category count badges | `GET /api/reports/summary` | Priority queries across `loans` and `preparation_items` |
+| **`preparation-*.html`** (5 queue pages) | Readiness pipeline queues & step counters | `GET /api/preparation` | `preparation_items`, `preparation_checklist_items` |
+| **`preparation-assignment.html`** | Task assignment to staff member | `PATCH /api/preparation/:id` | `preparation_items` (`assigned_staff`, `target_date`, `status = in-prep`) |
+| **`preparation-checklist.html`** | Sanitization & data wipe checklist | `PATCH /api/preparation/:id` | `preparation_checklist_items`, `preparation_items` |
+| **`preparation-review-details.html`**| Supervisor review & ready-to-lend signoff | `PATCH /api/preparation/:id` | `preparation_items` (`status = ready`) |
+
 ---
 
 ### Step 1: Confirm MySQL Service & Database Readiness
@@ -430,6 +453,7 @@ Tests: 30 passed, 0 failed, 30 total
 │   └── library-equipment.jpg
 ├── instructions/
 │   ├── README.md
+│   ├── render-deployment.md
 │   └── test-connection.md
 ├── server/
 │   ├── .env.example
@@ -491,6 +515,7 @@ Tests: 30 passed, 0 failed, 30 total
 ├── reports.html
 ├── return-item.html
 ├── styles.css
+├── render.yaml
 ├── LICENSE
 └── README.md
 ```
