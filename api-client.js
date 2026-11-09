@@ -347,22 +347,25 @@
     // 13. Dynamic Reports & CSV Statistics (Reports Page)
     syncReportsPage();
 
-    // 14. Dynamic Notifications Counters (Notifications Page)
+    // 14. Dynamic Dashboard Overview Post-Checkout Report (Overview Page)
+    syncDashboardOverviewCheckoutReport();
+
+    // 15. Dynamic Notifications Counters (Notifications Page)
     syncNotificationsPage();
 
-    // 15. Dynamic Preparation Workflow Actions (Checklist & Review)
+    // 16. Dynamic Preparation Workflow Actions (Checklist & Review)
     syncPreparationWorkflow();
 
-    // 16. Dynamic Preparation Queues & Live Search (Preparation Views)
+    // 17. Dynamic Preparation Queues & Live Search (Preparation Views)
     syncPreparationQueues();
 
-    // 17. Dynamic Dashboard Overview Live Searches (Overview Page)
-    syncDashboardOverviewSearches();
+    // 18. Dynamic Dashboard Overview Sections (Overview Page)
+    syncDashboardOverviewSections();
 
-    // 18. Dynamic Global Tab Badges (<preparation-tabs> & <loan-tabs>)
+    // 19. Dynamic Global Tab Badges (<preparation-tabs> & <loan-tabs>)
     syncGlobalTabBadges();
 
-    // 19. Enforce Purple Styling for Awaiting Review Badges
+    // 20. Enforce Purple Styling for Awaiting Review Badges
     enforceReviewBadgeColor();
   }
 
@@ -918,13 +921,150 @@
 
     if (semesterSelect && !semesterSelect.dataset.apiBound) {
       semesterSelect.dataset.apiBound = 'true';
-      semesterSelect.addEventListener('change', () => loadReports(false));
+      semesterSelect.addEventListener('change', () => {
+        if (fromInput && toInput) {
+          if (semesterSelect.value === 'fall-2026') {
+            fromInput.value = '2026-08-24';
+            toInput.value = '2026-12-18';
+          } else if (semesterSelect.value === 'summer-2026') {
+            fromInput.value = '2026-05-18';
+            toInput.value = '2026-08-14';
+          } else if (semesterSelect.value === 'spring-2026') {
+            fromInput.value = '2026-01-20';
+            toInput.value = '2026-05-15';
+          }
+        }
+        loadReports(false);
+      });
     }
 
     if (searchInput && !searchInput.dataset.apiBound) {
       searchInput.dataset.apiBound = 'true';
       const debounced = debounce(() => loadReports(false), 250);
       searchInput.addEventListener('input', debounced);
+    }
+  }
+
+  async function syncDashboardOverviewCheckoutReport() {
+    const reportTable = document.getElementById('overview-report-rows');
+    if (!reportTable) return;
+
+    const semesterSelect = document.getElementById('overview-report-semester');
+    const fromInput = document.getElementById('overview-report-from');
+    const toInput = document.getElementById('overview-report-to');
+    const runBtn = document.getElementById('overview-btn-run-report');
+    const summarySemester = document.getElementById('overview-summary-semester');
+    const summaryDates = document.getElementById('overview-summary-dates');
+    const summaryTotals = document.getElementById('overview-summary-totals');
+
+    function formatDateRange(fromStr, toStr) {
+      if (!fromStr || !toStr) return '';
+      try {
+        const [y1, m1, d1] = fromStr.split('-').map(Number);
+        const [y2, m2, d2] = toStr.split('-').map(Number);
+        const date1 = new Date(y1, m1 - 1, d1);
+        const date2 = new Date(y2, m2 - 1, d2);
+        const mNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${date1.getDate()} ${mNames[date1.getMonth()]} ${date1.getFullYear()} – ${date2.getDate()} ${mNames[date2.getMonth()]} ${date2.getFullYear()}`;
+      } catch (e) {
+        return `${fromStr} – ${toStr}`;
+      }
+    }
+
+    async function loadOverviewReport(isManual = false) {
+      if (runBtn && isManual) {
+        runBtn.disabled = true;
+        runBtn.textContent = 'Generating report...';
+      }
+
+      try {
+        const semester = semesterSelect ? semesterSelect.value : 'fall-2026';
+        const from = fromInput ? fromInput.value : '';
+        const to = toInput ? toInput.value : '';
+
+        if (summarySemester && semesterSelect) {
+          const opt = semesterSelect.options[semesterSelect.selectedIndex];
+          summarySemester.textContent = opt ? opt.textContent : 'Fall 2026 (current)';
+        }
+        if (summaryDates && from && to) {
+          summaryDates.textContent = formatDateRange(from, to);
+        }
+
+        const queryParams = { semester };
+        if (from) queryParams.from = from;
+        if (to) queryParams.to = to;
+
+        const res = await apiClient.getReports(queryParams);
+        if (!res || !res.reports) return;
+
+        reportTable.innerHTML = '';
+        let totalCheckouts = 0;
+        let totalDays = 0;
+
+        if (res.reports.length === 0) {
+          reportTable.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem; color: #6b6474; font-style: italic;">No checkout history found for this timeframe.</td></tr>`;
+          if (summaryTotals) {
+            summaryTotals.textContent = '0 checkouts · 0.0 days avg';
+          }
+        } else {
+          res.reports.slice(0, 8).forEach(r => {
+            totalCheckouts += (r.checkouts || 0);
+            totalDays += (r.totalDays || 0);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${escapeHtml(r.name)} <small>${escapeHtml(r.id)}</small></td>
+              <td>${r.checkouts}</td>
+              <td>${r.avgDays} days</td>
+              <td>${r.totalDays} days</td>
+            `;
+            reportTable.appendChild(tr);
+          });
+
+          if (summaryTotals) {
+            const avg = totalCheckouts > 0 ? (totalDays / totalCheckouts).toFixed(1) : '0.0';
+            summaryTotals.textContent = `${totalCheckouts} checkouts · ${avg} days avg`;
+          }
+        }
+
+        if (runBtn && isManual) {
+          runBtn.textContent = '✓ Report updated';
+          setTimeout(() => {
+            runBtn.disabled = false;
+            runBtn.textContent = '▷ Run report';
+          }, 1500);
+        }
+      } catch (e) {
+        if (runBtn && isManual) {
+          runBtn.disabled = false;
+          runBtn.textContent = '▷ Run report';
+        }
+      }
+    }
+
+    loadOverviewReport(false);
+
+    if (runBtn && !runBtn.dataset.apiBound) {
+      runBtn.dataset.apiBound = 'true';
+      runBtn.addEventListener('click', () => loadOverviewReport(true));
+    }
+
+    if (semesterSelect && !semesterSelect.dataset.apiBound) {
+      semesterSelect.dataset.apiBound = 'true';
+      semesterSelect.addEventListener('change', () => {
+        if (fromInput && toInput) {
+          if (semesterSelect.value === 'fall-2026') {
+            fromInput.value = '2026-08-24';
+            toInput.value = '2026-12-18';
+          } else if (semesterSelect.value === 'summer-2026') {
+            fromInput.value = '2026-05-18';
+            toInput.value = '2026-08-14';
+          } else if (semesterSelect.value === 'spring-2026') {
+            fromInput.value = '2026-01-20';
+            toInput.value = '2026-05-15';
+          }
+        }
+        loadOverviewReport(false);
+      });
     }
   }
 
@@ -940,19 +1080,18 @@
 
     const tabs = document.querySelector('preparation-tabs');
     const activeTab = tabs ? (tabs.getAttribute('active') || '').toLowerCase() : '';
+    const p = window.location.pathname.toLowerCase();
     let statusFilter = '';
-    if (activeTab === 'awaiting') statusFilter = 'awaiting';
-    else if (activeTab === 'in-prep' || activeTab === 'in preparation') statusFilter = 'in-prep';
-    else if (activeTab === 'review') statusFilter = 'review';
-    else if (activeTab === 'ready') statusFilter = 'ready';
-    else if (activeTab === 'all') statusFilter = '';
-    else {
-      const p = window.location.pathname.toLowerCase();
-      if (p.includes('all')) statusFilter = '';
-      else if (p.includes('progress')) statusFilter = 'in-prep';
-      else if (p.includes('review')) statusFilter = 'review';
-      else if (p.includes('ready')) statusFilter = 'ready';
-      else if (p.includes('prep')) statusFilter = 'awaiting';
+    if (activeTab === 'all' || p.includes('all')) {
+      statusFilter = '';
+    } else if (activeTab === 'awaiting' || (!activeTab && p.endsWith('preparation.html'))) {
+      statusFilter = 'awaiting';
+    } else if (activeTab === 'in-prep' || activeTab === 'in preparation' || p.includes('progress')) {
+      statusFilter = 'in-prep';
+    } else if (activeTab === 'review' || p.includes('review')) {
+      statusFilter = 'review';
+    } else if (activeTab === 'ready' || p.includes('ready')) {
+      statusFilter = 'ready';
     }
 
     async function fetchAndRenderPrep(query = '') {
@@ -1076,97 +1215,161 @@
     }
   }
 
-  async function syncDashboardOverviewSearches() {
-    // 1. Preparation search on index.html
-    const prepSearch = document.querySelector('.preparation-report-tools #preparation-search');
-    if (prepSearch && !prepSearch.dataset.apiBound) {
-      prepSearch.dataset.apiBound = 'true';
-      const debouncedPrep = debounce(async () => {
-        const query = prepSearch.value.trim();
-        try {
-          const res = await apiClient.getPreparation(query ? { search: query } : {});
-          if (!res || !res.preparation) return;
+  async function syncDashboardOverviewSections() {
+    // 1. Preparation queue reporting on index.html
+    const prepContainer = document.getElementById('overview-prep-rows');
+    const prepSearch = document.getElementById('preparation-search');
+    const prepCount = document.getElementById('overview-prep-count');
+    const prepStats = document.getElementById('overview-prep-stats');
 
-          const existingRows = document.querySelectorAll('.preparation-report-row, .prep-search-empty');
-          existingRows.forEach(el => el.remove());
+    async function fetchAndRenderOverviewPrep(query = '') {
+      const isOverview = document.querySelector('.preparation-report');
+      if (!isOverview) return;
+      try {
+        const params = query ? { search: query } : {};
+        const [prepRes, kpiRes] = await Promise.all([
+          apiClient.getPreparation(params),
+          apiClient.getSummaryKPIs().catch(() => null)
+        ]);
 
-          const toolsEl = prepSearch.closest('.preparation-report-tools');
-          if (!toolsEl) return;
+        if (kpiRes && kpiRes.kpis && prepStats) {
+          const pk = kpiRes.kpis.preparation || {};
+          const divs = prepStats.querySelectorAll('div strong');
+          if (divs.length >= 4) {
+            if (pk.needsPreparation != null) divs[0].textContent = String(pk.needsPreparation).padStart(2, '0');
+            if (pk.inPreparation != null) divs[1].textContent = String(pk.inPreparation).padStart(2, '0');
+            if (pk.awaitingReview != null) divs[2].textContent = String(pk.awaitingReview).padStart(2, '0');
+            if (pk.readyForLending != null) divs[3].textContent = String(pk.readyForLending).padStart(2, '0');
+          }
+        }
 
-          if (res.preparation.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'prep-search-empty';
-            empty.style.cssText = 'padding: 2rem; text-align: center; color: #6b6474; font-style: italic;';
-            empty.textContent = `No preparation items matching "${query}"`;
-            toolsEl.insertAdjacentElement('afterend', empty);
+        if (!prepRes || !prepRes.preparation) return;
+
+        if (prepCount) {
+          prepCount.textContent = `Showing ${Math.min(prepRes.preparation.length, 8)} of ${prepRes.total || prepRes.preparation.length} items`;
+        }
+
+        if (prepContainer) {
+          prepContainer.innerHTML = '';
+        } else {
+          document.querySelectorAll('.preparation-report-row, .prep-search-empty').forEach(el => el.remove());
+        }
+
+        if (prepRes.preparation.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'prep-search-empty';
+          empty.style.cssText = 'padding: 2rem; text-align: center; color: #6b6474; font-style: italic;';
+          empty.textContent = `No preparation items matching "${escapeHtml(query)}"`;
+          if (prepContainer) {
+            prepContainer.appendChild(empty);
           } else {
-            let prev = toolsEl;
-            res.preparation.slice(0, 5).forEach(item => {
-              const row = document.createElement('div');
-              row.className = 'preparation-report-row';
-              const badgeClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : (item.status === 'review' || item.status === 'in-review') ? 'in-review' : '';
-              const badgeLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : item.status === 'review' ? 'Awaiting review' : 'Ready';
+            document.querySelector('.preparation-report-tools')?.insertAdjacentElement('afterend', empty);
+          }
+        } else {
+          let prev = document.querySelector('.preparation-report-tools');
+          prepRes.preparation.slice(0, 8).forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'preparation-report-row';
+            const isReview = (item.status === 'review' || item.status === 'in-review');
+            const badgeClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : isReview ? 'in-review' : '';
+            const badgeLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : isReview ? 'Awaiting review' : 'Ready for lending';
 
-              row.innerHTML = `
-                <div>
-                  <strong>${escapeHtml(item.equipmentName)}</strong>
-                  <small>${escapeHtml(item.equipmentId || item.id)} · ${item.currentStep || 0} of 4 steps complete</small>
-                </div>
-                <span>${escapeHtml(item.assignedStaff || 'Unassigned')}</span>
-                <time>${escapeHtml(item.targetDate || 'Oct 15, 2026')}</time>
-                <em class="status-badge ${badgeClass}">${badgeLabel}</em>
-              `;
+            row.innerHTML = `
+              <div>
+                <strong>${escapeHtml(item.equipmentName)}</strong>
+                <small>${escapeHtml(item.equipmentId || item.id)} · ${item.currentStep || 0} of 4 steps complete</small>
+              </div>
+              <span>${escapeHtml(item.assignedStaff || 'Unassigned')}</span>
+              <time datetime="${escapeHtml(item.targetDate || '')}">${escapeHtml(item.targetDate || 'Pending')}</time>
+              <em class="status-badge ${badgeClass}" ${isReview ? 'data-status="review"' : ''}>${badgeLabel}</em>
+            `;
+
+            if (prepContainer) {
+              prepContainer.appendChild(row);
+            } else if (prev) {
               prev.insertAdjacentElement('afterend', row);
               prev = row;
-            });
-            enforceReviewBadgeColor();
-          }
-        } catch (e) {
-          // Fallback gracefully
+            }
+          });
+
+          enforceReviewBadgeColor();
         }
+      } catch (e) {
+        // Fallback gracefully
+      }
+    }
+
+    if (document.querySelector('.preparation-report')) {
+      fetchAndRenderOverviewPrep(prepSearch ? prepSearch.value.trim() : '');
+    }
+
+    if (prepSearch && !prepSearch.dataset.apiBound) {
+      prepSearch.dataset.apiBound = 'true';
+      const debouncedPrep = debounce(() => {
+        fetchAndRenderOverviewPrep(prepSearch.value.trim());
       }, 250);
       prepSearch.addEventListener('input', debouncedPrep);
     }
 
-    // 2. Loans search on index.html
-    const loanSearch = document.querySelector('.overview-loans input[type="search"]');
-    const loansTbody = document.querySelector('.overview-loans table tbody');
-    if (loanSearch && loansTbody && !loanSearch.dataset.apiBound) {
-      loanSearch.dataset.apiBound = 'true';
-      const debouncedLoan = debounce(async () => {
-        const query = loanSearch.value.trim();
-        try {
-          const res = await apiClient.getLoans(query ? { search: query } : {});
-          if (!res || !res.loans) return;
+    // 2. Recent loans on index.html
+    const loanSearch = document.getElementById('overview-loans-search') || document.querySelector('.overview-loans input[type="search"]');
+    const loansTbody = document.getElementById('overview-loans-rows') || document.querySelector('.overview-loans table tbody');
+    const loansStats = document.getElementById('overview-loans-stats') || document.querySelector('.overview-loans .loan-toolbar span');
 
-          loansTbody.innerHTML = '';
-          if (res.loans.length === 0) {
-            loansTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #6b6474; font-style: italic;">No loans matching "${escapeHtml(query)}"</td></tr>`;
-          } else {
-            res.loans.slice(0, 5).forEach(loan => {
-              const tr = document.createElement('tr');
-              const statusClass = loan.status === 'active' ? 'active' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : 'returned';
-              const statusLabel = loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
+    async function fetchAndRenderOverviewLoans(query = '') {
+      if (!loansTbody) return;
+      try {
+        const [loanRes, kpiRes] = await Promise.all([
+          apiClient.getLoans(query ? { search: query } : {}),
+          apiClient.getSummaryKPIs().catch(() => null)
+        ]);
 
-              tr.innerHTML = `
-                <td>
-                  <strong>${escapeHtml(loan.equipmentName || loan.equipmentId)}</strong>
-                  <small>${escapeHtml(loan.equipmentId)} · ${escapeHtml(loan.category || 'Creative Technology')}</small>
-                </td>
-                <td>
-                  <strong>${escapeHtml(loan.borrower)}</strong>
-                  <small>${escapeHtml(loan.universityId || loan.netid)}</small>
-                </td>
-                <td>${escapeHtml(loan.checkoutDate || 'Oct 9, 2026')}</td>
-                <td>${escapeHtml(loan.dueDate || 'Oct 13, 2026')}</td>
-                <td><span class="loan-status ${statusClass}">${statusLabel}</span></td>
-              `;
-              loansTbody.appendChild(tr);
-            });
-          }
-        } catch (e) {
-          // Fallback gracefully
+        if (kpiRes && kpiRes.kpis && loansStats && !query) {
+          const k = kpiRes.kpis;
+          loansStats.innerHTML = `All loans <b>${k.activeLoans != null ? k.activeLoans : 5}</b> &nbsp; Due today <b>${k.dueToday != null ? k.dueToday : 2}</b> &nbsp; Overdue <b>${k.overdue != null ? k.overdue : 1}</b>`;
         }
+
+        if (!loanRes || !loanRes.loans) return;
+
+        loansTbody.innerHTML = '';
+        if (loanRes.loans.length === 0) {
+          loansTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #6b6474; font-style: italic;">No loans matching "${escapeHtml(query)}"</td></tr>`;
+        } else {
+          loanRes.loans.slice(0, 5).forEach(loan => {
+            const tr = document.createElement('tr');
+            const statusClass = loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : '';
+            const statusLabel = loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
+            const isOverdue = (loan.status === 'overdue');
+
+            tr.innerHTML = `
+              <td>
+                <strong>${escapeHtml(loan.equipmentName || loan.equipmentId)}</strong>
+                <small>${escapeHtml(loan.equipmentId)} · ${escapeHtml(loan.category || 'Creative Technology')}</small>
+              </td>
+              <td>
+                <strong>${escapeHtml(loan.borrower)}</strong>
+                <small>${escapeHtml(loan.universityId || loan.netid)}</small>
+              </td>
+              <td>${escapeHtml(loan.checkoutDate || 'Oct 9, 2026')}</td>
+              <td class="${isOverdue ? 'overdue-text' : ''}">${escapeHtml(loan.dueDate || 'Oct 13, 2026')}</td>
+              <td><em class="loan-pill ${statusClass}">${statusLabel}</em></td>
+            `;
+            loansTbody.appendChild(tr);
+          });
+        }
+      } catch (e) {
+        // Fallback gracefully
+      }
+    }
+
+    if (loansTbody) {
+      fetchAndRenderOverviewLoans(loanSearch ? loanSearch.value.trim() : '');
+    }
+
+    if (loanSearch && !loanSearch.dataset.apiBound) {
+      loanSearch.dataset.apiBound = 'true';
+      const debouncedLoan = debounce(() => {
+        fetchAndRenderOverviewLoans(loanSearch.value.trim());
       }, 250);
       loanSearch.addEventListener('input', debouncedLoan);
     }

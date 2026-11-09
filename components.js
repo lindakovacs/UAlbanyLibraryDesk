@@ -689,16 +689,16 @@
           oldMain.replaceWith(newMain);
         }
 
+        // Push new URL to history first so window.location matches new page
+        history.pushState(null, '', targetUrl.href);
+        window.scrollTo(0, 0);
+
         // Re-initialize interactive behaviors for the new content
         initInteractiveBehaviors();
         if (window.LibraryDeskAPI && typeof window.LibraryDeskAPI.init === 'function') {
           window.LibraryDeskAPI.init();
         }
         document.dispatchEvent(new CustomEvent('page:loaded'));
-
-        // Push new URL to history
-        history.pushState(null, '', targetUrl.href);
-        window.scrollTo(0, 0);
       } catch (err) {
         // Fallback to normal navigation if fetch fails (e.g. CORS on local file:// protocol)
         window.location.href = targetUrl.href;

@@ -580,9 +580,17 @@ class DataStore {
         params.push(query.category);
       }
       if (query.search) {
-        sql += ' AND (LOWER(e.name) LIKE ? OR LOWER(e.id) LIKE ? OR LOWER(e.category) LIKE ?)';
-        const q = `%${query.search.toLowerCase()}%`;
-        params.push(q, q, q);
+        const raw = query.search.trim().toLowerCase();
+        const q = `%${raw}%`;
+        sql += ` AND (
+          LOWER(e.name) LIKE ? OR 
+          LOWER(e.id) LIKE ? OR 
+          LOWER(e.category) LIKE ? OR 
+          LOWER(e.status) LIKE ? OR 
+          LOWER(COALESCE(e.description, '')) LIKE ? OR 
+          LOWER(COALESCE(a.accessory_name, '')) LIKE ?
+        )`;
+        params.push(q, q, q, q, q, q);
       }
       sql += ' GROUP BY e.id ORDER BY e.id ASC;';
 
@@ -608,11 +616,14 @@ class DataStore {
       list = list.filter(item => item.category.toLowerCase() === query.category.toLowerCase());
     }
     if (query.search) {
-      const q = query.search.toLowerCase();
+      const q = query.search.trim().toLowerCase();
       list = list.filter(item =>
         item.name.toLowerCase().includes(q) ||
         item.id.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q)
+        item.category.toLowerCase().includes(q) ||
+        (item.status && item.status.toLowerCase().includes(q)) ||
+        (item.description && item.description.toLowerCase().includes(q)) ||
+        (item.accessories && item.accessories.some(a => a.toLowerCase().includes(q)))
       );
     }
     return list;
@@ -714,9 +725,18 @@ class DataStore {
         params.push(query.status);
       }
       if (query.search) {
-        sql += ' AND (LOWER(name) LIKE ? OR LOWER(netid) LIKE ? OR university_id LIKE ?)';
-        const q = `%${query.search.toLowerCase()}%`;
-        params.push(q, q, q);
+        const raw = query.search.trim().toLowerCase();
+        const q = `%${raw}%`;
+        sql += ` AND (
+          LOWER(name) LIKE ? OR 
+          LOWER(netid) LIKE ? OR 
+          LOWER(university_id) LIKE ? OR 
+          LOWER(email) LIKE ? OR 
+          LOWER(department) LIKE ? OR 
+          LOWER(role) LIKE ? OR 
+          LOWER(status) LIKE ?
+        )`;
+        params.push(q, q, q, q, q, q, q);
       }
       sql += ' ORDER BY name ASC;';
 
@@ -742,11 +762,15 @@ class DataStore {
       list = list.filter(b => b.status === query.status);
     }
     if (query.search) {
-      const q = query.search.toLowerCase();
+      const q = query.search.trim().toLowerCase();
       list = list.filter(b =>
         b.name.toLowerCase().includes(q) ||
         b.netid.toLowerCase().includes(q) ||
-        b.universityId.includes(q)
+        (b.universityId && b.universityId.toLowerCase().includes(q)) ||
+        (b.email && b.email.toLowerCase().includes(q)) ||
+        (b.department && b.department.toLowerCase().includes(q)) ||
+        (b.role && b.role.toLowerCase().includes(q)) ||
+        (b.status && b.status.toLowerCase().includes(q))
       );
     }
     return list;
@@ -790,9 +814,34 @@ class DataStore {
         params.push(query.status);
       }
       if (query.search) {
-        sql += ' AND (LOWER(l.id) LIKE ? OR LOWER(b.name) LIKE ? OR LOWER(b.netid) LIKE ? OR LOWER(e.name) LIKE ? OR LOWER(e.id) LIKE ?)';
-        const q = `%${query.search.toLowerCase()}%`;
-        params.push(q, q, q, q, q);
+        const raw = query.search.trim().toLowerCase();
+        const q = `%${raw}%`;
+        const searchClauses = [
+          'LOWER(l.id) LIKE ?',
+          'LOWER(b.name) LIKE ?',
+          'LOWER(b.netid) LIKE ?',
+          'LOWER(b.university_id) LIKE ?',
+          'LOWER(e.name) LIKE ?',
+          'LOWER(e.id) LIKE ?',
+          'LOWER(e.category) LIKE ?',
+          'LOWER(l.asset_tag) LIKE ?',
+          'LOWER(l.status) LIKE ?',
+          'LOWER(l.due_date) LIKE ?',
+          'LOWER(l.checkout_date) LIKE ?'
+        ];
+        params.push(q, q, q, q, q, q, q, q, q, q, q);
+
+        if (raw === 'overdue') {
+          searchClauses.push("l.status = 'overdue'");
+        } else if (raw === 'due' || raw === 'due today' || raw === 'due-today' || raw === 'today') {
+          searchClauses.push("l.status IN ('due-today', 'overdue')");
+        } else if (raw === 'active') {
+          searchClauses.push("l.status = 'active'");
+        } else if (raw === 'returned') {
+          searchClauses.push("l.status = 'returned'");
+        }
+
+        sql += ` AND (${searchClauses.join(' OR ')})`;
       }
       sql += ' ORDER BY l.due_date ASC;';
 
@@ -827,14 +876,42 @@ class DataStore {
       list = list.filter(l => l.status === query.status);
     }
     if (query.search) {
-      const q = query.search.toLowerCase();
-      list = list.filter(l =>
-        l.id.toLowerCase().includes(q) ||
-        l.borrowerName.toLowerCase().includes(q) ||
-        l.borrowerNetId.toLowerCase().includes(q) ||
-        l.equipmentName.toLowerCase().includes(q) ||
-        l.equipmentId.toLowerCase().includes(q)
-      );
+      const q = query.search.trim().toLowerCase();
+      list = list.filter(l => {
+        const s = (l.status || '').toLowerCase();
+        const bName = (l.borrowerName || l.borrower || '').toLowerCase();
+        const bNet = (l.borrowerNetId || l.netid || '').toLowerCase();
+        const uId = (l.universityId || '').toLowerCase();
+        const eName = (l.equipmentName || '').toLowerCase();
+        const eId = (l.equipmentId || '').toLowerCase();
+        const cat = (l.category || '').toLowerCase();
+        const lId = (l.id || '').toLowerCase();
+        const tag = (l.assetTag || '').toLowerCase();
+        const dDate = (l.dueDate || '').toLowerCase();
+        const cDate = (l.checkoutDate || '').toLowerCase();
+
+        const statusMatch = (
+          s.includes(q) ||
+          (q === 'overdue' && s === 'overdue') ||
+          ((q === 'due' || q === 'due today' || q === 'today') && (s === 'due-today' || s === 'overdue')) ||
+          (q === 'active' && s === 'active') ||
+          (q === 'returned' && s === 'returned')
+        );
+
+        return (
+          lId.includes(q) ||
+          bName.includes(q) ||
+          bNet.includes(q) ||
+          uId.includes(q) ||
+          eName.includes(q) ||
+          eId.includes(q) ||
+          cat.includes(q) ||
+          tag.includes(q) ||
+          dDate.includes(q) ||
+          cDate.includes(q) ||
+          statusMatch
+        );
+      });
     }
     return list;
   }
@@ -1023,9 +1100,31 @@ class DataStore {
         params.push(query.status);
       }
       if (query.search) {
-        sql += ' AND (LOWER(p.id) LIKE ? OR LOWER(p.equipment_id) LIKE ? OR LOWER(p.equipment_name) LIKE ? OR LOWER(p.assigned_staff) LIKE ?)';
-        const q = `%${query.search.toLowerCase()}%`;
-        params.push(q, q, q, q);
+        const raw = query.search.trim().toLowerCase();
+        const q = `%${raw}%`;
+        const searchClauses = [
+          'LOWER(p.id) LIKE ?',
+          'LOWER(p.equipment_id) LIKE ?',
+          'LOWER(p.equipment_name) LIKE ?',
+          'LOWER(p.assigned_staff) LIKE ?',
+          'LOWER(p.category) LIKE ?',
+          'LOWER(p.target_date) LIKE ?',
+          'LOWER(p.status) LIKE ?',
+          'LOWER(COALESCE(p.notes, "")) LIKE ?'
+        ];
+        params.push(q, q, q, q, q, q, q, q);
+
+        if (raw.includes('need') || raw.includes('await') || raw === 'awaiting') {
+          searchClauses.push("p.status = 'awaiting'");
+        } else if (raw.includes('prep') || raw.includes('progress')) {
+          searchClauses.push("p.status = 'in-prep'");
+        } else if (raw.includes('review')) {
+          searchClauses.push("p.status = 'review'");
+        } else if (raw.includes('ready') || raw.includes('lend')) {
+          searchClauses.push("p.status = 'ready'");
+        }
+
+        sql += ` AND (${searchClauses.join(' OR ')})`;
       }
       sql += ' GROUP BY p.id ORDER BY p.id ASC;';
 
@@ -1061,13 +1160,36 @@ class DataStore {
       list = list.filter(p => p.status === query.status);
     }
     if (query.search) {
-      const q = query.search.toLowerCase();
-      list = list.filter(p =>
-        p.id.toLowerCase().includes(q) ||
-        p.equipmentId.toLowerCase().includes(q) ||
-        p.equipmentName.toLowerCase().includes(q) ||
-        p.assignedStaff.toLowerCase().includes(q)
-      );
+      const q = query.search.trim().toLowerCase();
+      list = list.filter(p => {
+        const s = (p.status || '').toLowerCase();
+        const eName = (p.equipmentName || '').toLowerCase();
+        const eId = (p.equipmentId || '').toLowerCase();
+        const pId = (p.id || '').toLowerCase();
+        const staff = (p.assignedStaff || '').toLowerCase();
+        const cat = (p.category || '').toLowerCase();
+        const tDate = (p.targetDate || '').toLowerCase();
+        const notes = (p.notes || '').toLowerCase();
+
+        const statusMatch = (
+          s.includes(q) ||
+          ((q.includes('need') || q.includes('await')) && s === 'awaiting') ||
+          ((q.includes('prep') || q.includes('progress')) && s === 'in-prep') ||
+          (q.includes('review') && s === 'review') ||
+          ((q.includes('ready') || q.includes('lend')) && s === 'ready')
+        );
+
+        return (
+          pId.includes(q) ||
+          eId.includes(q) ||
+          eName.includes(q) ||
+          staff.includes(q) ||
+          cat.includes(q) ||
+          tDate.includes(q) ||
+          notes.includes(q) ||
+          statusMatch
+        );
+      });
     }
     return list;
   }
@@ -1167,9 +1289,9 @@ class DataStore {
         params.push(`%${query.category.toLowerCase()}%`);
       }
       if (query.search) {
-        sql += ' AND (LOWER(e.name) LIKE ? OR LOWER(e.id) LIKE ?)';
+        sql += ' AND (LOWER(e.name) LIKE ? OR LOWER(e.id) LIKE ? OR LOWER(e.category) LIKE ?)';
         const q = `%${query.search.toLowerCase()}%`;
-        params.push(q, q);
+        params.push(q, q, q);
       }
       sql += ' ORDER BY checkouts DESC, e.id ASC;';
 
@@ -1210,7 +1332,7 @@ class DataStore {
     }
     if (query.search) {
       const q = query.search.toLowerCase();
-      list = list.filter(r => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q));
+      list = list.filter(r => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q) || (r.category && r.category.toLowerCase().includes(q)));
     }
     return list;
   }

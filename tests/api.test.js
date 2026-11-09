@@ -215,6 +215,15 @@ async function runTests() {
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.preparation.status, 'review');
     assert.strictEqual(res.body.preparation.currentStep, 4);
+
+    // Restore PREP-002 to preserve initial database queue state
+    await request(app)
+      .patch('/api/preparation/PREP-002')
+      .send({
+        status: 'awaiting',
+        currentStep: 1,
+        notes: 'Needs physical inspection & sanitization wipe'
+      });
   });
 
   // 7. Reports & KPIs
@@ -250,6 +259,33 @@ async function runTests() {
     assert(res.body.loans.length >= 1);
     const borrower = res.body.loans[0].borrower || res.body.loans[0].borrowerName;
     assert(borrower.includes('Emma'));
+  });
+
+  await test('GET /api/loans?search=overdue filters loans by overdue status', async () => {
+    const res = await request(app).get('/api/loans?search=overdue');
+    assert.strictEqual(res.status, 200);
+    assert(res.body.loans.length >= 1);
+    assert.strictEqual(res.body.loans[0].status, 'overdue');
+  });
+
+  await test('GET /api/loans?search=due filters loans by due date or status', async () => {
+    const res = await request(app).get('/api/loans?search=due');
+    assert.strictEqual(res.status, 200);
+    assert(res.body.loans.length >= 2);
+  });
+
+  await test('GET /api/preparation?search=review filters preparation queue by status', async () => {
+    const res = await request(app).get('/api/preparation?search=review');
+    assert.strictEqual(res.status, 200);
+    assert(res.body.preparation.length >= 2);
+    res.body.preparation.forEach(p => assert.strictEqual(p.status, 'review'));
+  });
+
+  await test('GET /api/borrowers?search=Computer%20Science filters borrowers by department', async () => {
+    const res = await request(app).get('/api/borrowers?search=Computer%20Science');
+    assert.strictEqual(res.status, 200);
+    assert(res.body.borrowers.length >= 1);
+    assert.strictEqual(res.body.borrowers[0].department, 'Computer Science');
   });
 
   // 8. Error handling

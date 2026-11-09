@@ -102,7 +102,7 @@
               <a href="preparation-progress.html">Open preparation ↗</a>
             </div>
             <div class="preparation-report">
-              <div class="preparation-report-stats">
+              <div class="preparation-report-stats" id="overview-prep-stats">
                 <div><strong>04</strong><span>Needs preparation</span></div>
                 <div><strong>03</strong><span>In preparation</span></div>
                 <div><strong>02</strong><span>Awaiting review</span></div>
@@ -120,6 +120,7 @@
                   placeholder="Search equipment, staff, or status..."
                 />
               </div>
+              <div id="overview-prep-rows">
               <div class="preparation-report-row">
                 <div>
                   <strong>Game Console</strong
@@ -192,8 +193,9 @@
                 ><time datetime="2026-10-13">Oct 13, 2026</time
                 ><em class="status-badge ready">Ready for lending</em>
               </div>
+              </div>
               <div class="preparation-report-footer">
-                <span>Showing 8 of 11 items</span
+                <span id="overview-prep-count">Showing 8 of 11 items</span
                 ><a href="preparation-progress.html">View all preparation</a>
               </div>
             </div>
@@ -214,17 +216,20 @@
             </div>
             <div class="checkout-report">
               <div class="checkout-report-controls">
-                <label
-                  >Timeframe<select>
-                    <option>Fall 2026 (current)</option>
+                <label for="overview-report-semester"
+                  >Timeframe<select id="overview-report-semester">
+                    <option value="fall-2026" selected>Fall 2026 (current)</option>
+                    <option value="summer-2026">Summer 2026</option>
+                    <option value="spring-2026">Spring 2026</option>
+                    <option value="custom">Custom timeframe</option>
                   </select></label
-                ><label>From<input type="date" value="2026-08-24" /></label
-                ><label>To<input type="date" value="2026-12-18" /></label
-                ><button type="button">▷ Run report</button>
+                ><label for="overview-report-from">From<input id="overview-report-from" type="date" value="2026-08-24" /></label
+                ><label for="overview-report-to">To<input id="overview-report-to" type="date" value="2026-12-18" /></label
+                ><button type="button" id="overview-btn-run-report">▷ Run report</button>
               </div>
               <div class="checkout-report-summary">
-                <strong>Fall 2026 (current)</strong> · 24 Aug 2026 – 18 Dec 2026
-                <span>65 checkouts · 3.5 days avg</span>
+                <strong id="overview-summary-semester">Fall 2026 (current)</strong> · <span id="overview-summary-dates">24 Aug 2026 – 18 Dec 2026</span>
+                <span id="overview-summary-totals">38 checkouts · 3.8 days avg</span>
               </div>
               <table>
                 <caption>
@@ -238,7 +243,7 @@
                     <th>Total days out</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="overview-report-rows">
                   <tr>
                     <td>Mirrorless Camera Kit <small>EQ-001</small></td>
                     <td>6</td>
@@ -313,10 +318,10 @@
             </div>
             <div class="table-container overview-loans">
               <div class="loan-toolbar">
-                <span
+                <span id="overview-loans-stats"
                   >All loans <b>5</b> &nbsp; Due today <b>2</b> &nbsp; Overdue
                   <b>1</b></span
-                ><input type="search" placeholder="Search loans..." />
+                ><input id="overview-loans-search" type="search" placeholder="Search loans..." />
               </div>
               <table>
                 <caption>
@@ -331,7 +336,7 @@
                     <th scope="col">Status</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="overview-loans-rows">
                   <tr>
                     <td>
                       <strong>Mirrorless Camera Kit</strong
