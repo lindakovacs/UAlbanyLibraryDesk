@@ -76,7 +76,7 @@
             <p class="nav-label">Workspace</p>
             <ul>
               <li>
-                <a class="nav-item" href="preparation-progress.html"${current === 'preparation' ? ' aria-current="page"' : ''}>Preparation</a>
+                <a class="nav-item" href="preparation.html"${current === 'preparation' ? ' aria-current="page"' : ''}>Preparation</a>
               </li>
               <li>
                 <a class="nav-item" href="index.html"${current === 'overview' ? ' aria-current="page"' : ''}>Overview</a>
@@ -251,21 +251,49 @@
     }
 
     connectedCallback() {
+      this.render();
+      if (window.LibraryDeskAPI && typeof window.LibraryDeskAPI.syncGlobalTabBadges === 'function') {
+        window.LibraryDeskAPI.syncGlobalTabBadges();
+      }
+    }
+
+    render() {
       const active = (this.getAttribute('active') || 'awaiting').toLowerCase();
+      const kpis = (window.LibraryDeskAPI && window.LibraryDeskAPI.lastKPIs && window.LibraryDeskAPI.lastKPIs.preparation) || null;
+      const countAwaiting = kpis && kpis.needsPreparation != null ? kpis.needsPreparation : 4;
+      const countInPrep = kpis && kpis.inPreparation != null ? kpis.inPreparation : 3;
+      const countReview = kpis && kpis.awaitingReview != null ? kpis.awaitingReview : 2;
+      const countReady = kpis && kpis.readyForLending != null ? kpis.readyForLending : 2;
+      const countTotal = kpis && kpis.total != null ? kpis.total : 11;
+
       this.innerHTML = `
         <div class="tabs" role="tablist" aria-label="Preparation status">
-          <a class="tab-link${active === 'awaiting' ? ' active-tab' : ''}" href="preparation-progress.html"${active === 'awaiting' ? ' aria-current="page"' : ''}>Awaiting assignment <span>4</span></a>
-          <a class="tab-link${active === 'in-prep' || active === 'in preparation' ? ' active-tab' : ''}" href="preparation.html"${active === 'in-prep' || active === 'in preparation' ? ' aria-current="page"' : ''}>In preparation <span>3</span></a>
-          <a class="tab-link${active === 'review' ? ' active-tab' : ''}" href="preparation-review.html"${active === 'review' ? ' aria-current="page"' : ''}>Review <span>2</span></a>
-          <a class="tab-link${active === 'ready' ? ' active-tab' : ''}" href="preparation-ready.html"${active === 'ready' ? ' aria-current="page"' : ''}>Ready <span>2</span></a>
-          <a class="tab-link${active === 'all' ? ' active-tab' : ''}" href="preparation-all.html"${active === 'all' ? ' aria-current="page"' : ''}>All equipment <span>11</span></a>
+          <a class="tab-link${active === 'awaiting' ? ' active-tab' : ''}" href="preparation.html"${active === 'awaiting' ? ' aria-current="page"' : ''}>Awaiting assignment <span class="badge-awaiting">${countAwaiting}</span></a>
+          <a class="tab-link${active === 'in-prep' || active === 'in preparation' ? ' active-tab' : ''}" href="preparation-progress.html"${active === 'in-prep' || active === 'in preparation' ? ' aria-current="page"' : ''}>In preparation <span class="badge-inprep">${countInPrep}</span></a>
+          <a class="tab-link${active === 'review' ? ' active-tab' : ''}" href="preparation-review.html"${active === 'review' ? ' aria-current="page"' : ''}>Review <span class="badge-review">${countReview}</span></a>
+          <a class="tab-link${active === 'ready' ? ' active-tab' : ''}" href="preparation-ready.html"${active === 'ready' ? ' aria-current="page"' : ''}>Ready <span class="badge-ready">${countReady}</span></a>
+          <a class="tab-link${active === 'all' ? ' active-tab' : ''}" href="preparation-all.html"${active === 'all' ? ' aria-current="page"' : ''}>All equipment <span class="badge-all">${countTotal}</span></a>
         </div>
       `;
     }
 
+    updateCounts(kpis) {
+      if (!kpis) return;
+      const s0 = this.querySelector('.badge-awaiting');
+      if (s0 && kpis.needsPreparation != null) s0.textContent = kpis.needsPreparation;
+      const s1 = this.querySelector('.badge-inprep');
+      if (s1 && kpis.inPreparation != null) s1.textContent = kpis.inPreparation;
+      const s2 = this.querySelector('.badge-review');
+      if (s2 && kpis.awaitingReview != null) s2.textContent = kpis.awaitingReview;
+      const s3 = this.querySelector('.badge-ready');
+      if (s3 && kpis.readyForLending != null) s3.textContent = kpis.readyForLending;
+      const s4 = this.querySelector('.badge-all');
+      if (s4 && kpis.total != null) s4.textContent = kpis.total;
+    }
+
     attributeChangedCallback(name, oldValue, newValue) {
       if (oldValue !== newValue && this.isConnected) {
-        this.connectedCallback();
+        this.render();
       }
     }
   }
@@ -343,6 +371,7 @@
       if (table) {
         const rows = Array.from(table.querySelectorAll('tbody tr:not(.table-empty-row)'));
         prepSearch.addEventListener('input', () => {
+          if (window.LibraryDeskAPI) return; // Handled dynamically with live database API by api-client.js
           const query = prepSearch.value.trim().toLowerCase();
           let visibleCount = 0;
 
@@ -388,6 +417,7 @@
         const totalCount = rows.length;
 
         loanSearch.addEventListener('input', () => {
+          if (window.LibraryDeskAPI) return; // Handled dynamically with live database API by api-client.js
           const query = loanSearch.value.trim().toLowerCase();
           let visibleCount = 0;
 
@@ -431,6 +461,7 @@
       const countEl = document.querySelector('.equipment-search-count') || document.querySelector('.equipment-toolbar span');
 
       const filterEquipment = () => {
+        if (window.LibraryDeskAPI) return; // Handled dynamically with live database API by api-client.js
         const query = (equipmentSearch ? equipmentSearch.value : '').trim().toLowerCase();
         const selectedCat = categorySelect ? categorySelect.value : 'All categories';
         let visibleCount = 0;
@@ -486,6 +517,7 @@
         const totalCount = rows.length;
 
         borrowerSearch.addEventListener('input', () => {
+          if (window.LibraryDeskAPI) return; // Handled dynamically with live database API by api-client.js
           const query = borrowerSearch.value.trim().toLowerCase();
           let visibleCount = 0;
 
@@ -540,6 +572,36 @@
           cb.dataset.bound = 'true';
           cb.addEventListener('change', updateProgress);
         }
+      });
+    }
+
+    // 6. Ensure Awaiting Review status badges are ALWAYS purple (#46166b / #f1ebf6)
+    enforceReviewBadgeColors();
+  }
+
+  function enforceReviewBadgeColors() {
+    document.querySelectorAll('.status-badge').forEach((badge) => {
+      const txt = (badge.textContent || '').trim().toLowerCase();
+      if (txt === 'awaiting review' || txt === 'review' || txt.includes('review')) {
+        badge.classList.add('in-review');
+        badge.setAttribute('data-status', 'review');
+        badge.style.setProperty('color', '#46166b', 'important');
+        badge.style.setProperty('background', '#f1ebf6', 'important');
+        badge.style.setProperty('background-color', '#f1ebf6', 'important');
+      }
+    });
+  }
+
+  // Observe DOM changes to catch dynamically inserted review badges instantly
+  if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
+    const reviewObserver = new MutationObserver(() => {
+      enforceReviewBadgeColors();
+    });
+    if (document.body) {
+      reviewObserver.observe(document.body, { childList: true, subtree: true });
+    } else {
+      document.addEventListener('DOMContentLoaded', () => {
+        if (document.body) reviewObserver.observe(document.body, { childList: true, subtree: true });
       });
     }
   }
@@ -629,6 +691,10 @@
 
         // Re-initialize interactive behaviors for the new content
         initInteractiveBehaviors();
+        if (window.LibraryDeskAPI && typeof window.LibraryDeskAPI.init === 'function') {
+          window.LibraryDeskAPI.init();
+        }
+        document.dispatchEvent(new CustomEvent('page:loaded'));
 
         // Push new URL to history
         history.pushState(null, '', targetUrl.href);
@@ -677,6 +743,10 @@
         }
 
         initInteractiveBehaviors();
+        if (window.LibraryDeskAPI && typeof window.LibraryDeskAPI.init === 'function') {
+          window.LibraryDeskAPI.init();
+        }
+        document.dispatchEvent(new CustomEvent('page:loaded'));
         window.scrollTo(0, 0);
       } catch (err) {
         window.location.reload();

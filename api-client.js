@@ -352,6 +352,18 @@
 
     // 15. Dynamic Preparation Workflow Actions (Checklist & Review)
     syncPreparationWorkflow();
+
+    // 16. Dynamic Preparation Queues & Live Search (Preparation Views)
+    syncPreparationQueues();
+
+    // 17. Dynamic Dashboard Overview Live Searches (Overview Page)
+    syncDashboardOverviewSearches();
+
+    // 18. Dynamic Global Tab Badges (<preparation-tabs> & <loan-tabs>)
+    syncGlobalTabBadges();
+
+    // 19. Enforce Purple Styling for Awaiting Review Badges
+    enforceReviewBadgeColor();
   }
 
   function escapeHtml(str) {
@@ -364,37 +376,116 @@
       .replace(/'/g, '&#39;');
   }
 
+  function enforceReviewBadgeColor() {
+    document.querySelectorAll('.status-badge').forEach(badge => {
+      const txt = (badge.textContent || '').trim().toLowerCase();
+      if (txt === 'awaiting review' || txt === 'review' || txt.includes('review')) {
+        badge.classList.add('in-review');
+        badge.setAttribute('data-status', 'review');
+        badge.style.setProperty('color', '#46166b', 'important');
+        badge.style.setProperty('background', '#f1ebf6', 'important');
+        badge.style.setProperty('background-color', '#f1ebf6', 'important');
+      }
+    });
+  }
+
+  function debounce(fn, delay = 250) {
+    let timer = null;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
+  function getEquipmentIcon(item) {
+    const cat = ((item && item.category) || '').toLowerCase();
+    const name = ((item && item.name) || '').toLowerCase();
+    if (cat.includes('gaming') || name.includes('gamepad') || name.includes('switch') || name.includes('playstation') || name.includes('arcade')) {
+      return '<svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="2"></rect><path d="M9 8v4M7 10h4M15 10v.01"></path></svg>';
+    }
+    if (name.includes('mic') || name.includes('audio') || name.includes('zoom')) {
+      return '<svg viewBox="0 0 24 24"><path d="M9 5v8a3 3 0 0 0 6 0V5M7 12a5 5 0 0 0 10 0M12 17v3M9 20h6"></path></svg>';
+    }
+    if (name.includes('camera') || name.includes('video') || name.includes('owl')) {
+      return '<svg viewBox="0 0 24 24"><path d="M4 8h16v11H4zM8 8l1.5-3h5L16 8"></path><circle cx="12" cy="13.5" r="3"></circle></svg>';
+    }
+    return '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M2 18h20"></path></svg>';
+  }
+
   async function syncEquipmentPage() {
     const grid = document.querySelector('.equipment-grid');
     if (!grid) return;
-    try {
-      const res = await apiClient.getEquipment();
-      if (!res || !res.equipment) return;
-      const eqMap = new Map(res.equipment.map(e => [e.id, e]));
-      grid.querySelectorAll('.equipment-card').forEach(card => {
-        const p = card.querySelector('p');
-        if (!p) return;
-        const match = p.textContent.match(/EQ-\d+/);
-        if (!match) return;
-        const eq = eqMap.get(match[0]);
-        if (!eq) return;
-        const availEl = card.querySelector('.equipment-availability strong');
-        if (availEl) {
-          availEl.textContent = `${eq.available} of ${eq.total} available`;
+
+    const searchInput = document.getElementById('equipment-search');
+    const categorySelect = document.querySelector('.equipment-toolbar select') || document.querySelector('select[aria-label="Filter by category"]');
+    const countBadge = document.querySelector('.equipment-search-count') || document.querySelector('.equipment-toolbar span');
+
+    async function fetchAndRenderEquipment(searchQuery = '', selectedCategory = '') {
+      try {
+        const cat = selectedCategory && selectedCategory !== 'All categories' ? selectedCategory : '';
+        const res = await apiClient.getEquipment({ search: searchQuery, category: cat });
+        if (!res || !res.equipment) return;
+
+        grid.innerHTML = '';
+        if (res.equipment.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'equipment-empty-card';
+          empty.style.cssText = 'grid-column: 1 / -1; padding: 3rem; text-align: center; color: #6b6474; font-style: italic; background: #fff; border: 1px dashed #cfc5d6; border-radius: 0.6rem;';
+          empty.textContent = searchQuery ? `No equipment matches "${searchQuery}"` : 'No equipment available in this category.';
+          grid.appendChild(empty);
+        } else {
+          res.equipment.forEach(item => {
+            const article = document.createElement('article');
+            article.className = 'equipment-card';
+            const isAvail = item.available > 0;
+            const badgeClass = isAvail ? 'ready' : 'in-progress';
+            const badgeText = isAvail ? 'Ready to borrow' : 'Currently on loan';
+            const iconSvg = getEquipmentIcon(item);
+
+            article.innerHTML = `
+              <div class="catalog-icon">
+                ${iconSvg}
+              </div>
+              <div>
+                <h2>${escapeHtml(item.name)}</h2>
+                <p>${escapeHtml(item.id)} · ${escapeHtml(item.category)}</p>
+              </div>
+              <div class="equipment-availability">
+                <strong>${item.available} of ${item.total} available</strong>
+                <span class="status-badge ${badgeClass}">${badgeText}</span>
+              </div>
+              <a class="secondary-action" href="new-loan.html?equipment=${encodeURIComponent(item.id)}">
+                Check out
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
+              </a>
+            `;
+            grid.appendChild(article);
+          });
         }
-        const badgeEl = card.querySelector('.equipment-availability span');
-        if (badgeEl) {
-          if (eq.available <= 0) {
-            badgeEl.textContent = 'Currently on loan';
-            badgeEl.className = 'status-badge in-progress';
-          } else {
-            badgeEl.textContent = 'Ready to borrow';
-            badgeEl.className = 'status-badge ready';
-          }
+
+        if (countBadge) {
+          countBadge.textContent = `${res.equipment.length} item${res.equipment.length === 1 ? '' : 's'}`;
         }
+      } catch (e) {
+        // Fallback gracefully
+      }
+    }
+
+    fetchAndRenderEquipment(searchInput ? searchInput.value.trim() : '', categorySelect ? categorySelect.value : '');
+
+    if (searchInput && !searchInput.dataset.apiBound) {
+      searchInput.dataset.apiBound = 'true';
+      const debouncedSearch = debounce(() => {
+        fetchAndRenderEquipment(searchInput.value.trim(), categorySelect ? categorySelect.value : '');
+      }, 250);
+      searchInput.addEventListener('input', debouncedSearch);
+    }
+
+    if (categorySelect && !categorySelect.dataset.apiBound) {
+      categorySelect.dataset.apiBound = 'true';
+      categorySelect.addEventListener('change', () => {
+        fetchAndRenderEquipment(searchInput ? searchInput.value.trim() : '', categorySelect.value);
       });
-    } catch (e) {
-      // Fallback gracefully
     }
   }
 
@@ -476,57 +567,84 @@
   async function syncLoansTable() {
     const tableContainer = document.querySelector('.loan-table-container');
     if (!tableContainer) return;
-    try {
-      const isOverduePage = window.location.pathname.includes('overdue');
-      const res = await apiClient.getLoans(isOverduePage ? { status: 'overdue' } : {});
-      if (!res || !res.loans) return;
-      const headingCount = document.querySelector('.section-heading h2');
-      const subCount = document.querySelector('.section-heading p');
-      if (headingCount) headingCount.textContent = `${res.total} loans`;
-      if (subCount) {
-        const activeCount = res.loans.filter(l => l.status === 'active' || l.status === 'due-today' || l.status === 'overdue').length;
-        const returnedCount = res.loans.filter(l => l.status === 'returned').length;
-        subCount.textContent = `${activeCount} open loans · ${returnedCount} returned`;
-      }
 
-      const tbody = tableContainer.querySelector('tbody');
-      if (tbody && res.loans.length > 0) {
-        tbody.innerHTML = '';
-        res.loans.forEach(loan => {
-          const tr = document.createElement('tr');
-          const statusClass = loan.status === 'active' ? 'active' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : 'returned';
-          const statusLabel = loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
-          tr.innerHTML = `
-            <td>
-              <span class="loan-equipment-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M4 8h16v11H4zM8 8l1.5-3h5L16 8"></path><circle cx="12" cy="13.5" r="3"></circle></svg>
-              </span>
-              <span class="equipment-details">
-                <strong>${escapeHtml(loan.equipmentName || loan.equipmentId)}</strong>
-                <small>${escapeHtml(loan.equipmentId)} · ${escapeHtml(loan.category || 'Library Equipment')}</small>
-              </span>
-            </td>
-            <td>NO</td>
-            <td>
-              <span class="borrower-cell">
-                <strong>${escapeHtml(loan.borrower)}</strong>
-                <small>${escapeHtml(loan.netid)}</small>
-              </span>
-            </td>
-            <td>${escapeHtml(loan.checkoutDate || 'Recent')}</td>
-            <td>${escapeHtml(loan.dueDate || 'Standard')}</td>
-            <td><span class="loan-status ${statusClass}">${statusLabel}</span></td>
-            <td>
-              <a class="row-arrow" href="loan-details.html?id=${encodeURIComponent(loan.id)}" aria-label="View loan ${escapeHtml(loan.id)}">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
-              </a>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
+    const loanSearch = document.getElementById('loan-search');
+    const isOverduePage = window.location.pathname.includes('overdue');
+    const headingCount = document.querySelector('.section-heading h2');
+    const subCount = document.querySelector('.section-heading p');
+    const footerCount = document.querySelector('.loan-footer span:first-child');
+    const tbody = tableContainer.querySelector('tbody');
+
+    async function fetchAndRenderLoans(query = '') {
+      try {
+        const params = isOverduePage ? { status: 'overdue' } : {};
+        if (query) params.search = query;
+        const res = await apiClient.getLoans(params);
+        if (!res || !res.loans) return;
+
+        if (headingCount) headingCount.textContent = `${res.total} loans`;
+        if (subCount && !query) {
+          const activeCount = res.loans.filter(l => l.status === 'active' || l.status === 'due-today' || l.status === 'overdue').length;
+          const returnedCount = res.loans.filter(l => l.status === 'returned').length;
+          subCount.textContent = `${activeCount} open loans · ${returnedCount} returned`;
+        }
+
+        if (footerCount) {
+          footerCount.textContent = `Showing ${res.loans.length} of ${res.total} loans`;
+        }
+
+        if (tbody) {
+          tbody.innerHTML = '';
+          if (res.loans.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="table-empty-message" style="text-align: center; padding: 2rem; color: #6b6474; font-style: italic;">No loans matching "${escapeHtml(query)}"</td></tr>`;
+          } else {
+            res.loans.forEach(loan => {
+              const tr = document.createElement('tr');
+              const statusClass = loan.status === 'active' ? 'active' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : 'returned';
+              const statusLabel = loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
+              tr.innerHTML = `
+                <td>
+                  <span class="loan-equipment-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M4 8h16v11H4zM8 8l1.5-3h5L16 8"></path><circle cx="12" cy="13.5" r="3"></circle></svg>
+                  </span>
+                  <span class="equipment-details">
+                    <strong>${escapeHtml(loan.equipmentName || loan.equipmentId)}</strong>
+                    <small>${escapeHtml(loan.equipmentId)} · ${escapeHtml(loan.category || 'Library Equipment')}</small>
+                  </span>
+                </td>
+                <td>NO</td>
+                <td>
+                  <span class="borrower-cell">
+                    <strong>${escapeHtml(loan.borrower)}</strong>
+                    <small>${escapeHtml(loan.netid)}</small>
+                  </span>
+                </td>
+                <td>${escapeHtml(loan.checkoutDate || 'Recent')}</td>
+                <td>${escapeHtml(loan.dueDate || 'Standard')}</td>
+                <td><span class="loan-status ${statusClass}">${statusLabel}</span></td>
+                <td>
+                  <a class="row-arrow" href="loan-details.html?id=${encodeURIComponent(loan.id)}" aria-label="View loan ${escapeHtml(loan.id)}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
+                  </a>
+                </td>
+              `;
+              tbody.appendChild(tr);
+            });
+          }
+        }
+      } catch (e) {
+        // Fallback gracefully
       }
-    } catch (e) {
-      // Fallback gracefully
+    }
+
+    fetchAndRenderLoans(loanSearch ? loanSearch.value.trim() : '');
+
+    if (loanSearch && !loanSearch.dataset.apiBound) {
+      loanSearch.dataset.apiBound = 'true';
+      const debounced = debounce(() => {
+        fetchAndRenderLoans(loanSearch.value.trim());
+      }, 250);
+      loanSearch.addEventListener('input', debounced);
     }
   }
 
@@ -571,42 +689,67 @@
   async function syncBorrowersTable() {
     const borrowerPanel = document.querySelector('.borrower-panel');
     if (!borrowerPanel) return;
-    try {
-      const res = await apiClient.getBorrowers();
-      if (!res || !res.borrowers) return;
-      const headingCount = document.getElementById('borrower-list-heading');
-      if (headingCount) headingCount.textContent = `${res.total} borrowers`;
 
-      const tbody = borrowerPanel.querySelector('tbody');
-      if (tbody && res.borrowers.length > 0) {
-        tbody.innerHTML = '';
-        res.borrowers.forEach(b => {
-          const tr = document.createElement('tr');
-          const isOverdue = b.status === 'restricted' || (b.openLoans > 0 && b.hasOverdue);
-          const statusClass = isOverdue ? 'overdue' : 'good';
-          const statusLabel = isOverdue ? 'Overdue item' : 'Good standing';
-          const initials = getInitials(b.name);
-          tr.innerHTML = `
-            <td>
-              <span class="borrower-profile">
-                <span class="borrower-initials">${initials}</span>
-                <strong>${escapeHtml(b.name)}</strong>
-              </span>
-            </td>
-            <td>${escapeHtml(b.universityId || b.netid)}</td>
-            <td>${b.openLoans != null ? b.openLoans : 0}</td>
-            <td><span class="borrower-status ${statusClass}">${statusLabel}</span></td>
-            <td>
-              <a class="row-arrow" href="loans.html" aria-label="View ${escapeHtml(b.name)}'s loans">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
-              </a>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
+    const borrowerSearch = document.getElementById('borrower-search');
+    const headingCount = document.getElementById('borrower-list-heading');
+    const footerCount = document.querySelector('.borrower-footer span:first-child');
+    const tbody = borrowerPanel.querySelector('tbody');
+
+    async function fetchAndRenderBorrowers(query = '') {
+      try {
+        const params = query ? { search: query } : {};
+        const res = await apiClient.getBorrowers(params);
+        if (!res || !res.borrowers) return;
+
+        if (headingCount) headingCount.textContent = `${res.total} borrowers`;
+        if (footerCount) {
+          footerCount.textContent = `Showing ${res.borrowers.length} of ${res.total} borrowers`;
+        }
+
+        if (tbody) {
+          tbody.innerHTML = '';
+          if (res.borrowers.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="table-empty-message" style="text-align: center; padding: 2rem; color: #6b6474; font-style: italic;">No borrowers matching "${escapeHtml(query)}"</td></tr>`;
+          } else {
+            res.borrowers.forEach(b => {
+              const tr = document.createElement('tr');
+              const isOverdue = b.status === 'restricted' || (b.openLoans > 0 && b.hasOverdue);
+              const statusClass = isOverdue ? 'overdue' : 'good';
+              const statusLabel = isOverdue ? 'Overdue item' : 'Good standing';
+              const initials = getInitials(b.name);
+              tr.innerHTML = `
+                <td>
+                  <span class="borrower-profile">
+                    <span class="borrower-initials">${initials}</span>
+                    <strong>${escapeHtml(b.name)}</strong>
+                  </span>
+                </td>
+                <td>${escapeHtml(b.universityId || b.netid)}</td>
+                <td>${b.openLoans != null ? b.openLoans : 0}</td>
+                <td><span class="borrower-status ${statusClass}">${statusLabel}</span></td>
+                <td>
+                  <a class="row-arrow" href="loans.html" aria-label="View ${escapeHtml(b.name)}'s loans">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
+                  </a>
+                </td>
+              `;
+              tbody.appendChild(tr);
+            });
+          }
+        }
+      } catch (e) {
+        // Fallback gracefully
       }
-    } catch (e) {
-      // Fallback gracefully
+    }
+
+    fetchAndRenderBorrowers(borrowerSearch ? borrowerSearch.value.trim() : '');
+
+    if (borrowerSearch && !borrowerSearch.dataset.apiBound) {
+      borrowerSearch.dataset.apiBound = 'true';
+      const debounced = debounce(() => {
+        fetchAndRenderBorrowers(borrowerSearch.value.trim());
+      }, 250);
+      borrowerSearch.addEventListener('input', debounced);
     }
   }
 
@@ -614,61 +757,418 @@
     const reportTable = document.getElementById('report-rows');
     if (!reportTable) return;
 
-    async function loadReports() {
+    const semesterSelect = document.getElementById('report-semester');
+    const fromInput = document.getElementById('report-from');
+    const toInput = document.getElementById('report-to');
+    const searchInput = document.getElementById('report-search');
+    const runBtn = document.getElementById('btn-run-report');
+    const summarySemester = document.getElementById('summary-semester');
+    const summaryDateRange = document.getElementById('summary-date-range');
+    const summaryTotals = document.getElementById('summary-totals');
+    const footerCount = document.querySelector('.checkout-report div span') || document.querySelector('.checkout-report span');
+
+    function formatDateRange(fromStr, toStr) {
+      if (!fromStr || !toStr) return '';
       try {
-        const res = await apiClient.getReports();
+        const [y1, m1, d1] = fromStr.split('-').map(Number);
+        const [y2, m2, d2] = toStr.split('-').map(Number);
+        const date1 = new Date(y1, m1 - 1, d1);
+        const date2 = new Date(y2, m2 - 1, d2);
+        const mNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${mNames[date1.getMonth()]} ${date1.getDate()}, ${date1.getFullYear()} – ${mNames[date2.getMonth()]} ${date2.getDate()}, ${date2.getFullYear()}`;
+      } catch (e) {
+        return `${fromStr} – ${toStr}`;
+      }
+    }
+
+    async function loadReports(isManualRun = false) {
+      if (runBtn && isManualRun) {
+        runBtn.disabled = true;
+        runBtn.textContent = 'Generating report...';
+      }
+
+      try {
+        const semester = semesterSelect ? semesterSelect.value : 'fall-2026';
+        const from = fromInput ? fromInput.value : '';
+        const to = toInput ? toInput.value : '';
+        const search = searchInput ? searchInput.value.trim() : '';
+
+        // Update summary display
+        if (summarySemester && semesterSelect) {
+          const selectedOption = semesterSelect.options[semesterSelect.selectedIndex];
+          summarySemester.textContent = selectedOption ? selectedOption.textContent : 'Fall 2026 (current)';
+        }
+        if (summaryDateRange && from && to) {
+          summaryDateRange.textContent = formatDateRange(from, to);
+        }
+
+        const queryParams = { semester };
+        if (from) queryParams.from = from;
+        if (to) queryParams.to = to;
+        if (search) queryParams.search = search;
+
+        const res = await apiClient.getReports(queryParams);
         if (!res || !res.reports) return;
+
         reportTable.innerHTML = '';
         let totalCheckouts = 0;
         let totalDays = 0;
 
-        res.reports.forEach(r => {
-          totalCheckouts += (r.checkouts || 0);
-          totalDays += (r.totalDays || 0);
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>
-              <strong>${escapeHtml(r.name)}</strong>
-              <small>${escapeHtml(r.id)}</small>
-            </td>
-            <td>${escapeHtml(r.category)}</td>
-            <td><strong>${r.checkouts}</strong></td>
-            <td>${r.avgDays} days</td>
-            <td>${r.totalDays} days</td>
-            <td style="text-align: right">
-              <button type="button" class="secondary-action" style="padding: 0.35rem 0.65rem; font-size: 0.75rem"
-                data-name="${escapeHtml(r.name)}" data-id="${escapeHtml(r.id)}" data-checkouts="${r.checkouts}" data-avg="${r.avgDays}" data-total="${r.totalDays}">
-                Download CSV
-              </button>
-            </td>
-          `;
-          reportTable.appendChild(tr);
-        });
+        if (res.reports.length === 0) {
+          reportTable.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2.5rem; color: #6b6474; font-style: italic;">No equipment checkout records found for the selected timeframe.</td></tr>`;
+          if (summaryTotals) {
+            summaryTotals.innerHTML = `<strong>0</strong> checkouts · <strong>0.0</strong> days on average`;
+          }
+          if (footerCount) {
+            footerCount.textContent = `Showing 0 active equipment checkout records`;
+          }
+        } else {
+          res.reports.forEach(r => {
+            totalCheckouts += (r.checkouts || 0);
+            totalDays += (r.totalDays || 0);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>
+                <strong>${escapeHtml(r.name)}</strong>
+                <small>${escapeHtml(r.id)}</small>
+              </td>
+              <td>${escapeHtml(r.category)}</td>
+              <td><strong>${r.checkouts}</strong></td>
+              <td>${r.avgDays} days</td>
+              <td>${r.totalDays} days</td>
+              <td style="text-align: right">
+                <button type="button" class="secondary-action" style="padding: 0.35rem 0.65rem; font-size: 0.75rem"
+                  data-name="${escapeHtml(r.name)}" data-id="${escapeHtml(r.id)}" data-checkouts="${r.checkouts}" data-avg="${r.avgDays}" data-total="${r.totalDays}">
+                  Download CSV
+                </button>
+              </td>
+            `;
+            reportTable.appendChild(tr);
+          });
 
-        const totalsEl = document.getElementById('summary-totals');
-        if (totalsEl && totalCheckouts > 0) {
-          const avg = (totalDays / totalCheckouts).toFixed(1);
-          totalsEl.innerHTML = `<strong>${totalCheckouts}</strong> checkouts · <strong>${avg}</strong> days on average`;
+          if (summaryTotals) {
+            const avg = totalCheckouts > 0 ? (totalDays / totalCheckouts).toFixed(1) : '0.0';
+            summaryTotals.innerHTML = `<strong>${totalCheckouts}</strong> checkouts · <strong>${avg}</strong> days on average`;
+          }
+
+          if (footerCount) {
+            footerCount.textContent = `Showing ${res.reports.length} active equipment checkout records`;
+          }
+
+          // Attach CSV download handlers for each row
+          reportTable.querySelectorAll('button[data-name]').forEach(btn => {
+            btn.addEventListener('click', () => {
+              if (typeof window.downloadCsv === 'function') {
+                window.downloadCsv(btn.dataset.name, btn.dataset.id, btn.dataset.checkouts, btn.dataset.avg, btn.dataset.total);
+              }
+            });
+          });
         }
 
-        // Attach CSV download handlers
-        reportTable.querySelectorAll('button[data-name]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            if (typeof window.downloadCsv === 'function') {
-              window.downloadCsv(btn.dataset.name, btn.dataset.id, btn.dataset.checkouts, btn.dataset.avg, btn.dataset.total);
+        // Dynamically update full export function
+        window.downloadFullReport = function () {
+          const rows = document.querySelectorAll('#report-rows tr');
+          let csv = 'Equipment,ID,Category,Total Checkouts,Average Length,Total Days Out\n';
+          rows.forEach(function (row) {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 5) {
+              const nameEl = cells[0].querySelector('strong');
+              const idEl = cells[0].querySelector('small');
+              if (!nameEl || !idEl) return;
+              const name = nameEl.textContent.trim();
+              const id = idEl.textContent.trim();
+              const cat = cells[1].textContent.trim();
+              const count = cells[2].textContent.trim();
+              const avg = cells[3].textContent.trim();
+              const total = cells[4].textContent.trim();
+              csv += `"${name}","${id}","${cat}",${count},"${avg}","${total}"\n`;
             }
           });
-        });
+          const sem = (summarySemester?.textContent || 'report').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `ualbany_library_checkout_${sem}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+
+        if (runBtn && isManualRun) {
+          runBtn.textContent = '✓ Report updated';
+          setTimeout(() => {
+            runBtn.disabled = false;
+            runBtn.textContent = 'Run report';
+          }, 1500);
+        }
+      } catch (e) {
+        if (runBtn && isManualRun) {
+          runBtn.disabled = false;
+          runBtn.textContent = 'Run report';
+        }
+      }
+    }
+
+    loadReports(false);
+
+    if (runBtn && !runBtn.dataset.apiBound) {
+      runBtn.dataset.apiBound = 'true';
+      runBtn.addEventListener('click', () => loadReports(true));
+    }
+
+    if (semesterSelect && !semesterSelect.dataset.apiBound) {
+      semesterSelect.dataset.apiBound = 'true';
+      semesterSelect.addEventListener('change', () => loadReports(false));
+    }
+
+    if (searchInput && !searchInput.dataset.apiBound) {
+      searchInput.dataset.apiBound = 'true';
+      const debounced = debounce(() => loadReports(false), 250);
+      searchInput.addEventListener('input', debounced);
+    }
+  }
+
+  async function syncPreparationQueues() {
+    const prepPanel = document.querySelector('.preparation-panel');
+    if (!prepPanel) return;
+    const table = prepPanel.querySelector('table');
+    if (!table) return;
+
+    const prepSearch = document.getElementById('preparation-search');
+    const countBadge = prepPanel.querySelector('.table-tools span:last-child') || prepPanel.querySelector('.table-tools span');
+    const tbody = table.querySelector('tbody');
+
+    const tabs = document.querySelector('preparation-tabs');
+    const activeTab = tabs ? (tabs.getAttribute('active') || '').toLowerCase() : '';
+    let statusFilter = '';
+    if (activeTab === 'awaiting') statusFilter = 'awaiting';
+    else if (activeTab === 'in-prep' || activeTab === 'in preparation') statusFilter = 'in-prep';
+    else if (activeTab === 'review') statusFilter = 'review';
+    else if (activeTab === 'ready') statusFilter = 'ready';
+    else if (activeTab === 'all') statusFilter = '';
+    else {
+      const p = window.location.pathname.toLowerCase();
+      if (p.includes('all')) statusFilter = '';
+      else if (p.includes('progress')) statusFilter = 'in-prep';
+      else if (p.includes('review')) statusFilter = 'review';
+      else if (p.includes('ready')) statusFilter = 'ready';
+      else if (p.includes('prep')) statusFilter = 'awaiting';
+    }
+
+    async function fetchAndRenderPrep(query = '') {
+      try {
+        const params = {};
+        if (statusFilter) params.status = statusFilter;
+        if (query) params.search = query;
+        const res = await apiClient.getPreparation(params);
+        if (!res || !res.preparation) return;
+
+        if (countBadge) {
+          countBadge.textContent = `${res.preparation.length} item${res.preparation.length === 1 ? '' : 's'}`;
+        }
+
+        if (tbody) {
+          tbody.innerHTML = '';
+          if (res.preparation.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="table-empty-message" style="text-align: center; padding: 2rem; color: #6b6474; font-style: italic;">No equipment in preparation matching "${escapeHtml(query)}"</td></tr>`;
+          } else {
+            const footerSpan = prepPanel.querySelector('.table-footer span');
+            const footerBtn = prepPanel.querySelector('.table-footer a.primary-action');
+
+            res.preparation.forEach((item, index) => {
+              const tr = document.createElement('tr');
+              const isSelected = (index === 0);
+              const isReview = (item.status === 'review' || item.status === 'in-review');
+              const badgeClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : isReview ? 'in-review' : '';
+              const badgeLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : isReview ? 'Awaiting review' : 'Ready for lending';
+
+              let actionLink = `preparation-details.html?id=${encodeURIComponent(item.equipmentId || item.id)}`;
+              if (item.status === 'in-prep') actionLink = `preparation-checklist.html?id=${encodeURIComponent(item.equipmentId || item.id)}`;
+              else if (isReview) actionLink = `preparation-review-details.html?id=${encodeURIComponent(item.equipmentId || item.id)}`;
+              else if (item.status === 'ready') actionLink = `preparation-details.html?id=${encodeURIComponent(item.equipmentId || item.id)}`;
+
+              let iconSvg = '<svg viewBox="0 0 24 24"><path d="M4 8h16v11H4zM8 8l1.5-3h5L16 8"></path><circle cx="12" cy="13.5" r="3"></circle></svg>';
+              const nameLower = (item.equipmentName || '').toLowerCase();
+              if (nameLower.includes('console') || nameLower.includes('playstation') || nameLower.includes('switch') || nameLower.includes('gamepad')) {
+                iconSvg = '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M8 10v4M6 12h4M16 10v.01M18 12v.01"></path></svg>';
+              } else if (nameLower.includes('audio') || nameLower.includes('podcasting') || nameLower.includes('microphone') || nameLower.includes('mic') || nameLower.includes('zoom')) {
+                iconSvg = '<svg viewBox="0 0 24 24"><rect x="7" y="4" width="10" height="16" rx="2"></rect><path d="M10 8h4M10 12h4M10 16h4"></path></svg>';
+              } else if (nameLower.includes('owl') || nameLower.includes('conference')) {
+                iconSvg = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>';
+              }
+
+              tr.dataset.equipmentId = item.equipmentId || item.id;
+              tr.dataset.actionLink = actionLink;
+              if (isSelected) tr.classList.add('selected-row');
+
+              tr.innerHTML = `
+                <td>
+                  <span class="selection-circle ${isSelected ? 'selected' : ''}" role="radio" aria-checked="${isSelected}" aria-label="${escapeHtml(item.equipmentName)} selected"></span>
+                  <span class="equipment-icon" aria-hidden="true">${iconSvg}</span>
+                  <span class="equipment-details">
+                    <strong>${escapeHtml(item.equipmentName)}</strong>
+                    <small>${escapeHtml(item.equipmentId || item.id)}</small>
+                  </span>
+                </td>
+                <td><span class="status-badge ${badgeClass}" ${isReview ? 'data-status="review"' : ''}>${badgeLabel}</span></td>
+                <td>${escapeHtml(item.assignedStaff || 'Unassigned')}</td>
+                <td>${escapeHtml(item.targetDate || 'Pending')}</td>
+                <td>
+                  <a class="row-arrow" href="${actionLink}" aria-label="View ${escapeHtml(item.equipmentName)} details">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
+                  </a>
+                </td>
+              `;
+
+              tr.addEventListener('click', (e) => {
+                if (e.target.closest('a')) return;
+                tbody.querySelectorAll('tr').forEach(r => {
+                  r.classList.remove('selected-row');
+                  const c = r.querySelector('.selection-circle');
+                  if (c) {
+                    c.classList.remove('selected');
+                    c.setAttribute('aria-checked', 'false');
+                  }
+                });
+                tr.classList.add('selected-row');
+                const c = tr.querySelector('.selection-circle');
+                if (c) {
+                  c.classList.add('selected');
+                  c.setAttribute('aria-checked', 'true');
+                }
+                const eqId = tr.dataset.equipmentId;
+                const link = tr.dataset.actionLink;
+                if (footerSpan && eqId) footerSpan.textContent = `${eqId} selected`;
+                if (footerBtn && link) footerBtn.href = link;
+              });
+
+              tbody.appendChild(tr);
+            });
+
+            if (footerSpan && res.preparation.length > 0) {
+              const first = res.preparation[0];
+              footerSpan.textContent = `${first.equipmentId || first.id} selected`;
+              if (footerBtn) {
+                let firstLink = `preparation-details.html?id=${encodeURIComponent(first.equipmentId || first.id)}`;
+                if (first.status === 'in-prep') firstLink = `preparation-checklist.html?id=${encodeURIComponent(first.equipmentId || first.id)}`;
+                else if (first.status === 'review') firstLink = `preparation-review-details.html?id=${encodeURIComponent(first.equipmentId || first.id)}`;
+                footerBtn.href = firstLink;
+              }
+            }
+
+            enforceReviewBadgeColor();
+            syncGlobalTabBadges();
+          }
+        }
       } catch (e) {
         // Fallback gracefully
       }
     }
 
-    loadReports();
-    const runBtn = document.getElementById('btn-run-report');
-    if (runBtn && !runBtn.dataset.apiBound) {
-      runBtn.dataset.apiBound = 'true';
-      runBtn.addEventListener('click', loadReports);
+    fetchAndRenderPrep(prepSearch ? prepSearch.value.trim() : '');
+
+    if (prepSearch && !prepSearch.dataset.apiBound) {
+      prepSearch.dataset.apiBound = 'true';
+      const debounced = debounce(() => {
+        fetchAndRenderPrep(prepSearch.value.trim());
+      }, 250);
+      prepSearch.addEventListener('input', debounced);
+    }
+  }
+
+  async function syncDashboardOverviewSearches() {
+    // 1. Preparation search on index.html
+    const prepSearch = document.querySelector('.preparation-report-tools #preparation-search');
+    if (prepSearch && !prepSearch.dataset.apiBound) {
+      prepSearch.dataset.apiBound = 'true';
+      const debouncedPrep = debounce(async () => {
+        const query = prepSearch.value.trim();
+        try {
+          const res = await apiClient.getPreparation(query ? { search: query } : {});
+          if (!res || !res.preparation) return;
+
+          const existingRows = document.querySelectorAll('.preparation-report-row, .prep-search-empty');
+          existingRows.forEach(el => el.remove());
+
+          const toolsEl = prepSearch.closest('.preparation-report-tools');
+          if (!toolsEl) return;
+
+          if (res.preparation.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'prep-search-empty';
+            empty.style.cssText = 'padding: 2rem; text-align: center; color: #6b6474; font-style: italic;';
+            empty.textContent = `No preparation items matching "${query}"`;
+            toolsEl.insertAdjacentElement('afterend', empty);
+          } else {
+            let prev = toolsEl;
+            res.preparation.slice(0, 5).forEach(item => {
+              const row = document.createElement('div');
+              row.className = 'preparation-report-row';
+              const badgeClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : (item.status === 'review' || item.status === 'in-review') ? 'in-review' : '';
+              const badgeLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : item.status === 'review' ? 'Awaiting review' : 'Ready';
+
+              row.innerHTML = `
+                <div>
+                  <strong>${escapeHtml(item.equipmentName)}</strong>
+                  <small>${escapeHtml(item.equipmentId || item.id)} · ${item.currentStep || 0} of 4 steps complete</small>
+                </div>
+                <span>${escapeHtml(item.assignedStaff || 'Unassigned')}</span>
+                <time>${escapeHtml(item.targetDate || 'Oct 15, 2026')}</time>
+                <em class="status-badge ${badgeClass}">${badgeLabel}</em>
+              `;
+              prev.insertAdjacentElement('afterend', row);
+              prev = row;
+            });
+            enforceReviewBadgeColor();
+          }
+        } catch (e) {
+          // Fallback gracefully
+        }
+      }, 250);
+      prepSearch.addEventListener('input', debouncedPrep);
+    }
+
+    // 2. Loans search on index.html
+    const loanSearch = document.querySelector('.overview-loans input[type="search"]');
+    const loansTbody = document.querySelector('.overview-loans table tbody');
+    if (loanSearch && loansTbody && !loanSearch.dataset.apiBound) {
+      loanSearch.dataset.apiBound = 'true';
+      const debouncedLoan = debounce(async () => {
+        const query = loanSearch.value.trim();
+        try {
+          const res = await apiClient.getLoans(query ? { search: query } : {});
+          if (!res || !res.loans) return;
+
+          loansTbody.innerHTML = '';
+          if (res.loans.length === 0) {
+            loansTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #6b6474; font-style: italic;">No loans matching "${escapeHtml(query)}"</td></tr>`;
+          } else {
+            res.loans.slice(0, 5).forEach(loan => {
+              const tr = document.createElement('tr');
+              const statusClass = loan.status === 'active' ? 'active' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : 'returned';
+              const statusLabel = loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
+
+              tr.innerHTML = `
+                <td>
+                  <strong>${escapeHtml(loan.equipmentName || loan.equipmentId)}</strong>
+                  <small>${escapeHtml(loan.equipmentId)} · ${escapeHtml(loan.category || 'Creative Technology')}</small>
+                </td>
+                <td>
+                  <strong>${escapeHtml(loan.borrower)}</strong>
+                  <small>${escapeHtml(loan.universityId || loan.netid)}</small>
+                </td>
+                <td>${escapeHtml(loan.checkoutDate || 'Oct 9, 2026')}</td>
+                <td>${escapeHtml(loan.dueDate || 'Oct 13, 2026')}</td>
+                <td><span class="loan-status ${statusClass}">${statusLabel}</span></td>
+              `;
+              loansTbody.appendChild(tr);
+            });
+          }
+        } catch (e) {
+          // Fallback gracefully
+        }
+      }, 250);
+      loanSearch.addEventListener('input', debouncedLoan);
     }
   }
 
@@ -894,14 +1394,103 @@
           if (readyBox && kpis.preparation.readyForLending != null) readyBox.textContent = formatCount(kpis.preparation.readyForLending);
         }
       }
+
+      // Update live preparation report list on index.html
+      const prepReportRows = document.querySelectorAll('.preparation-report-row');
+      if (prepReportRows.length > 0) {
+        try {
+          const pRes = await apiClient.getPreparation();
+          if (pRes && pRes.preparation && pRes.preparation.length > 0) {
+            pRes.preparation.slice(0, prepReportRows.length).forEach((item, idx) => {
+              const row = prepReportRows[idx];
+              if (!row) return;
+              const titleEl = row.querySelector('div strong');
+              if (titleEl) titleEl.textContent = item.equipmentName;
+              const subEl = row.querySelector('div small');
+              if (subEl) subEl.textContent = `${item.equipmentId} · ${item.currentStep || 0} of 4 steps complete`;
+              const staffEl = row.querySelector('span:not(.status-badge)');
+              if (staffEl) staffEl.textContent = item.assignedStaff || 'Unassigned';
+              const timeEl = row.querySelector('time');
+              if (timeEl && item.targetDate) timeEl.textContent = item.targetDate;
+              const badge = row.querySelector('.status-badge');
+              if (badge) {
+                const label = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : item.status === 'review' ? 'Awaiting review' : 'Ready';
+                const badgeClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : (item.status === 'review' || item.status === 'in-review') ? 'in-review' : '';
+                badge.className = `status-badge ${badgeClass}`.trim();
+                badge.textContent = label;
+              }
+            });
+            enforceReviewBadgeColor();
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
     } catch (e) {
       // Graceful fallback to static HTML content if API is unreachable
     }
   }
+
+  async function syncGlobalTabBadges() {
+    const prepTabsEls = document.querySelectorAll('preparation-tabs');
+    const loanTabsEls = document.querySelectorAll('loan-tabs');
+    if (!prepTabsEls.length && !loanTabsEls.length) return;
+
+    try {
+      const res = await apiClient.getSummaryKPIs();
+      if (!res || !res.kpis) return;
+      const kpis = res.kpis;
+      apiClient.lastKPIs = kpis;
+      if (window.LibraryDeskAPI) window.LibraryDeskAPI.lastKPIs = kpis;
+
+      // Update <loan-tabs> count badges across loan pages
+      if (loanTabsEls.length && kpis.activeLoans != null) {
+        loanTabsEls.forEach(loanEl => {
+          const links = loanEl.querySelectorAll('a');
+          if (links.length >= 2) {
+            const allBadge = links[0].querySelector('span');
+            if (allBadge) allBadge.textContent = kpis.activeLoans;
+            const overdueBadge = links[1].querySelector('span');
+            if (overdueBadge) overdueBadge.textContent = kpis.overdue;
+          }
+        });
+      }
+
+      // Update <preparation-tabs> count badges across preparation pages
+      if (prepTabsEls.length && kpis.preparation) {
+        prepTabsEls.forEach(tabEl => {
+          if (typeof tabEl.updateCounts === 'function') {
+            tabEl.updateCounts(kpis.preparation);
+          } else {
+            const s0 = tabEl.querySelector('.badge-awaiting') || tabEl.querySelector('a:nth-child(1) span');
+            if (s0 && kpis.preparation.needsPreparation != null) s0.textContent = kpis.preparation.needsPreparation;
+            const s1 = tabEl.querySelector('.badge-inprep') || tabEl.querySelector('a:nth-child(2) span');
+            if (s1 && kpis.preparation.inPreparation != null) s1.textContent = kpis.preparation.inPreparation;
+            const s2 = tabEl.querySelector('.badge-review') || tabEl.querySelector('a:nth-child(3) span');
+            if (s2 && kpis.preparation.awaitingReview != null) s2.textContent = kpis.preparation.awaitingReview;
+            const s3 = tabEl.querySelector('.badge-ready') || tabEl.querySelector('a:nth-child(4) span');
+            if (s3 && kpis.preparation.readyForLending != null) s3.textContent = kpis.preparation.readyForLending;
+            const s4 = tabEl.querySelector('.badge-all') || tabEl.querySelector('a:nth-child(5) span');
+            if (s4 && kpis.preparation.total != null) s4.textContent = kpis.preparation.total;
+          }
+        });
+      }
+    } catch (e) {
+      // Graceful fallback
+    }
+  }
+
+  apiClient.init = initApiFormHooks;
+  apiClient.syncGlobalTabBadges = syncGlobalTabBadges;
+  apiClient.enforceReviewBadgeColor = enforceReviewBadgeColor;
+  window.LibraryDeskAPI = apiClient;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApiFormHooks);
   } else {
     initApiFormHooks();
   }
+
+  // Hook into client-side PJAX page navigation
+  document.addEventListener('page:loaded', initApiFormHooks);
 })();

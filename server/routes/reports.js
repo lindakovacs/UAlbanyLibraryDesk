@@ -25,8 +25,8 @@ router.get('/summary', async (req, res, next) => {
  */
 router.get('/', async (req, res, next) => {
   try {
-    const { category, search } = req.query;
-    const reports = await store.getReports({ category, search });
+    const { category, search, semester, from, to } = req.query;
+    const reports = await store.getReports({ category, search, semester, from, to });
     res.status(200).json({
       status: 'success',
       total: reports.length,

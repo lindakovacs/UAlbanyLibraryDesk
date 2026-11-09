@@ -205,7 +205,8 @@ INSERT INTO `equipment` (`id`, `name`, `category`, `available_quantity`, `total_
 ('EQ-010', 'Owl 3 Video Conference Camera', 'Creative Technology', 2, 2, 'available', '360-degree intelligent video camera, speaker, and microphone combo for hybrid group meetings.'),
 ('EQ-011', 'Portable Podcasting Kit (Zoom H6)', 'Creative Technology', 2, 2, 'available', '6-track flagship portable audio recorder with interchangeable microphone capsules.'),
 ('EQ-012', 'SmallRig All-in-One Smartphone Video Kit', 'Creative Technology', 2, 2, 'available', 'Complete smartphone mobile filmmaking rig with handles, LED fill light, and shotgun microphone.'),
-('EQ-013', 'SN30 Pro Gamepad', 'Gaming Consoles and Accessories', 3, 3, 'available', 'Full-featured retro wireless Bluetooth controller with dual analog sticks and rumble vibration.')
+('EQ-013', 'SN30 Pro Gamepad', 'Gaming Consoles and Accessories', 3, 3, 'available', 'Full-featured retro wireless Bluetooth controller with dual analog sticks and rumble vibration.'),
+('EQ-014', 'Game Console', 'Gaming Consoles and Accessories', 1, 2, 'available', 'Universal video game console system.')
 ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `available_quantity`=VALUES(`available_quantity`);
 
 -- Seed Equipment Accessories
@@ -256,13 +257,20 @@ INSERT INTO `loans` (`id`, `equipment_id`, `borrower_netid`, `asset_tag`, `check
 ('LN-1038', 'EQ-005', 'sophia.lee', 'ALB-EQ-005-B', '2026-10-04 09:30:00', '2026-10-11 17:00:00', 'due-today')
 ON DUPLICATE KEY UPDATE `status`=VALUES(`status`);
 
--- Seed Preparation Queue Items (4 records across workflow stages)
+-- Seed Preparation Queue Items (11 records matching UI queue screenshots)
 INSERT INTO `preparation_items` (`id`, `equipment_id`, `equipment_name`, `category`, `assigned_staff`, `target_date`, `status`, `current_step`, `notes`) VALUES
-('PREP-001', 'EQ-014', 'MacBook Pro 16" Lending Kit', 'Computing', 'Unassigned', '12 Oct 2026', 'awaiting', 1, 'Returned from faculty loan; needs wiped'),
-('PREP-002', 'EQ-001', 'Mirrorless Camera Kit', 'Creative Technology', 'Linda Kovacs', '11 Oct 2026', 'in-prep', 3, 'Routine prep and sanitization after return'),
-('PREP-003', 'EQ-003', 'H4 Zoom Audio Recording Kit', 'Creative Technology', 'Veronica Dindial', '11 Oct 2026', 'review', 4, 'Ready for supervisor sign-off'),
-('PREP-004', 'EQ-002', 'Nintendo Switch', 'Gaming Consoles and Accessories', 'Amari Scott', '10 Oct 2026', 'ready', 4, 'Wiped and staged for ready shelf')
-ON DUPLICATE KEY UPDATE `status`=VALUES(`status`);
+('PREP-001', 'EQ-014', 'Game Console', 'Gaming Consoles and Accessories', 'Unassigned', '15 Oct 2026', 'awaiting', 1, 'Needs physical inspection & sanitization wipe'),
+('PREP-002', 'EQ-001', 'Mirrorless Camera Kit', 'Creative Technology', 'Unassigned', '15 Oct 2026', 'awaiting', 1, 'Routine prep and sanitization after return'),
+('PREP-003', 'EQ-003', 'H4 Zoom Audio Recording Kit', 'Creative Technology', 'Unassigned', '16 Oct 2026', 'awaiting', 1, 'Awaiting staff assignment for inspection'),
+('PREP-004', 'EQ-012', 'SmallRig All-in-One Smartphone Video Kit', 'Creative Technology', 'Unassigned', '18 Oct 2026', 'awaiting', 1, 'Awaiting staff assignment for inspection'),
+('PREP-005', 'EQ-006', 'PlayStation 5', 'Gaming Consoles and Accessories', 'John Doe', '15 Oct 2026', 'in-prep', 3, 'Cleaning console ports and verifying firmware updates'),
+('PREP-006', 'EQ-010', 'Owl 3 Video Conference Camera', 'Creative Technology', 'Maria Santos', '15 Oct 2026', 'in-prep', 2, 'Testing 360-degree lens and speaker calibration'),
+('PREP-007', 'EQ-002', 'Nintendo Switch', 'Gaming Consoles and Accessories', 'Alex Chen', '17 Oct 2026', 'in-prep', 3, 'Checking Joy-Con drift and cleaning screen'),
+('PREP-008', 'EQ-011', 'Portable Podcasting Kit (Zoom H6)', 'Creative Technology', 'Alex Chen', '15 Oct 2026', 'review', 4, 'Sanitization complete; awaiting supervisor sign-off'),
+('PREP-009', 'EQ-005', 'Rode Wireless GO II Microphone System', 'Creative Technology', 'Maria Santos', '16 Oct 2026', 'review', 4, 'Battery health test passed; awaiting supervisor sign-off'),
+('PREP-010', 'EQ-004', '3D Scanning Kit (Revopoint POP 3 Plus)', 'Creative Technology', 'John Doe', '14 Oct 2026', 'ready', 4, 'Calibration verified; staged for circulation'),
+('PREP-011', 'EQ-009', 'M30 Gamepad', 'Gaming Consoles and Accessories', 'Maria Santos', '14 Oct 2026', 'ready', 4, 'Pairing reset, sanitized, ready for loan')
+ON DUPLICATE KEY UPDATE `status`=VALUES(`status`), `assigned_staff`=VALUES(`assigned_staff`), `equipment_name`=VALUES(`equipment_name`);
 
 -- Seed Preparation Checklist Steps
 INSERT INTO `preparation_checklist_items` (`preparation_id`, `step_key`, `title`, `completed`) VALUES
@@ -270,18 +278,46 @@ INSERT INTO `preparation_checklist_items` (`preparation_id`, `step_key`, `title`
 ('PREP-001', 'inspect', 'Hardware Diagnostics & Screen Inspection', 0),
 ('PREP-001', 'accessories', 'Charger & USB-C Cable Verification', 0),
 ('PREP-001', 'packaging', 'Clean exterior and package in lending sleeve', 0),
-('PREP-002', 'wipe', 'SD card format and factory reset', 1),
-('PREP-002', 'inspect', 'Sensor cleaning and lens check', 1),
+('PREP-002', 'wipe', 'SD card format and factory reset', 0),
+('PREP-002', 'inspect', 'Sensor cleaning and lens check', 0),
 ('PREP-002', 'battery', 'Battery fully charged and tested', 0),
 ('PREP-002', 'manifest', 'Accessory pouch verified', 0),
-('PREP-003', 'wipe', 'SD card wipe', 1),
-('PREP-003', 'inspect', 'Mic capsule check', 1),
-('PREP-003', 'battery', 'AA batteries replenished', 1),
+('PREP-003', 'wipe', 'SD card wipe', 0),
+('PREP-003', 'inspect', 'Mic capsule check', 0),
+('PREP-003', 'battery', 'AA batteries replenished', 0),
 ('PREP-003', 'supervisor', 'Supervisor sign-off', 0),
-('PREP-004', 'wipe', 'User profiles removed', 1),
-('PREP-004', 'inspect', 'Joy-Con drift test', 1),
-('PREP-004', 'dock', 'Dock & cables verified', 1),
-('PREP-004', 'shelf', 'Ready shelf staging', 1);
+('PREP-004', 'inspect', 'Rig clamp and handle integrity check', 0),
+('PREP-004', 'light', 'LED fill light battery test', 0),
+('PREP-004', 'mic', 'Shotgun mic and cables check', 0),
+('PREP-004', 'packaging', 'Repack in carry case', 0),
+('PREP-005', 'wipe', 'Factory Reset & Storage Sanitization', 1),
+('PREP-005', 'inspect', 'Hardware Diagnostics & Port Inspection', 1),
+('PREP-005', 'accessories', 'DualSense controller & cables verification', 0),
+('PREP-005', 'packaging', 'Readiness label & pack-in slip', 0),
+('PREP-006', 'inspect', 'Physical lens and 360 sensor inspection', 1),
+('PREP-006', 'firmware', 'Firmware & microphone calibration', 0),
+('PREP-006', 'cables', 'USB-C cable & power supply check', 0),
+('PREP-006', 'packaging', 'Pack in safety cylinder case', 0),
+('PREP-007', 'wipe', 'User profiles and network settings wiped', 1),
+('PREP-007', 'inspect', 'Joy-Con stick drift calibration test', 1),
+('PREP-007', 'dock', 'Dock & HDMI cable verification', 0),
+('PREP-007', 'packaging', 'Repackage in protective carry sleeve', 0),
+('PREP-008', 'wipe', 'SD card wiped and initialized', 1),
+('PREP-008', 'capsules', 'X/Y and shotgun mic capsules tested', 1),
+('PREP-008', 'battery', 'Fresh batteries verified', 1),
+('PREP-008', 'supervisor', 'Supervisor sign-off', 0),
+('PREP-009', 'pairing', 'Transmitters paired with receiver', 1),
+('PREP-009', 'levels', 'Audio level check & gain calibration', 1),
+('PREP-009', 'charging', 'USB-C charging verified on all units', 1),
+('PREP-009', 'supervisor', 'Supervisor sign-off', 0),
+('PREP-010', 'inspect', 'Physical scanner head and lenses cleaned', 1),
+('PREP-010', 'turntable', 'Electric turntable and tripod verified', 1),
+('PREP-010', 'software', 'Calibration grid test completed', 1),
+('PREP-010', 'shelf', 'Supervisor signed off; placed on ready shelf', 1),
+('PREP-011', 'bluetooth', 'Bluetooth pairing profile cleared', 1),
+('PREP-011', 'buttons', 'D-Pad and tactile buttons tested', 1),
+('PREP-011', 'sanitized', 'Housing sanitized and cable wrapped', 1),
+('PREP-011', 'shelf', 'Staged on Ready equipment shelf', 1);
 
 -- Seed Report Metrics
 INSERT INTO `report_metrics` (`equipment_id`, `semester`, `checkouts_count`, `avg_loan_days`, `total_days_out`) VALUES
@@ -295,5 +331,25 @@ INSERT INTO `report_metrics` (`equipment_id`, `semester`, `checkouts_count`, `av
 ('EQ-008', 'Fall 2026', 3, 3.2, 10),
 ('EQ-009', 'Fall 2026', 2, 2.5, 5),
 ('EQ-010', 'Fall 2026', 3, 2.0, 6),
-('EQ-013', 'Fall 2026', 1, 3.0, 3)
+('EQ-013', 'Fall 2026', 1, 3.0, 3),
+('EQ-001', 'Summer 2026', 3, 3.5, 11),
+('EQ-002', 'Summer 2026', 2, 2.5, 5),
+('EQ-003', 'Summer 2026', 2, 3.0, 6),
+('EQ-004', 'Summer 2026', 1, 4.0, 4),
+('EQ-005', 'Summer 2026', 2, 2.8, 6),
+('EQ-006', 'Summer 2026', 2, 3.5, 7),
+('EQ-008', 'Summer 2026', 1, 2.0, 2),
+('EQ-010', 'Summer 2026', 1, 1.5, 2),
+('EQ-001', 'Spring 2026', 5, 4.0, 20),
+('EQ-002', 'Spring 2026', 4, 3.2, 13),
+('EQ-003', 'Spring 2026', 4, 3.8, 15),
+('EQ-004', 'Spring 2026', 3, 4.5, 14),
+('EQ-005', 'Spring 2026', 3, 3.5, 11),
+('EQ-006', 'Spring 2026', 3, 4.0, 12),
+('EQ-007', 'Spring 2026', 2, 2.5, 5),
+('EQ-008', 'Spring 2026', 2, 3.0, 6),
+('EQ-009', 'Spring 2026', 2, 2.0, 4),
+('EQ-010', 'Spring 2026', 2, 2.0, 4),
+('EQ-011', 'Spring 2026', 2, 3.5, 7),
+('EQ-012', 'Spring 2026', 2, 3.0, 6)
 ON DUPLICATE KEY UPDATE `checkouts_count`=VALUES(`checkouts_count`);

@@ -151,6 +151,16 @@ const initialEquipment = [
     status: 'available',
     description: 'Full-featured retro wireless Bluetooth controller with dual analog sticks and rumble vibration.',
     accessories: ['SN30 Pro controller', 'USB-C charging cable']
+  },
+  {
+    id: 'EQ-014',
+    name: 'Game Console',
+    category: 'Gaming Consoles and Accessories',
+    available: 1,
+    total: 2,
+    status: 'available',
+    description: 'Universal video game console system.',
+    accessories: ['Console base', 'Power supply']
   }
 ];
 
@@ -284,10 +294,10 @@ const initialPreparation = [
   {
     id: 'PREP-001',
     equipmentId: 'EQ-014',
-    equipmentName: 'MacBook Pro 16" Lending Kit',
-    category: 'Computing',
+    equipmentName: 'Game Console',
+    category: 'Gaming Consoles and Accessories',
     assignedStaff: 'Unassigned',
-    targetDate: '12 Oct 2026',
+    targetDate: '15 Oct 2026',
     status: 'awaiting',
     currentStep: 1,
     checklist: [
@@ -296,20 +306,20 @@ const initialPreparation = [
       { id: 'accessories', title: 'Charger & USB-C Cable Verification', completed: false },
       { id: 'packaging', title: 'Clean exterior and package in lending sleeve', completed: false }
     ],
-    notes: 'Returned from faculty loan; needs wiped'
+    notes: 'Needs physical inspection & sanitization wipe'
   },
   {
     id: 'PREP-002',
     equipmentId: 'EQ-001',
     equipmentName: 'Mirrorless Camera Kit',
     category: 'Creative Technology',
-    assignedStaff: 'Linda Kovacs',
-    targetDate: '11 Oct 2026',
-    status: 'in-prep',
-    currentStep: 3,
+    assignedStaff: 'Unassigned',
+    targetDate: '15 Oct 2026',
+    status: 'awaiting',
+    currentStep: 1,
     checklist: [
-      { id: 'wipe', title: 'SD card format and factory reset', completed: true },
-      { id: 'inspect', title: 'Sensor cleaning and lens check', completed: true },
+      { id: 'wipe', title: 'SD card format and factory reset', completed: false },
+      { id: 'inspect', title: 'Sensor cleaning and lens check', completed: false },
       { id: 'battery', title: 'Battery fully charged and tested', completed: false },
       { id: 'manifest', title: 'Accessory pouch verified', completed: false }
     ],
@@ -320,34 +330,153 @@ const initialPreparation = [
     equipmentId: 'EQ-003',
     equipmentName: 'H4 Zoom Audio Recording Kit',
     category: 'Creative Technology',
-    assignedStaff: 'Veronica Dindial',
-    targetDate: '11 Oct 2026',
-    status: 'review',
-    currentStep: 4,
+    assignedStaff: 'Unassigned',
+    targetDate: '16 Oct 2026',
+    status: 'awaiting',
+    currentStep: 1,
     checklist: [
-      { id: 'wipe', title: 'SD card wipe', completed: true },
-      { id: 'inspect', title: 'Mic capsule check', completed: true },
-      { id: 'battery', title: 'AA batteries replenished', completed: true },
+      { id: 'wipe', title: 'SD card wipe', completed: false },
+      { id: 'inspect', title: 'Mic capsule check', completed: false },
+      { id: 'battery', title: 'AA batteries replenished', completed: false },
       { id: 'supervisor', title: 'Supervisor sign-off', completed: false }
     ],
-    notes: 'Ready for supervisor sign-off'
+    notes: 'Awaiting staff assignment for inspection'
   },
   {
     id: 'PREP-004',
+    equipmentId: 'EQ-012',
+    equipmentName: 'SmallRig All-in-One Smartphone Video Kit',
+    category: 'Creative Technology',
+    assignedStaff: 'Unassigned',
+    targetDate: '18 Oct 2026',
+    status: 'awaiting',
+    currentStep: 1,
+    checklist: [
+      { id: 'inspect', title: 'Rig clamp and handle integrity check', completed: false },
+      { id: 'light', title: 'LED fill light battery test', completed: false },
+      { id: 'mic', title: 'Shotgun mic and cables check', completed: false },
+      { id: 'packaging', title: 'Repack in carry case', completed: false }
+    ],
+    notes: 'Awaiting staff assignment for inspection'
+  },
+  {
+    id: 'PREP-005',
+    equipmentId: 'EQ-006',
+    equipmentName: 'PlayStation 5',
+    category: 'Gaming Consoles and Accessories',
+    assignedStaff: 'John Doe',
+    targetDate: '15 Oct 2026',
+    status: 'in-prep',
+    currentStep: 3,
+    checklist: [
+      { id: 'wipe', title: 'Factory Reset & Storage Sanitization', completed: true },
+      { id: 'inspect', title: 'Hardware Diagnostics & Port Inspection', completed: true },
+      { id: 'accessories', title: 'DualSense controller & cables verification', completed: false },
+      { id: 'packaging', title: 'Readiness label & pack-in slip', completed: false }
+    ],
+    notes: 'Cleaning console ports and verifying firmware updates'
+  },
+  {
+    id: 'PREP-006',
+    equipmentId: 'EQ-010',
+    equipmentName: 'Owl 3 Video Conference Camera',
+    category: 'Creative Technology',
+    assignedStaff: 'Maria Santos',
+    targetDate: '15 Oct 2026',
+    status: 'in-prep',
+    currentStep: 2,
+    checklist: [
+      { id: 'inspect', title: 'Physical lens and 360 sensor inspection', completed: true },
+      { id: 'firmware', title: 'Firmware & microphone calibration', completed: false },
+      { id: 'cables', title: 'USB-C cable & power supply check', completed: false },
+      { id: 'packaging', title: 'Pack in safety cylinder case', completed: false }
+    ],
+    notes: 'Testing 360-degree lens and speaker calibration'
+  },
+  {
+    id: 'PREP-007',
     equipmentId: 'EQ-002',
     equipmentName: 'Nintendo Switch',
     category: 'Gaming Consoles and Accessories',
-    assignedStaff: 'Amari Scott',
-    targetDate: '10 Oct 2026',
+    assignedStaff: 'Alex Chen',
+    targetDate: '17 Oct 2026',
+    status: 'in-prep',
+    currentStep: 3,
+    checklist: [
+      { id: 'wipe', title: 'User profiles and network settings wiped', completed: true },
+      { id: 'inspect', title: 'Joy-Con stick drift calibration test', completed: true },
+      { id: 'dock', title: 'Dock & HDMI cable verification', completed: false },
+      { id: 'packaging', title: 'Repackage in protective carry sleeve', completed: false }
+    ],
+    notes: 'Checking Joy-Con drift and cleaning screen'
+  },
+  {
+    id: 'PREP-008',
+    equipmentId: 'EQ-011',
+    equipmentName: 'Portable Podcasting Kit (Zoom H6)',
+    category: 'Creative Technology',
+    assignedStaff: 'Alex Chen',
+    targetDate: '15 Oct 2026',
+    status: 'review',
+    currentStep: 4,
+    checklist: [
+      { id: 'wipe', title: 'SD card wiped and initialized', completed: true },
+      { id: 'capsules', title: 'X/Y and shotgun mic capsules tested', completed: true },
+      { id: 'battery', title: 'Fresh batteries verified', completed: true },
+      { id: 'supervisor', title: 'Supervisor sign-off', completed: false }
+    ],
+    notes: 'Sanitization complete; awaiting supervisor sign-off'
+  },
+  {
+    id: 'PREP-009',
+    equipmentId: 'EQ-005',
+    equipmentName: 'Rode Wireless GO II Microphone System',
+    category: 'Creative Technology',
+    assignedStaff: 'Maria Santos',
+    targetDate: '16 Oct 2026',
+    status: 'review',
+    currentStep: 4,
+    checklist: [
+      { id: 'pairing', title: 'Transmitters paired with receiver', completed: true },
+      { id: 'levels', title: 'Audio level check & gain calibration', completed: true },
+      { id: 'charging', title: 'USB-C charging verified on all units', completed: true },
+      { id: 'supervisor', title: 'Supervisor sign-off', completed: false }
+    ],
+    notes: 'Battery health test passed; awaiting supervisor sign-off'
+  },
+  {
+    id: 'PREP-010',
+    equipmentId: 'EQ-004',
+    equipmentName: '3D Scanning Kit (Revopoint POP 3 Plus)',
+    category: 'Creative Technology',
+    assignedStaff: 'John Doe',
+    targetDate: '14 Oct 2026',
     status: 'ready',
     currentStep: 4,
     checklist: [
-      { id: 'wipe', title: 'User profiles removed', completed: true },
-      { id: 'inspect', title: 'Joy-Con drift test', completed: true },
-      { id: 'dock', title: 'Dock & cables verified', completed: true },
-      { id: 'shelf', title: 'Ready shelf staging', completed: true }
+      { id: 'inspect', title: 'Physical scanner head and lenses cleaned', completed: true },
+      { id: 'turntable', title: 'Electric turntable and tripod verified', completed: true },
+      { id: 'software', title: 'Calibration grid test completed', completed: true },
+      { id: 'shelf', title: 'Supervisor signed off; placed on ready shelf', completed: true }
     ],
-    notes: 'Wiped and staged for ready shelf'
+    notes: 'Calibration verified; staged for circulation'
+  },
+  {
+    id: 'PREP-011',
+    equipmentId: 'EQ-009',
+    equipmentName: 'M30 Gamepad',
+    category: 'Gaming Consoles and Accessories',
+    assignedStaff: 'Maria Santos',
+    targetDate: '14 Oct 2026',
+    status: 'ready',
+    currentStep: 4,
+    checklist: [
+      { id: 'bluetooth', title: 'Bluetooth pairing profile cleared', completed: true },
+      { id: 'buttons', title: 'D-Pad and tactile buttons tested', completed: true },
+      { id: 'sanitized', title: 'Housing sanitized and cable wrapped', completed: true },
+      { id: 'shelf', title: 'Staged on Ready equipment shelf', completed: true }
+    ],
+    notes: 'Pairing reset, sanitized, ready for loan'
   }
 ];
 
@@ -676,6 +805,8 @@ class DataStore {
           category: r.category,
           borrowerNetId: r.borrower_netid,
           borrowerName: r.borrower_name,
+          borrower: r.borrower_name,
+          netid: r.borrower_netid,
           universityId: r.university_id,
           checkoutDate: r.checkout_date,
           dueDate: r.due_date,
@@ -727,6 +858,8 @@ class DataStore {
           category: r.category,
           borrowerNetId: r.borrower_netid,
           borrowerName: r.borrower_name,
+          borrower: r.borrower_name,
+          netid: r.borrower_netid,
           universityId: r.university_id,
           checkoutDate: r.checkout_date,
           dueDate: r.due_date,
@@ -1006,16 +1139,29 @@ class DataStore {
   // Reports
   async getReports(query = {}) {
     try {
+      const targetSem = query.semester || 'Fall 2026';
+      let semesterFilter = '';
+      const params = [];
+
+      if (targetSem !== 'all' && targetSem !== 'custom') {
+        const cleanSem = targetSem.replace('-', ' ').trim();
+        semesterFilter = 'AND LOWER(r.semester) LIKE ?';
+        params.push(`%${cleanSem.toLowerCase()}%`);
+      }
+
       let sql = `
         SELECT e.id, e.name, e.category, 
                COALESCE(r.checkouts_count, 0) AS checkouts, 
                COALESCE(r.avg_loan_days, 0.0) AS avgDays, 
-               COALESCE(r.total_days_out, 0) AS totalDays
+               COALESCE(r.total_days_out, 0) AS totalDays,
+               COALESCE(r.semester, 'Fall 2026') AS semester
         FROM equipment e
-        LEFT JOIN report_metrics r ON e.id = r.equipment_id
+        LEFT JOIN report_metrics r ON e.id = r.equipment_id ${semesterFilter}
         WHERE 1=1
       `;
-      const params = [];
+      if (query.semester && query.semester !== 'all') {
+        sql += ' AND r.checkouts_count IS NOT NULL AND r.checkouts_count > 0';
+      }
       if (query.category) {
         sql += ' AND LOWER(e.category) LIKE ?';
         params.push(`%${query.category.toLowerCase()}%`);
@@ -1025,7 +1171,7 @@ class DataStore {
         const q = `%${query.search.toLowerCase()}%`;
         params.push(q, q);
       }
-      sql += ' ORDER BY checkouts DESC;';
+      sql += ' ORDER BY checkouts DESC, e.id ASC;';
 
       const [rows] = await pool.query(sql, params);
       if (rows && rows.length > 0) {
@@ -1035,7 +1181,8 @@ class DataStore {
           category: r.category,
           checkouts: Number(r.checkouts),
           avgDays: Number(r.avgDays),
-          totalDays: Number(r.totalDays)
+          totalDays: Number(r.totalDays),
+          semester: r.semester
         }));
       }
     } catch (e) {
@@ -1043,6 +1190,21 @@ class DataStore {
     }
 
     let list = [...defaultReports];
+    if (query.semester && query.semester.includes('summer')) {
+      list = list.slice(0, 8).map(r => ({
+        ...r,
+        checkouts: Math.max(1, Math.round(r.checkouts * 0.5)),
+        totalDays: Math.max(2, Math.round(r.totalDays * 0.5)),
+        avgDays: Number((r.avgDays * 0.9).toFixed(1))
+      }));
+    } else if (query.semester && query.semester.includes('spring')) {
+      list = list.map(r => ({
+        ...r,
+        checkouts: Math.max(1, Math.round(r.checkouts * 0.8)),
+        totalDays: Math.max(2, Math.round(r.totalDays * 0.8)),
+        avgDays: Number((r.avgDays * 1.05).toFixed(1))
+      }));
+    }
     if (query.category) {
       list = list.filter(r => r.category.toLowerCase().includes(query.category.toLowerCase()));
     }

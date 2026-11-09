@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Equipment awaiting preparation assignment."
+      content="Equipment currently undergoing inspection and sanitization."
     />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
     <script src="components.js"></script>
     <script src="api-client.js"></script>
-    <title>LibraryDesk | Awaiting Assignment</title>
+    <title>LibraryDesk | In Preparation</title>
   </head>
   <body class="preparation-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -57,17 +57,23 @@
                 <label for="preparation-search"
                   >Search equipment by ID or name</label
                 >
+                <span class="search-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="10.8" cy="10.8" r="6.3"></circle>
+                    <path d="m16 16 4.5 4.5"></path>
+                  </svg>
+                </span>
                 <input
                   id="preparation-search"
                   type="search"
                   placeholder="Search equipment by ID or name"
                 />
-                <span>4 items</span>
+                <span>3 items</span>
               </div>
-              <preparation-tabs active="awaiting"></preparation-tabs>
+              <preparation-tabs active="in-prep"></preparation-tabs>
               <table>
                 <caption>
-                  Equipment awaiting assignment
+                  Equipment in preparation
                 </caption>
                 <thead>
                   <tr>
@@ -84,10 +90,10 @@
                       <span
                         class="selection-circle selected"
                         role="radio"
-                        aria-label="Game Console selected"
-                      ></span
-                      ><span class="equipment-icon" aria-hidden="true"
-                        ><svg viewBox="0 0 24 24">
+                        aria-label="PlayStation 5 selected"
+                      ></span>
+                      <span class="equipment-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
                           <rect
                             x="3"
                             y="6"
@@ -97,23 +103,31 @@
                           ></rect>
                           <path
                             d="M8 10v4M6 12h4M16 10v.01M18 12v.01"
-                          ></path></svg></span
-                      ><span class="equipment-details"
-                        ><strong>Game Console</strong
-                        ><small>EQ-014</small></span
+                          ></path>
+                        </svg>
+                      </span>
+                      <span class="equipment-details">
+                        <strong>PlayStation 5</strong>
+                        <small>EQ-006</small>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="status-badge in-progress"
+                        >In preparation</span
                       >
                     </td>
-                    <td><span class="status-badge">Needs preparation</span></td>
-                    <td>Unassigned</td>
+                    <td>John Doe</td>
                     <td>15 Oct 2026</td>
                     <td>
                       <a
                         class="row-arrow"
-                        href="preparation-details.html"
-                        aria-label="View Game Console details"
-                        ><svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M5 12h13M13 6l6 6-6 6"></path></svg
-                      ></a>
+                        href="preparation-checklist.html?id=EQ-006"
+                        aria-label="View PlayStation 5 details"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M5 12h13M13 6l6 6-6 6"></path>
+                        </svg>
+                      </a>
                     </td>
                   </tr>
                   <tr>
@@ -121,28 +135,36 @@
                       <span
                         class="selection-circle"
                         role="radio"
-                        aria-label="Mirrorless Camera Kit"
-                      ></span
-                      ><span class="equipment-icon" aria-hidden="true"
-                        ><svg viewBox="0 0 24 24">
-                          <path d="M4 8h16v11H4zM8 8l1.5-3h5L16 8"></path>
-                          <circle cx="12" cy="13.5" r="3"></circle></svg></span
-                      ><span class="equipment-details"
-                        ><strong>Mirrorless Camera Kit</strong
-                        ><small>EQ-001</small></span
+                        aria-label="Owl 3 Video Conference Camera"
+                      ></span>
+                      <span class="equipment-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                          <circle cx="12" cy="12" r="8"></circle>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </span>
+                      <span class="equipment-details">
+                        <strong>Owl 3 Video Conference Camera</strong>
+                        <small>EQ-010</small>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="status-badge in-progress"
+                        >In preparation</span
                       >
                     </td>
-                    <td><span class="status-badge">Needs preparation</span></td>
-                    <td>Unassigned</td>
+                    <td>Maria Santos</td>
                     <td>15 Oct 2026</td>
                     <td>
                       <a
                         class="row-arrow"
-                        href="preparation-details.html"
-                        aria-label="View Mirrorless Camera Kit details"
-                        ><svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M5 12h13M13 6l6 6-6 6"></path></svg
-                      ></a>
+                        href="preparation-checklist.html?id=EQ-010"
+                        aria-label="View Owl 3 Video Conference Camera details"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M5 12h13M13 6l6 6-6 6"></path>
+                        </svg>
+                      </a>
                     </td>
                   </tr>
                   <tr>
@@ -150,71 +172,52 @@
                       <span
                         class="selection-circle"
                         role="radio"
-                        aria-label="H4 Zoom Audio Recording Kit"
-                      ></span
-                      ><span class="equipment-icon" aria-hidden="true"
-                        ><svg viewBox="0 0 24 24">
+                        aria-label="Nintendo Switch"
+                      ></span>
+                      <span class="equipment-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
                           <rect
-                            x="7"
-                            y="4"
-                            width="10"
-                            height="16"
+                            x="4"
+                            y="6"
+                            width="16"
+                            height="12"
                             rx="2"
                           ></rect>
-                          <path d="M10 8h4M10 12h4M10 16h4"></path></svg></span
-                      ><span class="equipment-details"
-                        ><strong>H4 Zoom Audio Recording Kit</strong
-                        ><small>EQ-003</small></span
+                          <path d="M9 10v4M15 11a1 1 0 1 0 0 .01"></path>
+                        </svg>
+                      </span>
+                      <span class="equipment-details">
+                        <strong>Nintendo Switch</strong>
+                        <small>EQ-002</small>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="status-badge in-progress"
+                        >In preparation</span
                       >
                     </td>
-                    <td><span class="status-badge">Needs preparation</span></td>
-                    <td>Unassigned</td>
-                    <td>16 Oct 2026</td>
+                    <td>Alex Chen</td>
+                    <td>17 Oct 2026</td>
                     <td>
                       <a
                         class="row-arrow"
-                        href="preparation-details.html"
-                        aria-label="View H4 Zoom Audio Recording Kit details"
-                        ><svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M5 12h13M13 6l6 6-6 6"></path></svg
-                      ></a>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <span
-                        class="selection-circle"
-                        role="radio"
-                        aria-label="SmallRig All-in-One Smartphone Video Kit"
-                      ></span
-                      ><span class="equipment-icon" aria-hidden="true"
-                        ><svg viewBox="0 0 24 24">
-                          <path d="M4 8h16v11H4zM8 8l1.5-3h5L16 8"></path>
-                          <circle cx="12" cy="13.5" r="3"></circle></svg></span
-                      ><span class="equipment-details"
-                        ><strong
-                          >SmallRig All-in-One Smartphone Video Kit</strong
-                        ><small>EQ-012</small></span
+                        href="preparation-checklist.html?id=EQ-002"
+                        aria-label="View Nintendo Switch details"
                       >
-                    </td>
-                    <td><span class="status-badge">Needs preparation</span></td>
-                    <td>Unassigned</td>
-                    <td>18 Oct 2026</td>
-                    <td>
-                      <a
-                        class="row-arrow"
-                        href="preparation-details.html"
-                        aria-label="View SmallRig All-in-One Smartphone Video Kit details"
-                        ><svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M5 12h13M13 6l6 6-6 6"></path></svg
-                      ></a>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M5 12h13M13 6l6 6-6 6"></path>
+                        </svg>
+                      </a>
                     </td>
                   </tr>
                 </tbody>
               </table>
               <div class="table-footer">
-                <span>EQ-014 selected</span>
-                <a class="primary-action" href="preparation-details.html">
+                <span>Select an item</span>
+                <a
+                  class="primary-action"
+                  href="preparation-checklist.html?id=EQ-006"
+                >
                   View equipment details
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M5 12h13M13 6l6 6-6 6"></path>

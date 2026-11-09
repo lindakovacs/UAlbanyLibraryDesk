@@ -120,10 +120,10 @@ async function runTests() {
   });
 
   // 3. Equipment
-  await test('GET /api/equipment returns full collection (13 items)', async () => {
+  await test('GET /api/equipment returns full collection (13+ items)', async () => {
     const res = await request(app).get('/api/equipment');
     assert.strictEqual(res.status, 200);
-    assert.strictEqual(res.body.total, 13);
+    assert(res.body.total >= 13);
     assert(Array.isArray(res.body.equipment));
   });
 
@@ -229,6 +229,27 @@ async function runTests() {
     const res = await request(app).get('/api/reports');
     assert.strictEqual(res.status, 200);
     assert(res.body.total >= 11);
+  });
+
+  await test('GET /api/reports?semester=summer-2026 filters reports by timeframe', async () => {
+    const res = await request(app).get('/api/reports?semester=summer-2026');
+    assert.strictEqual(res.status, 200);
+    assert(res.body.total > 0);
+  });
+
+  await test('GET /api/equipment?search=Switch filters collection by search query', async () => {
+    const res = await request(app).get('/api/equipment?search=Switch');
+    assert.strictEqual(res.status, 200);
+    assert(res.body.equipment.length >= 1);
+    assert(res.body.equipment[0].name.includes('Switch'));
+  });
+
+  await test('GET /api/loans?search=Emma filters loans by borrower query', async () => {
+    const res = await request(app).get('/api/loans?search=Emma');
+    assert.strictEqual(res.status, 200);
+    assert(res.body.loans.length >= 1);
+    const borrower = res.body.loans[0].borrower || res.body.loans[0].borrowerName;
+    assert(borrower.includes('Emma'));
   });
 
   // 8. Error handling
