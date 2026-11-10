@@ -664,14 +664,34 @@
       const heading = document.getElementById('loan-details-heading');
       if (heading) heading.textContent = `Loan record: ${loan.id}`;
 
+      const headingSub = document.querySelector('.page-introduction p');
+      if (headingSub && loan.borrower) {
+        headingSub.textContent = `Detailed record for active equipment loan to ${loan.borrower}.`;
+      }
+
       const itemName = document.getElementById('item-name');
       if (itemName) itemName.textContent = loan.equipmentName || loan.equipmentId;
 
       const equipId = document.querySelector('.equipment-id');
       if (equipId) equipId.textContent = `${loan.equipmentId} · ${loan.category || 'Creative Technology'}`;
 
+      const statusBadge = document.querySelector('.loan-status');
+      if (statusBadge && loan.status) {
+        const sClass = loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : 'active';
+        const sLabel = loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
+        statusBadge.className = `loan-status ${sClass}`;
+        statusBadge.textContent = sLabel;
+      }
+
       const targetDueDate = document.querySelector('.equipment-target strong');
       if (targetDueDate && loan.dueDate) targetDueDate.textContent = loan.dueDate;
+
+      // Populate borrower profile information
+      let borrowerInfo = null;
+      if (loan.borrowerNetId) {
+        const bRes = await apiClient.getBorrower(loan.borrowerNetId).catch(() => null);
+        if (bRes && bRes.borrower) borrowerInfo = bRes.borrower;
+      }
 
       document.querySelectorAll('.detail-list div').forEach(row => {
         const dt = row.querySelector('dt');
@@ -680,12 +700,30 @@
         const label = dt.textContent.trim().toLowerCase();
         if (label === 'full name' && loan.borrower) dd.textContent = loan.borrower;
         if (label === 'netid' && loan.netid) dd.textContent = loan.netid;
+        if (label === 'university id' && (loan.universityId || (borrowerInfo && borrowerInfo.universityId))) {
+          dd.textContent = loan.universityId || borrowerInfo.universityId;
+        }
+        if (label === 'affiliation' && borrowerInfo && borrowerInfo.role) dd.textContent = borrowerInfo.role;
+        if (label === 'department' && borrowerInfo && borrowerInfo.department) dd.textContent = borrowerInfo.department;
+        if (label === 'email' && (loan.email || (borrowerInfo && borrowerInfo.email))) {
+          dd.textContent = loan.email || borrowerInfo.email;
+        }
+        if (label === 'account standing' && borrowerInfo) {
+          const isGood = borrowerInfo.status === 'good';
+          dd.innerHTML = `<span class="borrower-status ${isGood ? 'good' : 'warning'}">${isGood ? 'Good standing' : 'Follow-up needed'}</span>`;
+        }
         if (label === 'loan id') dd.textContent = loan.id;
         if (label === 'return due date' && loan.dueDate) dd.textContent = `${loan.dueDate} (Standard loan)`;
         if (label === 'checked out' && loan.checkoutDate) dd.textContent = loan.checkoutDate;
+        if (label === 'asset barcode' && loan.assetTag) dd.textContent = loan.assetTag;
       });
+
+      const returnActionBtn = document.querySelector('.detail-actions a.primary-action');
+      if (returnActionBtn) {
+        returnActionBtn.href = `return-item.html?loan=${encodeURIComponent(loan.id)}`;
+      }
     } catch (e) {
-      // Fallback gracefully
+      // Gracefully preserve static HTML content as fallback
     }
   }
 
@@ -1379,111 +1417,370 @@
     const isNotifications = window.location.pathname.includes('notifications');
     if (!isNotifications) return;
     try {
-      const res = await apiClient.getSummaryKPIs();
-      if (!res || !res.kpis) return;
-      const kpis = res.kpis;
+      const [kpiRes, overdueRes, dueRes, prepRes] = await Promise.all([
+        apiClient.getSummaryKPIs().catch(() => null),
+        apiClient.getLoans({ status: 'overdue' }).catch(() => null),
+        apiClient.getLoans({ status: 'due-today' }).catch(() => null),
+        apiClient.getPreparation({ status: 'awaiting' }).catch(() => null)
+      ]);
+
+      const overdueLoans = (overdueRes && overdueRes.loans) || [];
+      const dueLoans = (dueRes && dueRes.loans) || [];
+      const prepItems = (prepRes && prepRes.preparation) || [];
+      const totalAlerts = overdueLoans.length + dueLoans.length + prepItems.length;
+
+      // Update tab counter badges
       const tabs = document.querySelectorAll('.tabs .tab-link');
       if (tabs.length >= 4) {
-        const totalAlerts = (kpis.overdue || 0) + (kpis.dueToday || 0) + (kpis.preparation?.needsPreparation || 0);
         const allBadge = tabs[0].querySelector('span');
         if (allBadge) allBadge.textContent = totalAlerts;
 
         const overdueBadge = tabs[1].querySelector('span');
-        if (overdueBadge) overdueBadge.textContent = kpis.overdue || 0;
+        if (overdueBadge) overdueBadge.textContent = overdueLoans.length;
 
         const dueBadge = tabs[2].querySelector('span');
-        if (dueBadge) dueBadge.textContent = kpis.dueToday || 0;
+        if (dueBadge) dueBadge.textContent = dueLoans.length;
 
         const prepBadge = tabs[3].querySelector('span');
-        if (prepBadge) prepBadge.textContent = kpis.preparation?.needsPreparation || 0;
+        if (prepBadge) prepBadge.textContent = prepItems.length;
+      }
+
+      // Populate notifications list dynamically from live database records
+      const listContainer = document.querySelector('.notifications-list');
+      if (listContainer && (overdueLoans.length > 0 || dueLoans.length > 0 || prepItems.length > 0)) {
+        listContainer.innerHTML = '';
+
+        // Overdue alerts
+        overdueLoans.forEach(loan => {
+          const card = document.createElement('article');
+          card.className = 'alert-card';
+          card.dataset.category = 'overdue';
+          card.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; background: #fff; border: 1px solid #fad2cf; border-left: 4px solid #d9383a; border-radius: 0.5rem; gap: 1rem';
+          card.innerHTML = `
+            <div style="display: flex; gap: 1rem; align-items: flex-start">
+              <span style="display: grid; width: 2.25rem; height: 2.25rem; place-items: center; background: #fdf2f2; color: #d9383a; border-radius: 50%; font-weight: bold; flex-shrink: 0">!</span>
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem">
+                  <strong style="color: #252525; font-size: 0.95rem">Overdue loan: ${escapeHtml(loan.borrower)}</strong>
+                  <span class="loan-status overdue">Overdue</span>
+                </div>
+                <p style="margin: 0 0 0.35rem; color: #5f6872; font-size: 0.85rem">
+                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) was due on ${escapeHtml(loan.dueDate)}. University ID: ${escapeHtml(loan.universityId || loan.netid)}.
+                </p>
+                <small style="color: #8c8295; font-size: 0.75rem">Checked out: ${escapeHtml(loan.checkoutDate)}</small>
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-shrink: 0">
+              <a class="primary-action" href="return-item.html?loan=${encodeURIComponent(loan.id)}" style="padding: 0.45rem 0.85rem; font-size: 0.8rem">Process return</a>
+              <a class="secondary-action" href="loan-details.html?id=${encodeURIComponent(loan.id)}" style="padding: 0.45rem 0.85rem; font-size: 0.8rem">View loan</a>
+            </div>
+          `;
+          listContainer.appendChild(card);
+        });
+
+        // Due today alerts
+        dueLoans.forEach(loan => {
+          const card = document.createElement('article');
+          card.className = 'alert-card';
+          card.dataset.category = 'due';
+          card.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; background: #fff; border: 1px solid #fdecc8; border-left: 4px solid #d97706; border-radius: 0.5rem; gap: 1rem';
+          card.innerHTML = `
+            <div style="display: flex; gap: 1rem; align-items: flex-start">
+              <span style="display: grid; width: 2.25rem; height: 2.25rem; place-items: center; background: #fef9ee; color: #d97706; border-radius: 50%; font-weight: bold; flex-shrink: 0">&#128337;</span>
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem">
+                  <strong style="color: #252525; font-size: 0.95rem">Due today: ${escapeHtml(loan.borrower)}</strong>
+                  <span class="loan-status due">Due today</span>
+                </div>
+                <p style="margin: 0 0 0.35rem; color: #5f6872; font-size: 0.85rem">
+                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) is expected back by closing. University ID: ${escapeHtml(loan.universityId || loan.netid)}.
+                </p>
+                <small style="color: #8c8295; font-size: 0.75rem">Checked out: ${escapeHtml(loan.checkoutDate)}</small>
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-shrink: 0">
+              <a class="primary-action" href="return-item.html?loan=${encodeURIComponent(loan.id)}" style="padding: 0.45rem 0.85rem; font-size: 0.8rem">Process return</a>
+              <a class="secondary-action" href="loan-details.html?id=${encodeURIComponent(loan.id)}" style="padding: 0.45rem 0.85rem; font-size: 0.8rem">View loan</a>
+            </div>
+          `;
+          listContainer.appendChild(card);
+        });
+
+        // Awaiting preparation alerts
+        prepItems.forEach(item => {
+          const card = document.createElement('article');
+          card.className = 'alert-card';
+          card.dataset.category = 'prep';
+          card.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; background: #fff; border: 1px solid #e4dfea; border-left: 4px solid #46166b; border-radius: 0.5rem; gap: 1rem';
+          card.innerHTML = `
+            <div style="display: flex; gap: 1rem; align-items: flex-start">
+              <span style="display: grid; width: 2.25rem; height: 2.25rem; place-items: center; background: #f1ebf6; color: #46166b; border-radius: 50%; font-weight: bold; flex-shrink: 0">&#9881;</span>
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem">
+                  <strong style="color: #252525; font-size: 0.95rem">Preparation required: ${escapeHtml(item.equipmentName)}</strong>
+                  <span class="status-badge" style="color: #a4262c; background: #fde8e8">Needs preparation</span>
+                </div>
+                <p style="margin: 0 0 0.35rem; color: #5f6872; font-size: 0.85rem">
+                  ${escapeHtml(item.equipmentId || item.id)} is awaiting staff assignment. Target completion date: ${escapeHtml(item.targetDate || 'Pending')}.
+                </p>
+                <small style="color: #8c8295; font-size: 0.75rem">${escapeHtml(item.notes || 'Awaiting assignment')}</small>
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-shrink: 0">
+              <a class="primary-action" href="preparation-assignment.html?id=${encodeURIComponent(item.equipmentId || item.id)}" style="padding: 0.45rem 0.85rem; font-size: 0.8rem">Assign task</a>
+              <a class="secondary-action" href="preparation-details.html?id=${encodeURIComponent(item.equipmentId || item.id)}" style="padding: 0.45rem 0.85rem; font-size: 0.8rem">View item</a>
+            </div>
+          `;
+          listContainer.appendChild(card);
+        });
       }
     } catch (e) {
-      // Fallback gracefully
+      // Gracefully preserve static HTML content as fallback
     }
   }
 
-  function syncPreparationWorkflow() {
+  async function syncPreparationWorkflow() {
+    const isDetails = window.location.pathname.includes('preparation-details') && !window.location.pathname.includes('review');
+    const isAssignment = window.location.pathname.includes('preparation-assignment');
     const isChecklist = window.location.pathname.includes('preparation-checklist');
     const isReview = window.location.pathname.includes('preparation-review-details');
-    const isAssignment = window.location.pathname.includes('preparation-assignment');
 
-    const prepId = 'PREP-002'; // Active item undergoing preparation
+    if (!isDetails && !isAssignment && !isChecklist && !isReview) return;
 
-    if (isChecklist) {
-      const saveBtn = document.querySelector('.detail-actions button.secondary-action');
-      const submitBtn = document.querySelector('.detail-actions a.primary-action');
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const idParam = urlParams.get('id') || 'EQ-014';
 
-      if (saveBtn && !saveBtn.dataset.bound) {
-        saveBtn.dataset.bound = 'true';
-        saveBtn.addEventListener('click', async () => {
-          const notes = document.getElementById('issue-notes')?.value || '';
-          const originalText = saveBtn.innerHTML;
-          saveBtn.disabled = true;
-          saveBtn.textContent = 'Saving...';
-          try {
-            await apiClient.updatePreparation(prepId, { notes });
-            saveBtn.textContent = '✓ Saved to DB!';
-            setTimeout(() => { saveBtn.innerHTML = originalText; saveBtn.disabled = false; }, 2000);
-          } catch (e) {
-            saveBtn.innerHTML = originalText;
-            saveBtn.disabled = false;
-            alert('Progress saved locally');
-          }
-        });
+      const res = await apiClient.getPreparation().catch(() => null);
+      if (!res || !res.preparation || res.preparation.length === 0) return;
+
+      const item = res.preparation.find(p => (p.equipmentId && p.equipmentId.toLowerCase() === idParam.toLowerCase()) || (p.id && p.id.toLowerCase() === idParam.toLowerCase())) || res.preparation[0];
+      if (!item) return;
+
+      const currentId = item.equipmentId || item.id;
+      const targetPrepId = item.id;
+
+      // Common header elements across steps 1-4
+      const nameHeading = document.getElementById('equipment-name');
+      if (nameHeading) nameHeading.textContent = item.equipmentName;
+
+      const idDisplay = document.querySelector('.equipment-id');
+      if (idDisplay) idDisplay.textContent = `${item.equipmentId || item.id} · University Library`;
+
+      const targetDateEl = document.querySelector('.equipment-target strong');
+      if (targetDateEl && item.targetDate) targetDateEl.textContent = item.targetDate;
+
+      const iconContainer = document.querySelector('.equipment-detail-icon');
+      if (iconContainer) iconContainer.innerHTML = getEquipmentIcon({ category: item.category, name: item.equipmentName });
+
+      const headerBadge = document.querySelector('.equipment-detail-heading .status-badge');
+      if (headerBadge) {
+        const isRev = (item.status === 'review' || item.status === 'in-review');
+        const bClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : isRev ? 'in-review' : '';
+        const bLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : isRev ? 'Awaiting review' : 'Ready for lending';
+        headerBadge.className = `status-badge ${bClass}`.trim();
+        headerBadge.textContent = bLabel;
+        if (isRev) headerBadge.setAttribute('data-status', 'review');
       }
 
-      if (submitBtn && !submitBtn.dataset.bound) {
-        submitBtn.dataset.bound = 'true';
-        submitBtn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          try {
-            await apiClient.updatePreparation(prepId, { status: 'review' });
-            window.location.href = 'preparation-review-details.html';
-          } catch (err) {
-            window.location.href = 'preparation-review-details.html';
+      // Step 1: Equipment Details View
+      if (isDetails) {
+        document.querySelectorAll('.detail-list div').forEach(row => {
+          const dt = row.querySelector('dt');
+          const dd = row.querySelector('dd');
+          if (!dt || !dd) return;
+          const label = dt.textContent.trim().toLowerCase();
+          if (label === 'status') {
+            const isRev = (item.status === 'review' || item.status === 'in-review');
+            const bClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : isRev ? 'in-review' : '';
+            const bLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : isRev ? 'Awaiting review' : 'Ready for lending';
+            dd.innerHTML = `<span class="status-badge ${bClass}" ${isRev ? 'data-status="review"' : ''}>${bLabel}</span>`;
           }
+          if (label === 'assigned to') dd.textContent = item.assignedStaff || 'Unassigned';
+          if (label === 'target date') dd.textContent = item.targetDate || 'Pending';
+          if (label === 'progress') dd.textContent = `${item.currentStep || 0} of 4 steps complete`;
         });
-      }
-    }
 
-    if (isReview) {
-      const readyBtn = document.querySelector('.detail-actions button.primary-action');
-      if (readyBtn && !readyBtn.dataset.bound) {
-        readyBtn.dataset.bound = 'true';
-        readyBtn.addEventListener('click', async () => {
-          const originalText = readyBtn.innerHTML;
-          readyBtn.disabled = true;
-          readyBtn.textContent = 'Marking ready...';
-          try {
-            await apiClient.updatePreparation(prepId, { status: 'ready' });
-            window.location.href = 'preparation-ready.html';
-          } catch (e) {
-            readyBtn.innerHTML = originalText;
-            readyBtn.disabled = false;
-            window.location.href = 'preparation-ready.html';
-          }
-        });
-      }
-    }
+        const notesTextarea = document.getElementById('preparation-notes');
+        if (notesTextarea && item.notes) notesTextarea.value = item.notes;
 
-    if (isAssignment) {
-      const assignForm = document.querySelector('.assignment-form');
-      if (assignForm && !assignForm.dataset.apiBound) {
-        assignForm.dataset.apiBound = 'true';
-        assignForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const staffSelect = document.getElementById('staff-member');
-          const targetDateInput = document.getElementById('target-date');
-          const assignedStaff = staffSelect ? staffSelect.value : '';
-          const targetDate = targetDateInput ? targetDateInput.value : '';
-          try {
-            await apiClient.updatePreparation('PREP-001', { assignedStaff, targetDate, status: 'in-prep' });
-            window.location.href = 'preparation.html';
-          } catch (err) {
-            window.location.href = 'preparation.html';
-          }
-        });
+        const assignLink = document.querySelector('.detail-actions a[href*="preparation-assignment.html"]');
+        if (assignLink) assignLink.href = `preparation-assignment.html?id=${encodeURIComponent(currentId)}`;
+
+        const checklistLink = document.querySelector('.detail-actions a[href*="preparation-checklist.html"]');
+        if (checklistLink) checklistLink.href = `preparation-checklist.html?id=${encodeURIComponent(currentId)}`;
+
+        const saveNotesBtn = document.querySelector('.detail-actions button.secondary-action');
+        if (saveNotesBtn && !saveNotesBtn.dataset.apiBound) {
+          saveNotesBtn.dataset.apiBound = 'true';
+          saveNotesBtn.addEventListener('click', async () => {
+            const originalText = saveNotesBtn.innerHTML;
+            saveNotesBtn.disabled = true;
+            saveNotesBtn.textContent = 'Saving notes...';
+            try {
+              await apiClient.updatePreparation(targetPrepId, { notes: notesTextarea ? notesTextarea.value : '' });
+              saveNotesBtn.textContent = '✓ Saved to DB';
+              setTimeout(() => { saveNotesBtn.innerHTML = originalText; saveNotesBtn.disabled = false; }, 1500);
+            } catch (e) {
+              saveNotesBtn.innerHTML = originalText;
+              saveNotesBtn.disabled = false;
+            }
+          });
+        }
       }
+
+      // Step 2: Assignment View
+      if (isAssignment) {
+        const staffSelect = document.getElementById('staff-member');
+        if (staffSelect && item.assignedStaff && item.assignedStaff !== 'Unassigned') {
+          Array.from(staffSelect.options).forEach(opt => {
+            if (opt.text.toLowerCase() === item.assignedStaff.toLowerCase()) opt.selected = true;
+          });
+        }
+
+        const assignForm = document.querySelector('.assignment-form');
+        if (assignForm && !assignForm.dataset.apiBound) {
+          assignForm.dataset.apiBound = 'true';
+          assignForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const staff = staffSelect ? staffSelect.value : '';
+            const targetDateInput = document.getElementById('target-date');
+            const tDate = targetDateInput ? targetDateInput.value : '';
+            const instInput = document.getElementById('assignment-instructions');
+            const instructions = instInput ? instInput.value : '';
+
+            try {
+              await apiClient.updatePreparation(targetPrepId, {
+                assignedStaff: staff || 'Staff Specialist',
+                targetDate: tDate || item.targetDate || '15 Oct 2026',
+                status: 'in-prep',
+                notes: instructions || item.notes
+              });
+              window.location.href = `preparation-checklist.html?id=${encodeURIComponent(currentId)}`;
+            } catch (err) {
+              window.location.href = `preparation-checklist.html?id=${encodeURIComponent(currentId)}`;
+            }
+          });
+        }
+      }
+
+      // Step 3: Checklist View
+      if (isChecklist) {
+        const checklistHeading = document.querySelector('.checklist-heading span');
+        const checklistItemsContainer = document.querySelector('.checklist-items');
+        const issueNotes = document.getElementById('issue-notes');
+        if (issueNotes && item.notes) issueNotes.value = item.notes;
+
+        if (item.checklist && item.checklist.length > 0 && checklistItemsContainer) {
+          checklistItemsContainer.innerHTML = '';
+          let completedCount = 0;
+          item.checklist.forEach(step => {
+            if (step.completed) completedCount++;
+            const label = document.createElement('label');
+            label.className = 'checklist-row';
+            label.innerHTML = `
+              <input type="checkbox" data-id="${step.id}" ${step.completed ? 'checked' : ''} />
+              <span><strong>${escapeHtml(step.title)}</strong><small>${step.completed ? 'Complete' : 'Pending'}</small></span>
+            `;
+            const checkbox = label.querySelector('input');
+            checkbox.addEventListener('change', () => {
+              const small = label.querySelector('small');
+              if (small) small.textContent = checkbox.checked ? 'Complete' : 'Pending';
+              const checked = checklistItemsContainer.querySelectorAll('input:checked').length;
+              if (checklistHeading) checklistHeading.textContent = `${checked} / ${item.checklist.length} complete`;
+            });
+            checklistItemsContainer.appendChild(label);
+          });
+          if (checklistHeading) checklistHeading.textContent = `${completedCount} / ${item.checklist.length} complete`;
+        }
+
+        const saveBtn = document.querySelector('.detail-actions button.secondary-action');
+        if (saveBtn && !saveBtn.dataset.bound) {
+          saveBtn.dataset.bound = 'true';
+          saveBtn.addEventListener('click', async () => {
+            const originalText = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+            const notes = issueNotes ? issueNotes.value : '';
+            try {
+              await apiClient.updatePreparation(targetPrepId, { notes });
+              saveBtn.textContent = '✓ Saved to DB!';
+              setTimeout(() => { saveBtn.innerHTML = originalText; saveBtn.disabled = false; }, 2000);
+            } catch (e) {
+              saveBtn.innerHTML = originalText;
+              saveBtn.disabled = false;
+            }
+          });
+        }
+
+        const submitBtn = document.querySelector('.detail-actions a.primary-action');
+        if (submitBtn && !submitBtn.dataset.bound) {
+          submitBtn.dataset.bound = 'true';
+          submitBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const notes = issueNotes ? issueNotes.value : '';
+            try {
+              await apiClient.updatePreparation(targetPrepId, { status: 'review', currentStep: 4, notes });
+              window.location.href = `preparation-review-details.html?id=${encodeURIComponent(currentId)}`;
+            } catch (err) {
+              window.location.href = `preparation-review-details.html?id=${encodeURIComponent(currentId)}`;
+            }
+          });
+        }
+      }
+
+      // Step 4: Review Details View
+      if (isReview) {
+        const reviewStatusBox = document.querySelector('.review-status');
+        if (reviewStatusBox) {
+          const strong = reviewStatusBox.querySelector('strong');
+          const small = reviewStatusBox.querySelector('small');
+          if (strong) {
+            strong.textContent = item.status === 'review' ? 'Preparation submitted for supervisor sign-off' : item.status === 'ready' ? 'Equipment ready for lending' : 'Preparation in progress';
+          }
+          if (small) {
+            small.textContent = `Assigned to ${item.assignedStaff || 'Staff Specialist'} · Target ${item.targetDate || '15 Oct 2026'}`;
+          }
+        }
+
+        const reviewItemsContainer = document.querySelector('.review-items');
+        if (reviewItemsContainer && item.checklist && item.checklist.length > 0) {
+          reviewItemsContainer.innerHTML = '';
+          item.checklist.forEach(step => {
+            const div = document.createElement('div');
+            div.innerHTML = `<span>${escapeHtml(step.title)}</span><strong>${step.completed ? 'Complete' : 'Pending'}</strong>`;
+            reviewItemsContainer.appendChild(div);
+          });
+        }
+
+        const reviewNotes = document.getElementById('review-notes');
+        if (reviewNotes && item.notes) reviewNotes.value = item.notes;
+
+        const returnLink = document.querySelector('.detail-actions a.secondary-action');
+        if (returnLink) returnLink.href = `preparation-checklist.html?id=${encodeURIComponent(currentId)}`;
+
+        const readyBtn = document.querySelector('.detail-actions button.primary-action');
+        if (readyBtn && !readyBtn.dataset.bound) {
+          readyBtn.dataset.bound = 'true';
+          readyBtn.addEventListener('click', async () => {
+            const originalText = readyBtn.innerHTML;
+            readyBtn.disabled = true;
+            readyBtn.textContent = 'Marking ready...';
+            try {
+              await apiClient.updatePreparation(targetPrepId, { status: 'ready', currentStep: 4 });
+              window.location.href = 'preparation-ready.html';
+            } catch (e) {
+              readyBtn.innerHTML = originalText;
+              readyBtn.disabled = false;
+              window.location.href = 'preparation-ready.html';
+            }
+          });
+        }
+      }
+
+      enforceReviewBadgeColor();
+    } catch (e) {
+      // Gracefully preserve static HTML content as fallback
     }
   }
 

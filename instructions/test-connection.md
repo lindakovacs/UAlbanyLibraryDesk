@@ -23,6 +23,13 @@ This instruction file documents every command, script, HTTP test, and database q
 
 ## 2. Frontend-to-Backend & Database Connection Across All Pages
 
+### Architecture: Dynamic Population with Offline Fallback
+
+The application implements a progressive enhancement and graceful degradation pattern across all views:
+
+- **Dynamic Data Population (Online)**: When the Node.js/Express API server and MySQL database are online and reachable, `api-client.js` queries live REST endpoints (`/api/equipment`, `/api/loans`, `/api/preparation`, `/api/reports`, etc.) upon page load and user interaction. The retrieved database records dynamically replace the static placeholder content in the DOM in real time.
+- **Static Content as Offline Fallback**: The initial static HTML markup and sample table rows are intentionally retained in each template as an offline fallback. If the database is temporarily down, disconnected, or undergoing maintenance, client-side API requests fail gracefully through defensive error handling, ensuring the interface remains fully rendered, styled, accessible, and informative rather than displaying blank containers or unhandled error screens.
+
 All 22 frontend HTML views and workflows are actively wired to the Node.js/Express API and MySQL database through `api-client.js`:
 
 | Page | View / Feature | Backend Endpoint / Action | Connected Database Tables |

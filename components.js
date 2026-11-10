@@ -308,12 +308,15 @@
 
     connectedCallback() {
       const active = (this.getAttribute('active') || '1').toLowerCase();
+      const urlParams = new URLSearchParams(window.location.search);
+      const idParam = urlParams.get('id');
+      const q = idParam ? `?id=${encodeURIComponent(idParam)}` : '';
       this.innerHTML = `
         <nav class="detail-steps" aria-label="Equipment preparation steps">
-          <a class="${active === '1' || active === 'details' ? 'current' : ''}" href="preparation-details.html"><span>1</span>Details</a>
-          <a class="${active === '2' || active === 'assignment' ? 'current' : ''}" href="preparation-assignment.html"><span>2</span>Assignment</a>
-          <a class="${active === '3' || active === 'checklist' ? 'current' : ''}" href="preparation-checklist.html"><span>3</span>Checklist</a>
-          <a class="${active === '4' || active === 'review' ? 'current' : ''}" href="preparation-review-details.html"><span>4</span>Review</a>
+          <a class="${active === '1' || active === 'details' ? 'current' : ''}" href="preparation-details.html${q}"><span>1</span>Details</a>
+          <a class="${active === '2' || active === 'assignment' ? 'current' : ''}" href="preparation-assignment.html${q}"><span>2</span>Assignment</a>
+          <a class="${active === '3' || active === 'checklist' ? 'current' : ''}" href="preparation-checklist.html${q}"><span>3</span>Checklist</a>
+          <a class="${active === '4' || active === 'review' ? 'current' : ''}" href="preparation-review-details.html${q}"><span>4</span>Review</a>
         </nav>
       `;
     }
