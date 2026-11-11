@@ -138,6 +138,7 @@ Introduce persistence after the API shape is stable.
   production build.
 - Review environment-variable documentation and startup instructions.
 - See [test-connection.md](./test-connection.md) for the complete full-stack integration and test scripts guide.
+- See [user-manual.md](./user-manual.md) for the complete end-user operations manual, screenshots, and standard operating procedures.
 
 ### Frontend-to-Backend & Database Connection Across All Pages
 
