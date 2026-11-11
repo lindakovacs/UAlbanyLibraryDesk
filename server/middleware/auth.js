@@ -31,7 +31,7 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({
       error: 'Unauthorized',
       message: error.name === 'TokenExpiredError' 
-        ? 'Authentication token has expired. Please sign in again.' 
+        ? 'Authentication token has expired. Sign in again.' 
         : 'Invalid authentication token.',
       status: 401
     });

@@ -171,7 +171,7 @@
             font-size: 0.85rem;
             margin-bottom: 1rem;
           `;
-          errorBanner.textContent = 'Please enter both your NetID and password.';
+          errorBanner.textContent = 'Enter both NetID and password.';
           loginForm.insertBefore(errorBanner, loginForm.querySelector('.form-field'));
           return;
         }
@@ -192,17 +192,17 @@
           }
 
           // Format error according to OWASP authentication security standards
-          let displayMessage = 'Invalid NetID or password. Please verify your credentials and try again.';
+          let displayMessage = 'Invalid NetID or password. Verify credentials and try again.';
           if (err.status === 401) {
-            displayMessage = 'Invalid NetID or password. Please verify your credentials and try again.';
+            displayMessage = 'Invalid NetID or password. Verify credentials and try again.';
           } else if (err.status === 400) {
-            displayMessage = err.data?.message || 'Please provide both your NetID and password.';
+            displayMessage = err.data?.message || 'Provide both NetID and password.';
           } else if (err.status === 404) {
-            displayMessage = 'Authentication service is currently unavailable. Please verify the Express backend server is running.';
+            displayMessage = 'Authentication service is currently unavailable. Verify the Express backend server is running.';
           } else if (err.status >= 500) {
-            displayMessage = 'The server encountered an error during authentication. Please try again later.';
+            displayMessage = 'The server encountered an error during authentication. Try again later.';
           } else if (err.message && (err.message.includes('fetch') || err.message.includes('network') || err.message.includes('Failed to fetch'))) {
-            displayMessage = 'Cannot connect to authentication server. Please check your connection or restart the backend.';
+            displayMessage = 'Cannot connect to authentication server. Check connection or restart the backend.';
           }
 
           errorBanner = document.createElement('div');
@@ -276,7 +276,7 @@
 
         const loanId = loanSelect ? loanSelect.value : '';
         if (!loanId) {
-          alert('Please select an open loan to return');
+          alert('Select an open loan to return');
           return;
         }
 
@@ -377,6 +377,79 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function formatShortEST(dateVal) {
+    if (!dateVal) return '—';
+    try {
+      const str = String(dateVal).trim();
+      if (str.includes('EST') || str.includes('EDT')) return str;
+
+      // Match 'Oct 9, 2026 · 11:20 AM' or 'Oct 9, 2026, 11:20 AM'
+      const monthNames = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+      const textTimeMatch = str.match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})(?:\s*[·,]\s*(\d{1,2}):(\d{2})\s*(AM|PM)?)?$/i);
+      if (textTimeMatch) {
+        const mStr = textTimeMatch[1].slice(0, 3).toLowerCase();
+        const m = monthNames[mStr] || '01';
+        const d = textTimeMatch[2].padStart(2, '0');
+        const y = textTimeMatch[3].slice(-2);
+        if (textTimeMatch[4] && textTimeMatch[5]) {
+          const h = textTimeMatch[4];
+          const min = textTimeMatch[5];
+          const ampm = (textTimeMatch[6] || 'AM').toUpperCase();
+          return `${m}/${d}/${y}, ${h}:${min} ${ampm} EST`;
+        }
+        return `${m}/${d}/${y} EST`;
+      }
+
+      // Match '13 Oct 2026'
+      const dMonthMatch = str.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+      if (dMonthMatch) {
+        const d = dMonthMatch[1].padStart(2, '0');
+        const mStr = dMonthMatch[2].slice(0, 3).toLowerCase();
+        const m = monthNames[mStr] || '01';
+        const y = dMonthMatch[3].slice(-2);
+        return `${m}/${d}/${y} EST`;
+      }
+
+      // Match date-only YYYY-MM-DD
+      const dateOnlyMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateOnlyMatch) {
+        const [, y, m, d] = dateOnlyMatch;
+        return `${m}/${d}/${y.slice(-2)} EST`;
+      }
+
+      // Match MySQL datetime string without timezone: 'YYYY-MM-DD HH:mm:ss'
+      const directMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+      if (directMatch) {
+        const [, y, m, d, hStr, minStr] = directMatch;
+        const h = parseInt(hStr, 10);
+        const hour12 = h % 12 || 12;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        return `${m}/${d}/${y.slice(-2)}, ${hour12}:${minStr} ${ampm} EST`;
+      }
+
+      // Date parsing for ISO string (e.g. 2026-10-06T14:30:00.000Z)
+      const dt = new Date(dateVal);
+      if (isNaN(dt.getTime())) return str + ' EST';
+
+      const hasTime = str.includes('T') || str.includes(':');
+      const options = {
+        timeZone: 'America/New_York',
+        month: '2-digit',
+        day: '2-digit',
+        year: '2-digit'
+      };
+      if (hasTime) {
+        options.hour = 'numeric';
+        options.minute = '2-digit';
+        options.hour12 = true;
+      }
+      const formatted = new Intl.DateTimeFormat('en-US', options).format(dt);
+      return `${formatted} EST`;
+    } catch (e) {
+      return `${dateVal} EST`;
+    }
   }
 
   function enforceReviewBadgeColor() {
@@ -556,7 +629,7 @@
       res.loans.forEach(loan => {
         const opt = document.createElement('option');
         opt.value = loan.id;
-        opt.textContent = `${loan.id} · ${loan.borrower} · ${loan.equipmentName || loan.equipmentId} (Due ${loan.dueDate || 'Soon'})`;
+        opt.textContent = `${loan.id} · ${loan.borrower} · ${loan.equipmentName || loan.equipmentId} (Due ${formatShortEST(loan.dueDate)})`;
         if (loan.id === preselectedLoan) {
           opt.selected = true;
         }
@@ -622,8 +695,8 @@
                     <small>${escapeHtml(loan.netid)}</small>
                   </span>
                 </td>
-                <td>${escapeHtml(loan.checkoutDate || 'Recent')}</td>
-                <td>${escapeHtml(loan.dueDate || 'Standard')}</td>
+                <td>${escapeHtml(formatShortEST(loan.checkoutDate))}</td>
+                <td>${escapeHtml(formatShortEST(loan.dueDate))}</td>
                 <td><span class="loan-status ${statusClass}">${statusLabel}</span></td>
                 <td>
                   <a class="row-arrow" href="loan-details.html?id=${encodeURIComponent(loan.id)}" aria-label="View loan ${escapeHtml(loan.id)}">
@@ -684,7 +757,7 @@
       }
 
       const targetDueDate = document.querySelector('.equipment-target strong');
-      if (targetDueDate && loan.dueDate) targetDueDate.textContent = loan.dueDate;
+      if (targetDueDate && loan.dueDate) targetDueDate.textContent = formatShortEST(loan.dueDate);
 
       // Populate borrower profile information
       let borrowerInfo = null;
@@ -713,8 +786,8 @@
           dd.innerHTML = `<span class="borrower-status ${isGood ? 'good' : 'warning'}">${isGood ? 'Good standing' : 'Follow-up needed'}</span>`;
         }
         if (label === 'loan id') dd.textContent = loan.id;
-        if (label === 'return due date' && loan.dueDate) dd.textContent = `${loan.dueDate} (Standard loan)`;
-        if (label === 'checked out' && loan.checkoutDate) dd.textContent = loan.checkoutDate;
+        if (label === 'return due date' && loan.dueDate) dd.textContent = `${formatShortEST(loan.dueDate)} (Standard loan)`;
+        if (label === 'checked out' && loan.checkoutDate) dd.textContent = formatShortEST(loan.checkoutDate);
         if (label === 'asset barcode' && loan.assetTag) dd.textContent = loan.assetTag;
       });
 
@@ -797,6 +870,57 @@
   async function syncReportsPage() {
     const reportTable = document.getElementById('report-rows');
     if (!reportTable) return;
+
+    const user = apiClient.getUser();
+    const isSpecialist = user && (user.role || '').toLowerCase().includes('specialist');
+
+    const form = document.getElementById('report-form');
+    let restrictionBanner = document.getElementById('reports-role-restriction');
+
+    if (isSpecialist) {
+      if (!restrictionBanner) {
+        restrictionBanner = document.createElement('div');
+        restrictionBanner.id = 'reports-role-restriction';
+        restrictionBanner.style.cssText = 'background: #fdf2f2; border: 1px solid #f8b4b4; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; color: #9b1c1c;';
+        restrictionBanner.innerHTML = `
+          <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+            <span style="font-size: 1.5rem; line-height: 1;">🔒</span>
+            <div>
+              <strong style="display: block; font-size: 1.05rem; margin-bottom: 0.25rem;">Supervisor Access Required</strong>
+              <p style="margin: 0 0 0.5rem; font-size: 0.95rem; color: #771d1d;">
+                Administrative circulation reports and utilization statistics are reserved for <strong>Circulation Supervisors</strong>.
+                You are currently signed in as <strong>${escapeHtml(user.name)}</strong> (<em>${escapeHtml(user.role)}</em>).
+              </p>
+              <p style="margin: 0; font-size: 0.875rem;">
+                To generate or view institutional reports, <a href="login.html" style="color: #46166b; font-weight: 600; text-decoration: underline;">sign in with a Supervisor account</a> (e.g. Linda Kovacs).
+              </p>
+            </div>
+          </div>
+        `;
+        const parent = form ? form.parentElement : document.querySelector('main');
+        if (parent) parent.insertBefore(restrictionBanner, form);
+      } else {
+        restrictionBanner.style.display = 'block';
+      }
+
+      if (form) {
+        form.querySelectorAll('input, select, button').forEach(el => el.disabled = true);
+        form.style.opacity = '0.6';
+      }
+      const summaryBox = document.querySelector('.checkout-report-summary');
+      if (summaryBox) summaryBox.style.opacity = '0.6';
+
+      reportTable.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2.5rem; color: #9b1c1c; font-style: italic;">🔒 Access Restricted: Circulation reports are reserved for Circulation Supervisors.</td></tr>`;
+      return;
+    } else {
+      if (restrictionBanner) restrictionBanner.style.display = 'none';
+      if (form) {
+        form.querySelectorAll('input, select, button').forEach(el => el.disabled = false);
+        form.style.opacity = '1';
+      }
+      const summaryBox = document.querySelector('.checkout-report-summary');
+      if (summaryBox) summaryBox.style.opacity = '1';
+    }
 
     const semesterSelect = document.getElementById('report-semester');
     const fromInput = document.getElementById('report-from');
@@ -1388,8 +1512,8 @@
                 <strong>${escapeHtml(loan.borrower)}</strong>
                 <small>${escapeHtml(loan.universityId || loan.netid)}</small>
               </td>
-              <td>${escapeHtml(loan.checkoutDate || 'Oct 9, 2026')}</td>
-              <td class="${isOverdue ? 'overdue-text' : ''}">${escapeHtml(loan.dueDate || 'Oct 13, 2026')}</td>
+              <td>${escapeHtml(formatShortEST(loan.checkoutDate))}</td>
+              <td class="${isOverdue ? 'overdue-text' : ''}">${escapeHtml(formatShortEST(loan.dueDate))}</td>
               <td><em class="loan-pill ${statusClass}">${statusLabel}</em></td>
             `;
             loansTbody.appendChild(tr);
@@ -1465,9 +1589,9 @@
                   <span class="loan-status overdue">Overdue</span>
                 </div>
                 <p style="margin: 0 0 0.35rem; color: #5f6872; font-size: 0.85rem">
-                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) was due on ${escapeHtml(loan.dueDate)}. University ID: ${escapeHtml(loan.universityId || loan.netid)}.
+                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) was due on ${escapeHtml(formatShortEST(loan.dueDate))}. University ID: ${escapeHtml(loan.universityId || loan.netid)}.
                 </p>
-                <small style="color: #8c8295; font-size: 0.75rem">Checked out: ${escapeHtml(loan.checkoutDate)}</small>
+                <small style="color: #8c8295; font-size: 0.75rem">Checked out: ${escapeHtml(formatShortEST(loan.checkoutDate))}</small>
               </div>
             </div>
             <div style="display: flex; gap: 0.5rem; flex-shrink: 0">
@@ -1493,9 +1617,9 @@
                   <span class="loan-status due">Due today</span>
                 </div>
                 <p style="margin: 0 0 0.35rem; color: #5f6872; font-size: 0.85rem">
-                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) is expected back by closing. University ID: ${escapeHtml(loan.universityId || loan.netid)}.
+                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) is expected back by ${escapeHtml(formatShortEST(loan.dueDate))}. University ID: ${escapeHtml(loan.universityId || loan.netid)}.
                 </p>
-                <small style="color: #8c8295; font-size: 0.75rem">Checked out: ${escapeHtml(loan.checkoutDate)}</small>
+                <small style="color: #8c8295; font-size: 0.75rem">Checked out: ${escapeHtml(formatShortEST(loan.checkoutDate))}</small>
               </div>
             </div>
             <div style="display: flex; gap: 0.5rem; flex-shrink: 0">
@@ -1760,7 +1884,29 @@
         if (returnLink) returnLink.href = `preparation-checklist.html?id=${encodeURIComponent(currentId)}`;
 
         const readyBtn = document.querySelector('.detail-actions button.primary-action');
-        if (readyBtn && !readyBtn.dataset.bound) {
+        const currentUser = apiClient.getUser();
+        const isSpecialist = currentUser && (currentUser.role || '').toLowerCase().includes('specialist');
+
+        if (isSpecialist) {
+          if (readyBtn) {
+            readyBtn.disabled = true;
+            readyBtn.title = 'Circulation Supervisor role required to approve equipment readiness';
+            readyBtn.style.opacity = '0.6';
+            readyBtn.style.cursor = 'not-allowed';
+            readyBtn.innerHTML = '🔒 Supervisor Approval Required';
+          }
+          let notice = document.getElementById('supervisor-required-notice');
+          if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'supervisor-required-notice';
+            notice.style.cssText = 'background: #fdfaf3; border: 1px solid #e8dfd8; border-radius: 6px; padding: 0.75rem 1rem; margin-top: 1rem; color: #4a4550; font-size: 0.9rem;';
+            notice.innerHTML = `<strong>Supervisor Sign-off:</strong> You are currently signed in as <strong>${escapeHtml(currentUser.name)}</strong> (<em>Circulation Specialist</em>). Technical checks and checklists may be recorded, but final readiness sign-off to return equipment to circulation shelves requires a <strong>Circulation Supervisor</strong> (e.g. Linda Kovacs).`;
+            const actions = document.querySelector('.detail-actions');
+            if (actions && actions.parentElement) {
+              actions.parentElement.insertBefore(notice, actions);
+            }
+          }
+        } else if (readyBtn && !readyBtn.dataset.bound) {
           readyBtn.dataset.bound = 'true';
           readyBtn.addEventListener('click', async () => {
             const originalText = readyBtn.innerHTML;
@@ -1847,6 +1993,12 @@
         if (label === 'role' && user.role) dd.textContent = user.role;
         if (label === 'desk station' && user.deskStation) dd.textContent = user.deskStation;
         if (label === 'workstation id' && user.workstationId) dd.textContent = user.workstationId;
+        if (label === 'system permissions') {
+          const isSup = (user.role || '').toLowerCase().includes('supervisor');
+          dd.textContent = isSup
+            ? 'Full Administrative Access (Circulation, Preparation, Supervisor Review, Reports)'
+            : 'Circulation Specialist Access (Checkout, Returns, Technical Preparation)';
+        }
       });
     }
   }

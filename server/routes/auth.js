@@ -73,11 +73,16 @@ router.post('/login', validateBody(['netid', 'password']), async (req, res, next
       // DB offline, fall back to in-memory store
     }
 
-    // 2. Fall back to store default staff if DB query failed or returned nothing
+    // 2. Fall back to store staff if DB query failed or returned nothing
     if (!userRecord && netid.toLowerCase() === store.staff.netid.toLowerCase()) {
       userRecord = {
         ...store.staff,
         password_hash: store.staff.password_hash || '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq' // password123
+      };
+    } else if (!userRecord && store.specialistStaff && netid.toLowerCase() === store.specialistStaff.netid.toLowerCase()) {
+      userRecord = {
+        ...store.specialistStaff,
+        password_hash: '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq' // password123
       };
     }
 

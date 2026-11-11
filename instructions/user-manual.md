@@ -80,25 +80,50 @@ The application utilizes modern Web Components, CSS Grid, and the PJAX navigatio
 Access to circulation tools is governed by institutional role-based permissions:
 
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                        UAlbany Staff Roles                             │
-├──────────────────────────┬─────────────────────────────┬───────────────┤
-│ Role                     │ Typical Staff               │ Core Rights   │
-├──────────────────────────┼─────────────────────────────┼───────────────┤
-│ Circulation Specialist   │ Student staff, Desk clerks  │ Checkouts,    │
-│                          │                             │ Returns,      │
-│                          │                             │ Prep tasks    │
-├──────────────────────────┼─────────────────────────────┼───────────────┤
-│ Lead Technician          │ Senior student staff, Techs │ Checklists,   │
-│                          │                             │ Sanitization  │
-├──────────────────────────┼─────────────────────────────┼───────────────┤
-│ Circulation Supervisor   │ Full-time librarians, Admins│ Final signoff,│
-│                          │                             │ Inventory,    │
-│                          │                             │ Reports       │
-└──────────────────────────┴─────────────────────────────┴───────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                               UAlbany Staff Account Types                              │
+├──────────────────────────┬─────────────────────────────┬───────────────────────────────┤
+│ Role                     │ Typical Staff / User        │ Available Pages & Privileges  │
+├──────────────────────────┼─────────────────────────────┼───────────────────────────────┤
+│ Circulation Supervisor   │ Full-time librarians,       │ FULL ACCESS to ALL pages:     │
+│                          │ Desk supervisors, Admins    │ - Overview & Dashboard        │
+│                          │ (Linda Kovacs)              │ - Equipment & Catalog         │
+│                          │                             │ - Loans & Returns             │
+│                          │                             │ - New Loan Checkout           │
+│                          │                             │ - Borrowers Directory         │
+│                          │                             │ - All Preparation Queues      │
+│                          │                             │ - Supervisor Review Sign-Off  │
+│                          │                             │ - Circulation Reports (Admin) │
+├──────────────────────────┼─────────────────────────────┼───────────────────────────────┤
+│ Circulation Specialist   │ Circulation desk clerks,    │ OPERATIONAL ACCESS:           │
+│                          │ Student staff assistants    │ - Overview & Dashboard        │
+│                          │ (Maria Santos)              │ - Equipment Catalog Search    │
+│                          │                             │ - Loans & Returns Processing  │
+│                          │                             │ - New Loan Checkout           │
+│                          │                             │ - Borrowers Directory         │
+│                          │                             │ - Prep Tasks & Sanitization   │
+│                          │                             │ RESTRICTED:                   │
+│                          │                             │ ✕ Reports (Supervisor only)   │
+│                          │                             │ ✕ Ready Sign-off (Supervisor) │
+└──────────────────────────┴─────────────────────────────┴───────────────────────────────┘
 ```
 
-### 3.2 Staff Sign-In Procedure
+### 3.2 Account Types & Page Access Matrix
+
+| Page / Feature | URL | Circulation Supervisor<br>*(Linda Kovacs)* | Circulation Specialist<br>*(Maria Santos)* |
+|---|---|:---:|:---:|
+| **Dashboard / Overview** | `index.html` | Full Access | Full Access |
+| **Equipment Catalog** | `equipment.html` | Full Access | Full Access |
+| **New Loan / Checkout** | `new-loan.html` | Full Access | Full Access |
+| **Loans & Overdue Tracking** | `loans.html` | Full Access | Full Access |
+| **Return Check-In** | `return-item.html` | Full Access | Full Access |
+| **Borrower Directory** | `borrowers.html` | Full Access | Full Access |
+| **Prep Queues & Checklists** | `preparation.html` | Full Access | Full Access |
+| **Supervisor Review Sign-Off** | `preparation-review-details.html` | **Approve & Mark Ready** | **Restricted** (Locked: Supervisor Approval Required) |
+| **Circulation Reports & Analytics** | `reports.html` | **Full Access** (Run & Export) | **Restricted** (Access Denied Banner & Disabled Controls) |
+| **Staff Profile** | `profile.html` | Role: *Circulation Supervisor* | Role: *Circulation Specialist* |
+
+### 3.3 Staff Sign-In Procedure
 
 1. Launch your browser and navigate to the **Sign In** screen (`/login.html`).
 2. Enter your assigned University at Albany **NetID** and **Password**.
@@ -110,12 +135,13 @@ Access to circulation tools is governed by institutional role-based permissions:
 > 📷 **[Screenshot Placeholder: Staff Sign-In Page]**  
 > *Capture: `login.html` showing the NetID input field, Password input field, University Libraries seal, and "Sign in" button.*
 
-#### Training / Default Test Credentials
-For workstation evaluation and staff onboarding, the following verified profile is pre-configured:
-- **Staff NetID:** `linda.kovacs`
-- **Default Password:** `password123`
-- **Authorized Role:** Circulation Specialist
-- **Assigned Workstation:** Uptown Circulation Desk #2 (`DESK-CIRC-02`)
+#### Training & Evaluation Test Credentials
+For workstation evaluation and system testing, the following verified accounts are pre-configured:
+
+| Role | NetID | Password | Workstation | Permissions & Access Scope |
+|---|---|---|---|---|
+| **Circulation Supervisor** | `linda.kovacs` | `password123` | DESK-CIRC-02 | All pages, Supervisor Review signoff, Reports & Analytics |
+| **Circulation Specialist** | `maria.santos` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
 
 > [!IMPORTANT]
 > Always sign out via the **Staff Profile** (`/profile.html`) when stepping away from the circulation desk to ensure student patron records and checkout logs remain protected.
@@ -260,7 +286,9 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
 3. Multi-Field Search:
    - Type a borrower name (e.g. *Emma*), NetID (*alex.chen*), loan number (*LN-1042*), or item name (*Nintendo*).
    - The table live-filters dynamically.
-4. Inspecting Loan Details:
+4. Timestamps & Timezone:
+   - "Checked out" and "Due date" columns display concise Eastern Standard Time timestamps formatted as `MM/DD/YY, h:mm A EST` (e.g. `10/06/26, 2:30 PM EST`) for rapid visual scanning at the desk.
+5. Inspecting Loan Details:
    - Click any loan row to open `loan-details.html?id=LN-XXXX`.
    - View checkout timestamp, staff member who authorized the checkout, item serial number, and borrower email.
 5. Overdue Protocol:

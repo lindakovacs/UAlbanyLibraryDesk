@@ -170,6 +170,21 @@ All 22 frontend HTML views and workflows are actively wired to the Node.js/Expre
 | **`preparation-checklist.html`** | Sanitization & data wipe checklist | `PATCH /api/preparation/:id` | `preparation_checklist_items`, `preparation_items` |
 | **`preparation-review-details.html`**| Supervisor review & ready-to-lend signoff | `PATCH /api/preparation/:id` | `preparation_items` (`status = ready`) |
 
+#### Account Types & Page Access Matrix
+
+| Page / Feature | URL | Circulation Supervisor<br>*(Linda Kovacs)* | Circulation Specialist<br>*(Maria Santos)* |
+|---|---|:---:|:---:|
+| **Dashboard / Overview** | `index.html` | Full Access | Full Access |
+| **Equipment Catalog** | `equipment.html` | Full Access | Full Access |
+| **New Loan / Checkout** | `new-loan.html` | Full Access | Full Access |
+| **Loans & Overdue Tracking** | `loans.html` | Full Access | Full Access |
+| **Return Check-In** | `return-item.html` | Full Access | Full Access |
+| **Borrower Directory** | `borrowers.html` | Full Access | Full Access |
+| **Prep Queues & Checklists** | `preparation.html` | Full Access | Full Access |
+| **Supervisor Review Sign-Off** | `preparation-review-details.html` | **Approve & Mark Ready** | **Restricted** (Locked: Supervisor Approval Required) |
+| **Circulation Reports & Analytics** | `reports.html` | **Full Access** (Run & Export) | **Restricted** (Access Denied Banner & Disabled Controls) |
+| **Staff Profile** | `profile.html` | Role: *Circulation Supervisor* | Role: *Circulation Specialist* |
+
 ## 8. Render deployment
 
 Deploy only after local verification is complete. See [render-deployment.md](./render-deployment.md) for the step-by-step deployment guide and [render.yaml](../render.yaml) for the Infrastructure-as-Code Blueprint specification.

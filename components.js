@@ -58,6 +58,12 @@
 
     connectedCallback() {
       const current = (this.getAttribute('current') || this.detectCurrentPage()).toLowerCase();
+      let user = null;
+      try {
+        const u = localStorage.getItem('librarydesk_user');
+        if (u) user = JSON.parse(u);
+      } catch (e) {}
+      const isSupervisor = user && (user.role || '').toLowerCase().includes('supervisor');
 
       this.innerHTML = `
         <aside class="sidebar" aria-label="Primary">
@@ -90,6 +96,9 @@
               <li>
                 <a class="nav-item" href="borrowers.html"${current === 'borrowers' ? ' aria-current="page"' : ''}>Borrowers</a>
               </li>
+              <li>
+                <a class="nav-item" href="reports.html"${current === 'reports' ? ' aria-current="page"' : ''}>Reports${isSupervisor ? '' : ' <span style="font-size:0.7em; opacity:0.8; font-weight:normal;">(Supervisor)</span>'}</a>
+              </li>
             </ul>
           </nav>
           <div class="sidebar-footer">
@@ -115,6 +124,7 @@
       if (path.includes('equipment')) return 'equipment';
       if (path.includes('loan')) return 'loans';
       if (path.includes('prep')) return 'preparation';
+      if (path.includes('report')) return 'reports';
       return 'overview';
     }
   }

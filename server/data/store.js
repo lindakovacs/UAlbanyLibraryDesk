@@ -13,10 +13,25 @@ const defaultStaff = {
   department: 'University Libraries',
   division: 'Access & Circulation Services',
   email: 'linda.kovacs@ualbany.edu',
-  role: 'Authorized Circulation Specialist',
+  role: 'Circulation Supervisor',
   deskStation: 'Uptown Circulation Desk #2',
   workstationId: 'DESK-CIRC-02 (Uptown)',
-  permissions: ['checkout', 'return', 'review', 'reports'],
+  permissions: ['checkout', 'return', 'review', 'reports', 'supervisor', 'admin'],
+  status: 'active',
+  shiftDate: '11 Oct 2026'
+};
+
+const specialistStaff = {
+  netid: 'maria.santos',
+  name: 'Maria Santos',
+  universityId: '001298452',
+  department: 'University Libraries',
+  division: 'Access & Circulation Services',
+  email: 'msantos@albany.edu',
+  role: 'Circulation Specialist',
+  deskStation: 'Uptown Circulation Desk #1',
+  workstationId: 'DESK-CIRC-01 (Uptown)',
+  permissions: ['checkout', 'return', 'preparation'],
   status: 'active',
   shiftDate: '11 Oct 2026'
 };
@@ -226,8 +241,8 @@ const initialLoans = [
     borrowerNetId: 'emma.wilson',
     borrowerName: 'Emma Wilson',
     universityId: '001482759',
-    checkoutDate: '2026-10-06T14:30:00.000Z',
-    dueDate: '2026-10-13T17:00:00.000Z',
+    checkoutDate: '2026-10-06T18:30:00.000Z',
+    dueDate: '2026-10-13T21:00:00.000Z',
     status: 'active',
     assetTag: 'ALB-EQ-001-A',
     accessories: ['Camera body', '28-70mm lens', '64GB SD card', 'Rechargeable battery', 'Charger', 'Carry bag']
@@ -240,8 +255,8 @@ const initialLoans = [
     borrowerNetId: 'james.chen',
     borrowerName: 'James Chen',
     universityId: '001573024',
-    checkoutDate: '2026-10-04T10:15:00.000Z',
-    dueDate: '2026-10-11T17:00:00.000Z',
+    checkoutDate: '2026-10-04T14:15:00.000Z',
+    dueDate: '2026-10-11T21:00:00.000Z',
     status: 'due-today',
     assetTag: 'ALB-EQ-002-C',
     accessories: ['Console', 'Left/Right Joy-Con', 'Dock', 'AC adapter', 'HDMI cable']
@@ -254,8 +269,8 @@ const initialLoans = [
     borrowerNetId: 'olivia.martinez',
     borrowerName: 'Olivia Martinez',
     universityId: '001492831',
-    checkoutDate: '2026-10-02T11:00:00.000Z',
-    dueDate: '2026-10-09T17:00:00.000Z',
+    checkoutDate: '2026-10-02T15:00:00.000Z',
+    dueDate: '2026-10-09T21:00:00.000Z',
     status: 'overdue',
     assetTag: 'ALB-EQ-003-B',
     accessories: ['H4n recorder', 'Windscreen', 'Power supply', 'Case', '16GB SD card']
@@ -268,8 +283,8 @@ const initialLoans = [
     borrowerNetId: 'noah.thompson',
     borrowerName: 'Noah Thompson',
     universityId: '001583902',
-    checkoutDate: '2026-10-05T13:45:00.000Z',
-    dueDate: '2026-10-12T17:00:00.000Z',
+    checkoutDate: '2026-10-05T17:45:00.000Z',
+    dueDate: '2026-10-12T21:00:00.000Z',
     status: 'active',
     assetTag: 'ALB-EQ-004-A',
     accessories: ['Scanner head', 'Turntable', 'Tripod', 'Calibration board', 'USB-C cable']
@@ -282,8 +297,8 @@ const initialLoans = [
     borrowerNetId: 'sophia.lee',
     borrowerName: 'Sophia Lee',
     universityId: '001482610',
-    checkoutDate: '2026-10-04T09:30:00.000Z',
-    dueDate: '2026-10-11T17:00:00.000Z',
+    checkoutDate: '2026-10-04T13:30:00.000Z',
+    dueDate: '2026-10-11T21:00:00.000Z',
     status: 'due-today',
     assetTag: 'ALB-EQ-005-B',
     accessories: ['Dual transmitters', 'Single receiver', '2x furry windshields', '3.5mm TRS cable', 'Pouch']
@@ -497,6 +512,7 @@ const defaultReports = [
 class DataStore {
   constructor() {
     this.staff = { ...defaultStaff };
+    this.specialistStaff = { ...specialistStaff };
     this.equipment = JSON.parse(JSON.stringify(initialEquipment));
     this.borrowers = JSON.parse(JSON.stringify(initialBorrowers));
     this.loans = JSON.parse(JSON.stringify(initialLoans));
@@ -545,11 +561,15 @@ class DataStore {
       // fallback to in-memory
     }
 
+    const candidate = (netid && this.specialistStaff && netid.toLowerCase() === this.specialistStaff.netid.toLowerCase())
+      ? this.specialistStaff
+      : this.staff;
+
     this.session = {
       authenticated: true,
       user: {
-        ...this.staff,
-        netid: netid || this.staff.netid
+        ...candidate,
+        netid: netid || candidate.netid
       },
       signedInAt: new Date().toISOString()
     };

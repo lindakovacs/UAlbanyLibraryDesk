@@ -174,22 +174,39 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- SEED DATA INSERTION
 -- =============================================================================
 
--- Seed Staff User (Default password: password123)
+-- Seed Staff Users (Default password: password123)
+-- 1. Circulation Supervisor: Linda Kovacs
+-- 2. Circulation Specialist: Maria Santos
 INSERT INTO `staff_users` (`netid`, `name`, `university_id`, `department`, `division`, `email`, `role`, `desk_station`, `workstation_id`, `permissions`, `password_hash`, `status`)
-VALUES (
+VALUES 
+(
   'linda.kovacs',
   'Linda Kovacs',
   '001239847',
   'University Libraries',
   'Access & Circulation Services',
   'linda.kovacs@ualbany.edu',
-  'Authorized Circulation Specialist',
+  'Circulation Supervisor',
   'Uptown Circulation Desk #2',
   'DESK-CIRC-02 (Uptown)',
-  '["checkout", "return", "review", "reports"]',
+  '["checkout", "return", "review", "reports", "supervisor", "admin"]',
   '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
   'active'
-) ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `password_hash`=VALUES(`password_hash`);
+),
+(
+  'maria.santos',
+  'Maria Santos',
+  '001298452',
+  'University Libraries',
+  'Access & Circulation Services',
+  'msantos@albany.edu',
+  'Circulation Specialist',
+  'Uptown Circulation Desk #1',
+  'DESK-CIRC-01 (Uptown)',
+  '["checkout", "return", "preparation"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+) ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `role`=VALUES(`role`), `permissions`=VALUES(`permissions`), `password_hash`=VALUES(`password_hash`);
 
 -- Seed Equipment Catalog (13 items)
 INSERT INTO `equipment` (`id`, `name`, `category`, `available_quantity`, `total_quantity`, `status`, `description`) VALUES

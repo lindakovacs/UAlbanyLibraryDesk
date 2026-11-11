@@ -116,7 +116,36 @@ async function runTests() {
     const res = await request(app).get('/api/auth/session');
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.session.authenticated, true);
-    assert.strictEqual(res.body.session.user.role, 'Authorized Circulation Specialist');
+    assert.strictEqual(res.body.session.user.role, 'Circulation Supervisor');
+  });
+
+  await test('POST /api/auth/login authenticates Circulation Specialist (maria.santos)', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ netid: 'maria.santos', password: 'password123' });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.user.role, 'Circulation Specialist');
+    assert.strictEqual(res.body.user.name, 'Maria Santos');
+  });
+
+  await test('GET /api/reports rejects Circulation Specialist with 403 Forbidden', async () => {
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ netid: 'maria.santos', password: 'password123' });
+    const specialistToken = loginRes.body.token;
+    const res = await request(app)
+      .get('/api/reports')
+      .set('Authorization', `Bearer ${specialistToken}`);
+    assert.strictEqual(res.status, 403);
+    assert.strictEqual(res.body.error, 'Forbidden');
+  });
+
+  await test('GET /api/reports permits Circulation Supervisor with 200 OK', async () => {
+    const res = await request(app)
+      .get('/api/reports')
+      .set('Authorization', `Bearer ${authToken}`);
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.status, 'success');
   });
 
   // 3. Equipment

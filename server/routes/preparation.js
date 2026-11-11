@@ -1,5 +1,6 @@
 const express = require('express');
 const store = require('../data/store');
+const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -48,8 +49,19 @@ router.get('/:id', async (req, res, next) => {
  * @route   PATCH /api/preparation/:id
  * @desc    Update preparation workflow (assignment, checklist, review)
  */
-router.patch('/:id', async (req, res, next) => {
+router.patch('/:id', optionalAuth, async (req, res, next) => {
   try {
+    // Only Supervisors can approve equipment readiness and mark ready for lending
+    if (req.body && req.body.status === 'ready' && req.user) {
+      const role = (req.user.role || '').toLowerCase();
+      if (!role.includes('supervisor') && !role.includes('admin')) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'Access denied. Circulation Supervisor role required to approve equipment readiness.',
+          status: 403
+        });
+      }
+    }
     const updated = await store.updatePreparation(req.params.id, req.body);
     if (!updated) {
       return res.status(404).json({

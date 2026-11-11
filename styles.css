@@ -1235,6 +1235,22 @@ main {
   font-size: 0.8rem;
 }
 
+.loans-page main {
+  width: min(100% - 5rem, 100rem);
+  padding: 2.5rem 0 3rem;
+}
+
+.loans-page .page-footer {
+  width: min(100% - 5rem, 100rem);
+}
+
+@media (max-width: 800px) {
+  .loans-page main,
+  .loans-page .page-footer {
+    width: min(100% - 2rem, 100rem);
+  }
+}
+
 .loans-introduction {
   position: relative;
   max-width: none;
@@ -1279,7 +1295,7 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1.25rem;
   background: #fff;
   border: 1px solid #e4dfea;
   border-bottom: 0;
@@ -1383,15 +1399,26 @@ main {
 .loan-footer {
   display: flex;
   justify-content: space-between;
+  width: 100%;
   min-width: 62rem;
-  padding: 0.8rem 1rem;
+  padding: 0.8rem 1.25rem;
   color: #6b6474;
   border-top: 1px solid #e4dfea;
   font-size: 0.75rem;
 }
 
 .loan-table-container table {
+  width: 100%;
   min-width: 62rem;
+}
+
+.loan-table-container th {
+  color: #6b6474;
+  background: #f1ebf6;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .loan-table-container td:first-child {

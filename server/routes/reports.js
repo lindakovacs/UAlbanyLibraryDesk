@@ -1,5 +1,6 @@
 const express = require('express');
 const store = require('../data/store');
+const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -21,10 +22,20 @@ router.get('/summary', async (req, res, next) => {
 
 /**
  * @route   GET /api/reports
- * @desc    Get equipment utilization reports
+ * @desc    Get equipment utilization reports (Supervisors only when authenticated)
  */
-router.get('/', async (req, res, next) => {
+router.get('/', optionalAuth, async (req, res, next) => {
   try {
+    if (req.user) {
+      const role = (req.user.role || '').toLowerCase();
+      if (!role.includes('supervisor') && !role.includes('admin')) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'Access denied. Circulation Supervisor role required to access circulation reports.',
+          status: 403
+        });
+      }
+    }
     const { category, search, semester, from, to } = req.query;
     const reports = await store.getReports({ category, search, semester, from, to });
     res.status(200).json({
