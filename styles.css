@@ -517,8 +517,22 @@ main {
   vertical-align: middle;
 }
 
-.preparation-panel > table tbody tr:first-child {
-  background: #e5d8ef;
+.preparation-panel > table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.preparation-panel > table tbody tr:hover:not(.selected-row):not(:has(.selection-circle.selected)) {
+  background: #faf7fc;
+}
+
+.preparation-panel > table tbody tr.selected-row,
+.preparation-panel > table tbody tr:has(.selection-circle.selected) {
+  background: #e5d8ef !important;
+}
+
+.preparation-panel > table tbody tr:not(.selected-row):not(:has(.selection-circle.selected)) {
+  background: transparent !important;
 }
 
 .preparation-panel > table td:first-child {
@@ -604,13 +618,39 @@ main {
   font-weight: 700;
 }
 
-.status-badge.in-progress {
-  color: #9a6500;
-  background: #fff3d8;
+.status-badge.needs-prep,
+.status-badge[data-status="awaiting"],
+.status-badge[data-status="needs-prep"] {
+  color: #a4262c !important;
+  background: #fde8e8 !important;
+  background-color: #fde8e8 !important;
 }
 
-.status-badge.in-progress::before {
-  background: #b27800;
+.status-badge::before,
+.status-badge.needs-prep::before,
+.status-badge[data-status="awaiting"]::before,
+.status-badge[data-status="needs-prep"]::before {
+  width: 0.35rem;
+  height: 0.35rem;
+  margin-right: 0.45rem;
+  background: #c43d43 !important;
+  border-radius: 50%;
+  content: "";
+}
+
+.status-badge.in-progress,
+.status-badge[data-status="in-prep"],
+.status-badge[data-status="in-progress"] {
+  color: #9a6500 !important;
+  background: #fff3d8 !important;
+  background-color: #fff3d8 !important;
+}
+
+.status-badge.in-progress::before,
+.status-badge[data-status="in-prep"]::before,
+.status-badge[data-status="in-progress"]::before {
+  background: #b27800 !important;
+  background-color: #b27800 !important;
 }
 
 .status-badge.in-review,
@@ -634,22 +674,17 @@ main {
   background-color: #46166b !important;
 }
 
-.status-badge.ready {
-  color: #26734d;
-  background: #e8f5ed;
+.status-badge.ready,
+.status-badge[data-status="ready"] {
+  color: #26734d !important;
+  background: #e8f5ed !important;
+  background-color: #e8f5ed !important;
 }
 
-.status-badge.ready::before {
-  background: #26734d;
-}
-
-.status-badge::before {
-  width: 0.35rem;
-  height: 0.35rem;
-  margin-right: 0.45rem;
-  background: #c43d43;
-  border-radius: 50%;
-  content: "";
+.status-badge.ready::before,
+.status-badge[data-status="ready"]::before {
+  background: #26734d !important;
+  background-color: #26734d !important;
 }
 
 .preparation-panel > table td:nth-child(2) .status-badge {

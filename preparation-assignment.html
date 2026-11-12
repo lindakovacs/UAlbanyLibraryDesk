@@ -8,9 +8,9 @@
       content="Assign preparation tasks for library equipment."
     />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css" />
-    <script src="components.js"></script>
-    <script src="api-client.js"></script>
+    <link rel="stylesheet" href="styles.css?v=4.0" />
+    <script src="components.js?v=4.0"></script>
+    <script src="api-client.js?v=4.0"></script>
     <title>LibraryDesk | Equipment Assignment</title>
   </head>
   <body class="preparation-page">
@@ -18,7 +18,7 @@
     <div class="app-shell">
       <app-sidebar current="preparation"></app-sidebar>
       <div class="page-container">
-        <app-header breadcrumbs='[{"label":"Preparation dashboard","href":"preparation-progress.html"},{"label":"Equipment details","href":"preparation-details.html"},{"label":"Assignment"}]'></app-header>
+        <app-header breadcrumbs='[{"label":"Preparation dashboard","href":"preparation-progress.html"},{"label":"Equipment details","href":"preparation-details.html?id=EQ-014"},{"label":"Assignment"}]'></app-header>
         <main id="main-content">
           <section
             class="page-introduction"
@@ -49,7 +49,7 @@
             <preparation-steps active="2"></preparation-steps>
             <form
               class="assignment-form"
-              action="preparation-details.html"
+              action="preparation-checklist.html?id=EQ-014"
               method="get"
             >
               <div class="assignment-fields">
@@ -111,7 +111,7 @@
                 placeholder="Add instructions"
               ></textarea>
               <div class="detail-actions">
-                <a class="secondary-action" href="preparation-details.html"
+                <a class="secondary-action" href="preparation-details.html?id=EQ-014"
                   >Cancel</a
                 ><button class="primary-action" type="submit">
                   <svg viewBox="0 0 24 24" aria-hidden="true">

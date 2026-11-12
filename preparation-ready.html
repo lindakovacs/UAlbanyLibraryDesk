@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Equipment ready for lending." />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css" />
-    <script src="components.js"></script>
-    <script src="api-client.js"></script>
+    <link rel="stylesheet" href="styles.css?v=4.0" />
+    <script src="components.js?v=4.0"></script>
+    <script src="api-client.js?v=4.0"></script>
     <title>LibraryDesk | Ready Equipment</title>
   </head>
   <body class="preparation-page">
@@ -76,7 +76,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
+                  <tr class="selected-row">
                     <td>
                       <span
                         class="selection-circle selected"
@@ -100,7 +100,7 @@
                     <td>
                       <a
                         class="row-arrow"
-                        href="preparation-details.html"
+                        href="preparation-details.html?id=EQ-004"
                         aria-label="View 3D Scanning Kit details"
                         ><svg viewBox="0 0 24 24" aria-hidden="true">
                           <path d="M5 12h13M13 6l6 6-6 6"></path></svg
@@ -138,7 +138,7 @@
                     <td>
                       <a
                         class="row-arrow"
-                        href="preparation-details.html"
+                        href="preparation-details.html?id=EQ-009"
                         aria-label="View M30 Gamepad details"
                         ><svg viewBox="0 0 24 24" aria-hidden="true">
                           <path d="M5 12h13M13 6l6 6-6 6"></path></svg
@@ -149,7 +149,7 @@
               </table>
               <div class="table-footer">
                 <span>EQ-004 selected</span
-                ><a class="primary-action" href="preparation-details.html"
+                ><a class="primary-action" href="preparation-details.html?id=EQ-004"
                   >View equipment details<svg
                     viewBox="0 0 24 24"
                     aria-hidden="true"

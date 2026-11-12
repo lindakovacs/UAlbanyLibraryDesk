@@ -452,16 +452,54 @@
     }
   }
 
+  function formatStatusBadge(badge, statusInput) {
+    if (!badge) return;
+    const raw = (statusInput || badge.getAttribute('data-status') || badge.textContent || '').trim().toLowerCase();
+    let bClass = 'needs-prep';
+    let bLabel = 'Needs preparation';
+    let dataStatus = 'awaiting';
+    let textColor = '#a4262c';
+    let bgColor = '#fde8e8';
+
+    if (raw === 'in-prep' || raw === 'in preparation' || raw.includes('in prep') || raw === 'in-progress') {
+      bClass = 'in-progress';
+      bLabel = 'In preparation';
+      dataStatus = 'in-prep';
+      textColor = '#9a6500';
+      bgColor = '#fff3d8';
+    } else if (raw === 'review' || raw === 'in-review' || raw === 'awaiting review' || raw.includes('review')) {
+      bClass = 'in-review';
+      bLabel = 'Awaiting review';
+      dataStatus = 'review';
+      textColor = '#46166b';
+      bgColor = '#f1ebf6';
+    } else if (raw === 'ready' || raw === 'ready for lending' || raw.includes('ready')) {
+      bClass = 'ready';
+      bLabel = 'Ready for lending';
+      dataStatus = 'ready';
+      textColor = '#26734d';
+      bgColor = '#e8f5ed';
+    } else {
+      bClass = 'needs-prep';
+      bLabel = 'Needs preparation';
+      dataStatus = 'awaiting';
+      textColor = '#a4262c';
+      bgColor = '#fde8e8';
+    }
+
+    badge.classList.remove('in-progress', 'in-review', 'review', 'ready', 'needs-prep');
+    badge.classList.add(bClass);
+    badge.textContent = bLabel;
+    badge.setAttribute('data-status', dataStatus);
+    badge.style.setProperty('color', textColor, 'important');
+    badge.style.setProperty('background', bgColor, 'important');
+    badge.style.setProperty('background-color', bgColor, 'important');
+  }
+
   function enforceReviewBadgeColor() {
     document.querySelectorAll('.status-badge').forEach(badge => {
-      const txt = (badge.textContent || '').trim().toLowerCase();
-      if (txt === 'awaiting review' || txt === 'review' || txt.includes('review')) {
-        badge.classList.add('in-review');
-        badge.setAttribute('data-status', 'review');
-        badge.style.setProperty('color', '#46166b', 'important');
-        badge.style.setProperty('background', '#f1ebf6', 'important');
-        badge.style.setProperty('background-color', '#f1ebf6', 'important');
-      }
+      const explicitStatus = badge.getAttribute('data-status');
+      formatStatusBadge(badge, explicitStatus || badge.textContent);
     });
   }
 
@@ -1276,11 +1314,20 @@
             const footerSpan = prepPanel.querySelector('.table-footer span');
             const footerBtn = prepPanel.querySelector('.table-footer a.primary-action');
 
-            res.preparation.forEach((item, index) => {
+            let savedId = null;
+            try { savedId = sessionStorage.getItem('current_preparation_id'); } catch (e) {}
+            const matchedItem = savedId ? res.preparation.find(p => (p.equipmentId && p.equipmentId.toLowerCase() === savedId.toLowerCase()) || (p.id && p.id.toLowerCase() === savedId.toLowerCase())) : null;
+            const activeItem = matchedItem || res.preparation[0];
+            const activeId = activeItem ? (activeItem.equipmentId || activeItem.id) : null;
+            if (activeId) {
+              try { sessionStorage.setItem('current_preparation_id', activeId); } catch (e) {}
+            }
+
+            res.preparation.forEach((item) => {
               const tr = document.createElement('tr');
-              const isSelected = (index === 0);
+              const isSelected = activeId && (item.equipmentId === activeId || item.id === activeId);
               const isReview = (item.status === 'review' || item.status === 'in-review');
-              const badgeClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : isReview ? 'in-review' : '';
+              const badgeClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : isReview ? 'in-review' : 'needs-prep';
               const badgeLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : isReview ? 'Awaiting review' : 'Ready for lending';
 
               let actionLink = `preparation-details.html?id=${encodeURIComponent(item.equipmentId || item.id)}`;
@@ -1300,7 +1347,12 @@
 
               tr.dataset.equipmentId = item.equipmentId || item.id;
               tr.dataset.actionLink = actionLink;
-              if (isSelected) tr.classList.add('selected-row');
+              if (isSelected) {
+                tr.classList.add('selected-row');
+                tr.style.setProperty('background-color', '#e5d8ef', 'important');
+              } else {
+                tr.style.setProperty('background-color', 'transparent', 'important');
+              }
 
               tr.innerHTML = `
                 <td>
@@ -1321,10 +1373,21 @@
                 </td>
               `;
 
+              const rowArrow = tr.querySelector('a.row-arrow');
+              if (rowArrow) {
+                rowArrow.addEventListener('click', () => {
+                  const eqId = tr.dataset.equipmentId;
+                  if (eqId) {
+                    try { sessionStorage.setItem('current_preparation_id', eqId); } catch (e) {}
+                  }
+                });
+              }
+
               tr.addEventListener('click', (e) => {
                 if (e.target.closest('a')) return;
                 tbody.querySelectorAll('tr').forEach(r => {
                   r.classList.remove('selected-row');
+                  r.style.setProperty('background-color', 'transparent', 'important');
                   const c = r.querySelector('.selection-circle');
                   if (c) {
                     c.classList.remove('selected');
@@ -1332,6 +1395,7 @@
                   }
                 });
                 tr.classList.add('selected-row');
+                tr.style.setProperty('background-color', '#e5d8ef', 'important');
                 const c = tr.querySelector('.selection-circle');
                 if (c) {
                   c.classList.add('selected');
@@ -1339,6 +1403,9 @@
                 }
                 const eqId = tr.dataset.equipmentId;
                 const link = tr.dataset.actionLink;
+                if (eqId) {
+                  try { sessionStorage.setItem('current_preparation_id', eqId); } catch (e) {}
+                }
                 if (footerSpan && eqId) footerSpan.textContent = `${eqId} selected`;
                 if (footerBtn && link) footerBtn.href = link;
               });
@@ -1346,14 +1413,13 @@
               tbody.appendChild(tr);
             });
 
-            if (footerSpan && res.preparation.length > 0) {
-              const first = res.preparation[0];
-              footerSpan.textContent = `${first.equipmentId || first.id} selected`;
+            if (footerSpan && activeItem) {
+              footerSpan.textContent = `${activeId} selected`;
               if (footerBtn) {
-                let firstLink = `preparation-details.html?id=${encodeURIComponent(first.equipmentId || first.id)}`;
-                if (first.status === 'in-prep') firstLink = `preparation-checklist.html?id=${encodeURIComponent(first.equipmentId || first.id)}`;
-                else if (first.status === 'review') firstLink = `preparation-review-details.html?id=${encodeURIComponent(first.equipmentId || first.id)}`;
-                footerBtn.href = firstLink;
+                let activeLink = `preparation-details.html?id=${encodeURIComponent(activeId)}`;
+                if (activeItem.status === 'in-prep') activeLink = `preparation-checklist.html?id=${encodeURIComponent(activeId)}`;
+                else if (activeItem.status === 'review') activeLink = `preparation-review-details.html?id=${encodeURIComponent(activeId)}`;
+                footerBtn.href = activeLink;
               }
             }
 
@@ -1366,6 +1432,95 @@
       }
     }
 
+    function bindStaticPreparationRows() {
+      if (!tbody) return;
+      const footerSpan = prepPanel.querySelector('.table-footer span');
+      const footerBtn = prepPanel.querySelector('.table-footer a.primary-action');
+      let savedId = null;
+      try { savedId = sessionStorage.getItem('current_preparation_id'); } catch (e) {}
+
+      const allRows = Array.from(tbody.querySelectorAll('tr'));
+      let initialSelectedRow = null;
+      if (savedId) {
+        initialSelectedRow = allRows.find(r => {
+          const rId = r.dataset.equipmentId || (r.querySelector('.equipment-details small') ? r.querySelector('.equipment-details small').textContent.trim() : '');
+          return rId && rId.toLowerCase() === savedId.toLowerCase();
+        });
+      }
+      if (!initialSelectedRow && allRows.length > 0) {
+        initialSelectedRow = allRows[0];
+      }
+
+      allRows.forEach((tr) => {
+        tr.style.cursor = 'pointer';
+        const isSelected = (tr === initialSelectedRow);
+        const circle = tr.querySelector('.selection-circle');
+        if (isSelected) {
+          tr.classList.add('selected-row');
+          tr.style.setProperty('background-color', '#e5d8ef', 'important');
+          if (circle) {
+            circle.classList.add('selected');
+            circle.setAttribute('aria-checked', 'true');
+          }
+          const eqId = tr.dataset.equipmentId || (tr.querySelector('.equipment-details small') ? tr.querySelector('.equipment-details small').textContent.trim() : '');
+          if (footerSpan && eqId) footerSpan.textContent = `${eqId} selected`;
+          const rowArrow = tr.querySelector('a.row-arrow');
+          let link = tr.dataset.actionLink || (rowArrow ? rowArrow.getAttribute('href') : '');
+          if (link && eqId && !link.includes('?id=')) {
+            link = `${link}?id=${encodeURIComponent(eqId)}`;
+          }
+          if (footerBtn && link) footerBtn.href = link;
+        } else {
+          tr.classList.remove('selected-row');
+          tr.style.setProperty('background-color', 'transparent', 'important');
+          if (circle) {
+            circle.classList.remove('selected');
+            circle.setAttribute('aria-checked', 'false');
+          }
+        }
+
+        const eqId = tr.dataset.equipmentId || (tr.querySelector('.equipment-details small') ? tr.querySelector('.equipment-details small').textContent.trim() : '');
+        const rowArrow = tr.querySelector('a.row-arrow');
+        if (rowArrow) {
+          rowArrow.addEventListener('click', () => {
+            if (eqId) {
+              try { sessionStorage.setItem('current_preparation_id', eqId); } catch (e) {}
+            }
+          });
+        }
+
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('a')) return;
+          tbody.querySelectorAll('tr').forEach(r => {
+            r.classList.remove('selected-row');
+            r.style.setProperty('background-color', 'transparent', 'important');
+            const c = r.querySelector('.selection-circle');
+            if (c) {
+              c.classList.remove('selected');
+              c.setAttribute('aria-checked', 'false');
+            }
+          });
+          tr.classList.add('selected-row');
+          tr.style.setProperty('background-color', '#e5d8ef', 'important');
+          const c = tr.querySelector('.selection-circle');
+          if (c) {
+            c.classList.add('selected');
+            c.setAttribute('aria-checked', 'true');
+          }
+          if (eqId) {
+            try { sessionStorage.setItem('current_preparation_id', eqId); } catch (e) {}
+          }
+          let link = tr.dataset.actionLink || (rowArrow ? rowArrow.getAttribute('href') : '');
+          if (link && eqId && !link.includes('?id=')) {
+            link = `${link}?id=${encodeURIComponent(eqId)}`;
+          }
+          if (footerSpan && eqId) footerSpan.textContent = `${eqId} selected`;
+          if (footerBtn && link) footerBtn.href = link;
+        });
+      });
+    }
+
+    bindStaticPreparationRows();
     fetchAndRenderPrep(prepSearch ? prepSearch.value.trim() : '');
 
     if (prepSearch && !prepSearch.dataset.apiBound) {
@@ -1673,16 +1828,65 @@
 
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const idParam = urlParams.get('id') || 'EQ-014';
+      let idParam = urlParams.get('id');
+      if (!idParam) {
+        try {
+          idParam = sessionStorage.getItem('current_preparation_id');
+        } catch (e) {}
+      }
+      if (!idParam) idParam = 'EQ-014';
+      try { sessionStorage.setItem('current_preparation_id', idParam); } catch (e) {}
+
+      if (typeof window.hydratePreparationUI === 'function') {
+        window.hydratePreparationUI(document, idParam);
+      }
+
+      if (!urlParams.get('id') && window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', `${window.location.pathname}?id=${encodeURIComponent(idParam)}`);
+      }
 
       const res = await apiClient.getPreparation().catch(() => null);
       if (!res || !res.preparation || res.preparation.length === 0) return;
 
-      const item = res.preparation.find(p => (p.equipmentId && p.equipmentId.toLowerCase() === idParam.toLowerCase()) || (p.id && p.id.toLowerCase() === idParam.toLowerCase())) || res.preparation[0];
+      if (res.preparation && window.PREPARATION_CATALOG) {
+        res.preparation.forEach(p => {
+          const match = window.PREPARATION_CATALOG.find(c => (c.equipmentId && c.equipmentId === p.equipmentId) || (c.id && c.id === p.id));
+          if (match) {
+            Object.assign(match, p);
+          }
+        });
+      }
+
+      const item = res.preparation.find(p => (p.equipmentId && p.equipmentId.toLowerCase() === idParam.toLowerCase()) || (p.id && p.id.toLowerCase() === idParam.toLowerCase())) || res.preparation.find(p => p.id === 'PREP-001') || res.preparation[0];
       if (!item) return;
 
       const currentId = item.equipmentId || item.id;
       const targetPrepId = item.id;
+      try { sessionStorage.setItem('current_preparation_id', currentId); } catch (e) {}
+
+      if (typeof window.hydratePreparationUI === 'function') {
+        window.hydratePreparationUI(document, currentId);
+      }
+
+      // Keep preparation-steps component aligned with current item
+      document.querySelectorAll('preparation-steps').forEach(steps => {
+        if (steps.getAttribute('item-id') !== currentId) {
+          steps.setAttribute('item-id', currentId);
+          if (typeof steps.connectedCallback === 'function') {
+            steps.connectedCallback();
+          }
+        }
+      });
+
+      // Keep breadcrumbs equipment details link aligned with current item
+      const appHeader = document.querySelector('app-header');
+      if (appHeader) {
+        const rawBreadcrumbs = appHeader.getAttribute('breadcrumbs');
+        if (rawBreadcrumbs && rawBreadcrumbs.includes('preparation-details.html')) {
+          const updatedBreadcrumbs = rawBreadcrumbs.replace(/preparation-details\.html(\?id=[^"']*)?/g, `preparation-details.html?id=${encodeURIComponent(currentId)}`);
+          appHeader.setAttribute('breadcrumbs', updatedBreadcrumbs);
+        }
+      }
 
       // Common header elements across steps 1-4
       const nameHeading = document.getElementById('equipment-name');
@@ -1697,14 +1901,10 @@
       const iconContainer = document.querySelector('.equipment-detail-icon');
       if (iconContainer) iconContainer.innerHTML = getEquipmentIcon({ category: item.category, name: item.equipmentName });
 
+      // Apply consistent status badge to equipment detail header across ALL 4 tabs
       const headerBadge = document.querySelector('.equipment-detail-heading .status-badge');
       if (headerBadge) {
-        const isRev = (item.status === 'review' || item.status === 'in-review');
-        const bClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : isRev ? 'in-review' : '';
-        const bLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : isRev ? 'Awaiting review' : 'Ready for lending';
-        headerBadge.className = `status-badge ${bClass}`.trim();
-        headerBadge.textContent = bLabel;
-        if (isRev) headerBadge.setAttribute('data-status', 'review');
+        formatStatusBadge(headerBadge, item.status);
       }
 
       // Step 1: Equipment Details View
@@ -1715,10 +1915,12 @@
           if (!dt || !dd) return;
           const label = dt.textContent.trim().toLowerCase();
           if (label === 'status') {
-            const isRev = (item.status === 'review' || item.status === 'in-review');
-            const bClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : isRev ? 'in-review' : '';
-            const bLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : isRev ? 'Awaiting review' : 'Ready for lending';
-            dd.innerHTML = `<span class="status-badge ${bClass}" ${isRev ? 'data-status="review"' : ''}>${bLabel}</span>`;
+            let statusBadge = dd.querySelector('.status-badge');
+            if (!statusBadge) {
+              dd.innerHTML = `<span class="status-badge"></span>`;
+              statusBadge = dd.querySelector('.status-badge');
+            }
+            formatStatusBadge(statusBadge, item.status);
           }
           if (label === 'assigned to') dd.textContent = item.assignedStaff || 'Unassigned';
           if (label === 'target date') dd.textContent = item.targetDate || 'Pending';
@@ -1762,21 +1964,52 @@
           });
         }
 
+        const targetDateInput = document.getElementById('target-date');
+        if (targetDateInput && item.targetDate) {
+          try {
+            const parsed = new Date(item.targetDate);
+            if (!isNaN(parsed.getTime())) {
+              const yyyy = parsed.getFullYear();
+              const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+              const dd = String(parsed.getDate()).padStart(2, '0');
+              targetDateInput.value = `${yyyy}-${mm}-${dd}`;
+            }
+          } catch (e) {}
+        }
+
+        const instInput = document.getElementById('assignment-instructions');
+        if (instInput && item.notes) instInput.value = item.notes;
+
+        const cancelLink = document.querySelector('.detail-actions a[href*="preparation-details.html"]');
+        if (cancelLink) cancelLink.href = `preparation-details.html?id=${encodeURIComponent(currentId)}`;
+
         const assignForm = document.querySelector('.assignment-form');
+        if (assignForm) {
+          assignForm.action = `preparation-checklist.html?id=${encodeURIComponent(currentId)}`;
+        }
         if (assignForm && !assignForm.dataset.apiBound) {
           assignForm.dataset.apiBound = 'true';
           assignForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const staff = staffSelect ? staffSelect.value : '';
-            const targetDateInput = document.getElementById('target-date');
             const tDate = targetDateInput ? targetDateInput.value : '';
-            const instInput = document.getElementById('assignment-instructions');
             const instructions = instInput ? instInput.value : '';
+
+            let formattedDate = item.targetDate || '15 Oct 2026';
+            if (tDate) {
+              try {
+                const parts = tDate.split('-');
+                if (parts.length === 3) {
+                  const dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                  formattedDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(dObj);
+                }
+              } catch (e) {}
+            }
 
             try {
               await apiClient.updatePreparation(targetPrepId, {
-                assignedStaff: staff || 'Staff Specialist',
-                targetDate: tDate || item.targetDate || '15 Oct 2026',
+                assignedStaff: staff || item.assignedStaff || 'Staff Specialist',
+                targetDate: formattedDate,
                 status: 'in-prep',
                 notes: instructions || item.notes
               });
@@ -1818,6 +2051,24 @@
           if (checklistHeading) checklistHeading.textContent = `${completedCount} / ${item.checklist.length} complete`;
         }
 
+        const submitBtn = document.querySelector('.detail-actions a.primary-action');
+        if (submitBtn) {
+          submitBtn.href = `preparation-review-details.html?id=${encodeURIComponent(currentId)}`;
+        }
+        if (submitBtn && !submitBtn.dataset.bound) {
+          submitBtn.dataset.bound = 'true';
+          submitBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const notes = issueNotes ? issueNotes.value : '';
+            try {
+              await apiClient.updatePreparation(targetPrepId, { status: 'review', currentStep: 4, notes });
+              window.location.href = `preparation-review-details.html?id=${encodeURIComponent(currentId)}`;
+            } catch (err) {
+              window.location.href = `preparation-review-details.html?id=${encodeURIComponent(currentId)}`;
+            }
+          });
+        }
+
         const saveBtn = document.querySelector('.detail-actions button.secondary-action');
         if (saveBtn && !saveBtn.dataset.bound) {
           saveBtn.dataset.bound = 'true';
@@ -1836,21 +2087,6 @@
             }
           });
         }
-
-        const submitBtn = document.querySelector('.detail-actions a.primary-action');
-        if (submitBtn && !submitBtn.dataset.bound) {
-          submitBtn.dataset.bound = 'true';
-          submitBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const notes = issueNotes ? issueNotes.value : '';
-            try {
-              await apiClient.updatePreparation(targetPrepId, { status: 'review', currentStep: 4, notes });
-              window.location.href = `preparation-review-details.html?id=${encodeURIComponent(currentId)}`;
-            } catch (err) {
-              window.location.href = `preparation-review-details.html?id=${encodeURIComponent(currentId)}`;
-            }
-          });
-        }
       }
 
       // Step 4: Review Details View
@@ -1860,11 +2096,23 @@
           const strong = reviewStatusBox.querySelector('strong');
           const small = reviewStatusBox.querySelector('small');
           if (strong) {
-            strong.textContent = item.status === 'review' ? 'Preparation submitted for supervisor sign-off' : item.status === 'ready' ? 'Equipment ready for lending' : 'Preparation in progress';
+            strong.textContent = item.status === 'review'
+              ? 'Preparation submitted for supervisor sign-off'
+              : item.status === 'ready'
+              ? 'Equipment ready for lending'
+              : item.status === 'in-prep'
+              ? 'Preparation in progress'
+              : 'Awaiting preparation assignment';
           }
           if (small) {
-            small.textContent = `Assigned to ${item.assignedStaff || 'Staff Specialist'} · Target ${item.targetDate || '15 Oct 2026'}`;
+            small.textContent = `Assigned to ${item.assignedStaff || 'Unassigned'} · Target ${item.targetDate || 'Pending'}`;
           }
+        }
+
+        const checklistHeading = document.querySelector('.checklist-heading span');
+        if (checklistHeading && item.checklist) {
+          const completedCount = item.checklist.filter(s => s.completed).length;
+          checklistHeading.textContent = `${completedCount} / ${item.checklist.length} complete`;
         }
 
         const reviewItemsContainer = document.querySelector('.review-items');

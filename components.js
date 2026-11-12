@@ -27,6 +27,78 @@
       loan-tabs {
         display: contents;
       }
+      .preparation-panel > table tbody tr {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+      .preparation-panel > table tbody tr:first-child {
+        background: transparent;
+      }
+      .preparation-panel > table tbody tr.selected-row,
+      .preparation-panel > table tbody tr:has(.selection-circle.selected) {
+        background: #e5d8ef !important;
+      }
+      .preparation-panel > table tbody tr:not(.selected-row):not(:has(.selection-circle.selected)) {
+        background: transparent !important;
+      }
+      .status-badge,
+      .status-badge.needs-prep,
+      .status-badge[data-status="awaiting"],
+      .status-badge[data-status="needs-prep"] {
+        color: #a4262c !important;
+        background: #fde8e8 !important;
+        background-color: #fde8e8 !important;
+      }
+      .status-badge::before,
+      .status-badge.needs-prep::before,
+      .status-badge[data-status="awaiting"]::before,
+      .status-badge[data-status="needs-prep"]::before {
+        background: #c43d43 !important;
+        background-color: #c43d43 !important;
+      }
+      .status-badge.in-progress,
+      .status-badge[data-status="in-prep"],
+      .status-badge[data-status="in-progress"] {
+        color: #9a6500 !important;
+        background: #fff3d8 !important;
+        background-color: #fff3d8 !important;
+      }
+      .status-badge.in-progress::before,
+      .status-badge[data-status="in-prep"]::before,
+      .status-badge[data-status="in-progress"]::before {
+        background: #b27800 !important;
+        background-color: #b27800 !important;
+      }
+      .status-badge.in-review,
+      .status-badge.review,
+      .status-badge[data-status="review"],
+      .status-badge[data-status*="review"],
+      [data-status="review"] .status-badge,
+      [data-status*="review"] .status-badge {
+        color: #46166b !important;
+        background: #f1ebf6 !important;
+        background-color: #f1ebf6 !important;
+      }
+      .status-badge.in-review::before,
+      .status-badge.review::before,
+      .status-badge[data-status="review"]::before,
+      .status-badge[data-status*="review"]::before,
+      [data-status="review"] .status-badge::before,
+      [data-status*="review"] .status-badge::before {
+        background: #46166b !important;
+        background-color: #46166b !important;
+      }
+      .status-badge.ready,
+      .status-badge[data-status="ready"] {
+        color: #26734d !important;
+        background: #e8f5ed !important;
+        background-color: #e8f5ed !important;
+      }
+      .status-badge.ready::before,
+      .status-badge[data-status="ready"]::before {
+        background: #26734d !important;
+        background-color: #26734d !important;
+      }
       .library-status {
         cursor: pointer;
         user-select: none;
@@ -46,6 +118,275 @@
       }
     `;
     document.head.appendChild(style);
+  }
+
+  /* ==========================================================================
+     Canonical Preparation Dataset & Status Hydration
+     ========================================================================== */
+  const PREPARATION_CATALOG = [
+    {
+      id: 'PREP-001',
+      equipmentId: 'EQ-014',
+      equipmentName: 'Game Console',
+      category: 'Gaming Consoles and Accessories',
+      assignedStaff: 'Unassigned',
+      targetDate: '15 Oct 2026',
+      status: 'awaiting',
+      currentStep: 1,
+      checklist: [
+        { id: 'wipe', title: 'Factory Reset & Storage Sanitization', completed: false },
+        { id: 'inspect', title: 'Hardware Diagnostics & Screen Inspection', completed: false },
+        { id: 'accessories', title: 'Charger & USB-C Cable Verification', completed: false },
+        { id: 'packaging', title: 'Clean exterior and package in lending sleeve', completed: false }
+      ],
+      notes: 'Needs physical inspection & sanitization wipe'
+    },
+    {
+      id: 'PREP-002',
+      equipmentId: 'EQ-001',
+      equipmentName: 'Mirrorless Camera Kit',
+      category: 'Creative Technology',
+      assignedStaff: 'Unassigned',
+      targetDate: '15 Oct 2026',
+      status: 'awaiting',
+      currentStep: 1,
+      checklist: [
+        { id: 'wipe', title: 'SD card format and factory reset', completed: false },
+        { id: 'inspect', title: 'Sensor cleaning and lens check', completed: false },
+        { id: 'battery', title: 'Battery fully charged and tested', completed: false },
+        { id: 'manifest', title: 'Accessory pouch verified', completed: false }
+      ],
+      notes: 'Needs physical inspection & sanitization wipe'
+    },
+    {
+      id: 'PREP-003',
+      equipmentId: 'EQ-003',
+      equipmentName: 'H4 Zoom Audio Recording Kit',
+      category: 'Creative Technology',
+      assignedStaff: 'Unassigned',
+      targetDate: '16 Oct 2026',
+      status: 'awaiting',
+      currentStep: 1,
+      checklist: [
+        { id: 'wipe', title: 'SD card wipe', completed: false },
+        { id: 'inspect', title: 'Mic capsule check', completed: false },
+        { id: 'battery', title: 'AA batteries replenished', completed: false },
+        { id: 'supervisor', title: 'Supervisor sign-off', completed: false }
+      ],
+      notes: 'Awaiting staff assignment for inspection'
+    },
+    {
+      id: 'PREP-004',
+      equipmentId: 'EQ-012',
+      equipmentName: 'SmallRig All-in-One Smartphone Video Kit',
+      category: 'Creative Technology',
+      assignedStaff: 'Unassigned',
+      targetDate: '18 Oct 2026',
+      status: 'awaiting',
+      currentStep: 1,
+      checklist: [
+        { id: 'inspect', title: 'Rig clamp and handle integrity check', completed: false },
+        { id: 'light', title: 'LED fill light battery test', completed: false },
+        { id: 'mic', title: 'Shotgun mic and cables check', completed: false },
+        { id: 'packaging', title: 'Repack in carry case', completed: false }
+      ],
+      notes: 'Awaiting staff assignment for inspection'
+    },
+    {
+      id: 'PREP-005',
+      equipmentId: 'EQ-006',
+      equipmentName: 'PlayStation 5',
+      category: 'Gaming Consoles and Accessories',
+      assignedStaff: 'John Doe',
+      targetDate: '15 Oct 2026',
+      status: 'in-prep',
+      currentStep: 3,
+      checklist: [
+        { id: 'wipe', title: 'Factory Reset & Storage Sanitization', completed: true },
+        { id: 'inspect', title: 'Hardware Diagnostics & Port Inspection', completed: true },
+        { id: 'accessories', title: 'DualSense controller & cables verification', completed: false },
+        { id: 'packaging', title: 'Readiness label & pack-in slip', completed: false }
+      ],
+      notes: 'Cleaning console ports and verifying firmware updates'
+    },
+    {
+      id: 'PREP-006',
+      equipmentId: 'EQ-010',
+      equipmentName: 'Owl 3 Video Conference Camera',
+      category: 'Creative Technology',
+      assignedStaff: 'Maria Santos',
+      targetDate: '15 Oct 2026',
+      status: 'in-prep',
+      currentStep: 2,
+      checklist: [
+        { id: 'inspect', title: 'Physical lens and 360 sensor inspection', completed: true },
+        { id: 'firmware', title: 'Firmware & microphone calibration', completed: false },
+        { id: 'cables', title: 'USB-C cable & power supply check', completed: false },
+        { id: 'packaging', title: 'Pack in safety cylinder case', completed: false }
+      ],
+      notes: 'Testing 360-degree lens and speaker calibration'
+    },
+    {
+      id: 'PREP-007',
+      equipmentId: 'EQ-002',
+      equipmentName: 'Nintendo Switch',
+      category: 'Gaming Consoles and Accessories',
+      assignedStaff: 'Alex Chen',
+      targetDate: '17 Oct 2026',
+      status: 'in-prep',
+      currentStep: 3,
+      checklist: [
+        { id: 'wipe', title: 'User profiles and network settings wiped', completed: true },
+        { id: 'inspect', title: 'Joy-Con stick drift calibration test', completed: true },
+        { id: 'dock', title: 'Dock & HDMI cable verification', completed: false },
+        { id: 'packaging', title: 'Repackage in protective carry sleeve', completed: false }
+      ],
+      notes: 'Checking Joy-Con drift and cleaning screen'
+    },
+    {
+      id: 'PREP-008',
+      equipmentId: 'EQ-011',
+      equipmentName: 'Portable Podcasting Kit (Zoom H6)',
+      category: 'Creative Technology',
+      assignedStaff: 'Alex Chen',
+      targetDate: '15 Oct 2026',
+      status: 'review',
+      currentStep: 4,
+      checklist: [
+        { id: 'wipe', title: 'SD card wiped and initialized', completed: true },
+        { id: 'capsules', title: 'X/Y and shotgun mic capsules tested', completed: true },
+        { id: 'battery', title: 'Fresh batteries verified', completed: true },
+        { id: 'supervisor', title: 'Supervisor sign-off', completed: false }
+      ],
+      notes: 'Sanitization complete; awaiting supervisor sign-off'
+    },
+    {
+      id: 'PREP-009',
+      equipmentId: 'EQ-005',
+      equipmentName: 'Rode Wireless GO II Microphone System',
+      category: 'Creative Technology',
+      assignedStaff: 'Maria Santos',
+      targetDate: '16 Oct 2026',
+      status: 'review',
+      currentStep: 4,
+      checklist: [
+        { id: 'pairing', title: 'Transmitters paired with receiver', completed: true },
+        { id: 'levels', title: 'Audio level check & gain calibration', completed: true },
+        { id: 'charging', title: 'USB-C charging verified on all units', completed: true },
+        { id: 'supervisor', title: 'Supervisor sign-off', completed: false }
+      ],
+      notes: 'Battery health test passed; awaiting supervisor sign-off'
+    },
+    {
+      id: 'PREP-010',
+      equipmentId: 'EQ-004',
+      equipmentName: '3D Scanning Kit (Revopoint POP 3 Plus)',
+      category: 'Creative Technology',
+      assignedStaff: 'John Doe',
+      targetDate: '14 Oct 2026',
+      status: 'ready',
+      currentStep: 4,
+      checklist: [
+        { id: 'inspect', title: 'Physical scanner head and lenses cleaned', completed: true },
+        { id: 'turntable', title: 'Electric turntable and tripod verified', completed: true },
+        { id: 'software', title: 'Calibration grid test completed', completed: true },
+        { id: 'shelf', title: 'Supervisor signed off; placed on ready shelf', completed: true }
+      ],
+      notes: 'Calibration verified; staged for circulation'
+    },
+    {
+      id: 'PREP-011',
+      equipmentId: 'EQ-009',
+      equipmentName: 'M30 Gamepad',
+      category: 'Gaming Consoles and Accessories',
+      assignedStaff: 'Maria Santos',
+      targetDate: '14 Oct 2026',
+      status: 'ready',
+      currentStep: 4,
+      checklist: [
+        { id: 'bluetooth', title: 'Bluetooth pairing profile cleared', completed: true },
+        { id: 'buttons', title: 'D-Pad and tactile buttons tested', completed: true },
+        { id: 'sanitized', title: 'Housing sanitized and cable wrapped', completed: true },
+        { id: 'shelf', title: 'Staged on Ready equipment shelf', completed: true }
+      ],
+      notes: 'Pairing reset, sanitized, ready for loan'
+    }
+  ];
+
+  window.PREPARATION_CATALOG = PREPARATION_CATALOG;
+
+  function getPrepItem(id) {
+    if (!id) {
+      try { id = sessionStorage.getItem('current_preparation_id'); } catch (e) {}
+    }
+    if (!id && typeof window !== 'undefined' && window.location) {
+      const urlParams = new URLSearchParams(window.location.search);
+      id = urlParams.get('id');
+    }
+    if (!id) id = 'EQ-014';
+    const idLower = String(id).toLowerCase();
+    return PREPARATION_CATALOG.find(p =>
+      (p.equipmentId && p.equipmentId.toLowerCase() === idLower) ||
+      (p.id && p.id.toLowerCase() === idLower)
+    ) || PREPARATION_CATALOG[0];
+  }
+
+  function getEquipmentIconSvg(item) {
+    const nameLower = ((item && (item.equipmentName || item.name)) || '').toLowerCase();
+    if (nameLower.includes('console') || nameLower.includes('playstation') || nameLower.includes('switch') || nameLower.includes('gamepad')) {
+      return '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M8 10v4M6 12h4M16 10v.01M18 12v.01"></path></svg>';
+    }
+    if (nameLower.includes('audio') || nameLower.includes('podcasting') || nameLower.includes('microphone') || nameLower.includes('mic') || nameLower.includes('zoom') || nameLower.includes('rode')) {
+      return '<svg viewBox="0 0 24 24"><rect x="7" y="4" width="10" height="16" rx="2"></rect><path d="M10 8h4M10 12h4M10 16h4"></path></svg>';
+    }
+    if (nameLower.includes('owl') || nameLower.includes('conference')) {
+      return '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>';
+    }
+    return '<svg viewBox="0 0 24 24"><path d="M4 8h16v11H4zM8 8l1.5-3h5L16 8"></path><circle cx="12" cy="13.5" r="3"></circle></svg>';
+  }
+
+  function applyStatusBadgeFormat(badge, statusInput) {
+    if (!badge) return;
+    const raw = (statusInput || badge.getAttribute('data-status') || badge.textContent || '').trim().toLowerCase();
+    let bClass = 'needs-prep';
+    let bLabel = 'Needs preparation';
+    let dataStatus = 'awaiting';
+    let textColor = '#a4262c';
+    let bgColor = '#fde8e8';
+
+    if (raw === 'in-prep' || raw === 'in preparation' || raw.includes('in prep') || raw === 'in-progress') {
+      bClass = 'in-progress';
+      bLabel = 'In preparation';
+      dataStatus = 'in-prep';
+      textColor = '#9a6500';
+      bgColor = '#fff3d8';
+    } else if (raw === 'review' || raw === 'in-review' || raw === 'awaiting review' || raw.includes('review')) {
+      bClass = 'in-review';
+      bLabel = 'Awaiting review';
+      dataStatus = 'review';
+      textColor = '#46166b';
+      bgColor = '#f1ebf6';
+    } else if (raw === 'ready' || raw === 'ready for lending' || raw.includes('ready')) {
+      bClass = 'ready';
+      bLabel = 'Ready for lending';
+      dataStatus = 'ready';
+      textColor = '#26734d';
+      bgColor = '#e8f5ed';
+    } else {
+      bClass = 'needs-prep';
+      bLabel = 'Needs preparation';
+      dataStatus = 'awaiting';
+      textColor = '#a4262c';
+      bgColor = '#fde8e8';
+    }
+
+    badge.classList.remove('in-progress', 'in-review', 'review', 'ready', 'needs-prep');
+    badge.classList.add(bClass);
+    badge.textContent = bLabel;
+    badge.setAttribute('data-status', dataStatus);
+    badge.style.setProperty('color', textColor, 'important');
+    badge.style.setProperty('background', bgColor, 'important');
+    badge.style.setProperty('background-color', bgColor, 'important');
   }
 
   /* ==========================================================================
@@ -313,14 +654,23 @@
      ========================================================================== */
   class PreparationSteps extends HTMLElement {
     static get observedAttributes() {
-      return ['active'];
+      return ['active', 'item-id'];
     }
 
     connectedCallback() {
       const active = (this.getAttribute('active') || '1').toLowerCase();
       const urlParams = new URLSearchParams(window.location.search);
-      const idParam = urlParams.get('id');
-      const q = idParam ? `?id=${encodeURIComponent(idParam)}` : '';
+      let idParam = this.getAttribute('item-id') || urlParams.get('id');
+      if (!idParam) {
+        try {
+          idParam = sessionStorage.getItem('current_preparation_id');
+        } catch (e) {}
+      }
+      if (!idParam) idParam = 'EQ-014';
+      try {
+        sessionStorage.setItem('current_preparation_id', idParam);
+      } catch (e) {}
+      const q = `?id=${encodeURIComponent(idParam)}`;
       this.innerHTML = `
         <nav class="detail-steps" aria-label="Equipment preparation steps">
           <a class="${active === '1' || active === 'details' ? 'current' : ''}" href="preparation-details.html${q}"><span>1</span>Details</a>
@@ -588,33 +938,296 @@
       });
     }
 
-    // 6. Ensure Awaiting Review status badges are ALWAYS purple (#46166b / #f1ebf6)
-    enforceReviewBadgeColors();
+    // 6. Ensure status badges have uniform colors across all views
+    enforceAllStatusBadgeColors();
+
+    // 7. Synchronous hydration of preparation workflow views
+    const isPrepWorkflowPage = window.location.pathname.includes('preparation-details') ||
+      window.location.pathname.includes('preparation-assignment') ||
+      window.location.pathname.includes('preparation-checklist') ||
+      window.location.pathname.includes('preparation-review-details');
+    if (isPrepWorkflowPage) {
+      hydratePreparationUI(document);
+    }
   }
 
-  function enforceReviewBadgeColors() {
+  function hydratePreparationUI(root, forcedId) {
+    if (!root) root = document;
+    let targetId = forcedId;
+    if (!targetId && typeof window !== 'undefined' && window.location) {
+      const urlParams = new URLSearchParams(window.location.search);
+      targetId = urlParams.get('id');
+    }
+    if (!targetId) {
+      try { targetId = sessionStorage.getItem('current_preparation_id'); } catch (e) {}
+    }
+    if (!targetId) targetId = 'EQ-014';
+
+    const item = getPrepItem(targetId);
+    if (!item) return;
+    const eqId = item.equipmentId || item.id;
+    try { sessionStorage.setItem('current_preparation_id', eqId); } catch (e) {}
+
+    // Common equipment detail header elements
+    const nameEl = root.getElementById ? root.getElementById('equipment-name') : root.querySelector('#equipment-name');
+    if (nameEl) nameEl.textContent = item.equipmentName;
+
+    const idEl = root.querySelector('.equipment-id');
+    if (idEl) idEl.textContent = `${eqId} · University Library`;
+
+    const targetEl = root.querySelector('.equipment-target strong');
+    if (targetEl && item.targetDate) targetEl.textContent = item.targetDate;
+
+    const iconEl = root.querySelector('.equipment-detail-icon');
+    if (iconEl) iconEl.innerHTML = getEquipmentIconSvg(item);
+
+    const headerBadge = root.querySelector('.equipment-detail-heading .status-badge');
+    if (headerBadge) applyStatusBadgeFormat(headerBadge, item.status);
+
+    // Update <preparation-steps>
+    root.querySelectorAll('preparation-steps').forEach((steps) => {
+      steps.setAttribute('item-id', eqId);
+      if (typeof steps.connectedCallback === 'function') {
+        steps.connectedCallback();
+      }
+    });
+
+    // Update <app-header> breadcrumbs link for equipment details
+    const appHeader = root.querySelector('app-header') || (typeof document !== 'undefined' ? document.querySelector('app-header') : null);
+    if (appHeader) {
+      const rawBreadcrumbs = appHeader.getAttribute('breadcrumbs');
+      if (rawBreadcrumbs && rawBreadcrumbs.includes('preparation-details.html')) {
+        const updatedBreadcrumbs = rawBreadcrumbs.replace(/preparation-details\.html(\?id=[^"']*)?/g, `preparation-details.html?id=${encodeURIComponent(eqId)}`);
+        appHeader.setAttribute('breadcrumbs', updatedBreadcrumbs);
+      }
+    }
+
+    // Step 1: Equipment Details view
+    const detailList = root.querySelector('.detail-list');
+    if (detailList) {
+      detailList.querySelectorAll('div').forEach((row) => {
+        const dt = row.querySelector('dt');
+        const dd = row.querySelector('dd');
+        if (!dt || !dd) return;
+        const label = dt.textContent.trim().toLowerCase();
+        if (label === 'status') {
+          let b = dd.querySelector('.status-badge');
+          if (!b) {
+            dd.innerHTML = `<span class="status-badge"></span>`;
+            b = dd.querySelector('.status-badge');
+          }
+          applyStatusBadgeFormat(b, item.status);
+        } else if (label === 'assigned to') {
+          dd.textContent = item.assignedStaff || 'Unassigned';
+        } else if (label === 'target date') {
+          dd.textContent = item.targetDate || 'Pending';
+        } else if (label === 'progress') {
+          const completedCount = item.checklist ? item.checklist.filter(c => c.completed).length : (item.currentStep || 0);
+          const totalCount = item.checklist ? item.checklist.length : 4;
+          dd.textContent = `${completedCount} of ${totalCount} steps complete`;
+        }
+      });
+
+      const notesTextarea = root.getElementById ? root.getElementById('preparation-notes') : root.querySelector('#preparation-notes');
+      if (notesTextarea && item.notes) notesTextarea.value = item.notes;
+
+      const assignLink = root.querySelector('.detail-actions a[href*="preparation-assignment.html"]');
+      if (assignLink) assignLink.href = `preparation-assignment.html?id=${encodeURIComponent(eqId)}`;
+
+      const checklistLink = root.querySelector('.detail-actions a[href*="preparation-checklist.html"]');
+      if (checklistLink) checklistLink.href = `preparation-checklist.html?id=${encodeURIComponent(eqId)}`;
+
+      const reqStepsUl = root.querySelector('.required-steps');
+      if (reqStepsUl && item.checklist && item.checklist.length > 0) {
+        reqStepsUl.innerHTML = item.checklist.map(step => `<li>${step.title}</li>`).join('');
+      }
+    }
+
+    // Step 2: Assignment view
+    const staffSelect = root.getElementById ? root.getElementById('staff-member') : root.querySelector('#staff-member');
+    if (staffSelect && item.assignedStaff && item.assignedStaff !== 'Unassigned') {
+      Array.from(staffSelect.options).forEach(opt => {
+        if (opt.text.toLowerCase() === item.assignedStaff.toLowerCase()) opt.selected = true;
+      });
+    }
+
+    const targetDateInput = root.getElementById ? root.getElementById('target-date') : root.querySelector('#target-date');
+    if (targetDateInput && item.targetDate) {
+      try {
+        const parsed = new Date(item.targetDate);
+        if (!isNaN(parsed.getTime())) {
+          const yyyy = parsed.getFullYear();
+          const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+          const dd = String(parsed.getDate()).padStart(2, '0');
+          targetDateInput.value = `${yyyy}-${mm}-${dd}`;
+        }
+      } catch (e) {}
+    }
+
+    const taskOptions = root.querySelector('.task-options');
+    if (taskOptions && item.checklist && item.checklist.length > 0) {
+      taskOptions.innerHTML = item.checklist.map((step, idx) => `
+        <label>
+          <input type="checkbox" name="task" value="${step.id || 'step-' + idx}" ${step.completed ? 'checked' : ''} />
+          ${step.title}
+        </label>
+      `).join('');
+    }
+
+    const instInput = root.getElementById ? root.getElementById('assignment-instructions') : root.querySelector('#assignment-instructions');
+    if (instInput && item.notes) instInput.value = item.notes;
+
+    const cancelLink = root.querySelector('.detail-actions a[href*="preparation-details.html"]');
+    if (cancelLink) cancelLink.href = `preparation-details.html?id=${encodeURIComponent(eqId)}`;
+
+    const assignForm = root.querySelector('.assignment-form');
+    if (assignForm) assignForm.action = `preparation-checklist.html?id=${encodeURIComponent(eqId)}`;
+
+    // Step 3: Checklist view
+    const checklistItemsContainer = root.querySelector('.checklist-items');
+    if (checklistItemsContainer && item.checklist && item.checklist.length > 0) {
+      let completedCount = 0;
+      checklistItemsContainer.innerHTML = item.checklist.map(step => {
+        if (step.completed) completedCount++;
+        return `
+          <label class="checklist-row">
+            <input type="checkbox" data-id="${step.id}" ${step.completed ? 'checked' : ''} />
+            <span><strong>${step.title}</strong><small>${step.completed ? 'Complete' : 'Pending'}</small></span>
+          </label>
+        `;
+      }).join('');
+
+      const checklistHeading = root.querySelector('.checklist-heading span');
+      if (checklistHeading) checklistHeading.textContent = `${completedCount} / ${item.checklist.length} complete`;
+
+      checklistItemsContainer.querySelectorAll('.checklist-row').forEach(row => {
+        const cb = row.querySelector('input[type="checkbox"]');
+        const sm = row.querySelector('small');
+        if (cb && !cb.dataset.bound) {
+          cb.dataset.bound = 'true';
+          cb.addEventListener('change', () => {
+            if (sm) sm.textContent = cb.checked ? 'Complete' : 'Pending';
+            const checked = checklistItemsContainer.querySelectorAll('input:checked').length;
+            if (checklistHeading) checklistHeading.textContent = `${checked} / ${item.checklist.length} complete`;
+          });
+        }
+      });
+    }
+
+    const issueNotes = root.getElementById ? root.getElementById('issue-notes') : root.querySelector('#issue-notes');
+    if (issueNotes && item.notes) issueNotes.value = item.notes;
+
+    const submitBtn = root.querySelector('.detail-actions a.primary-action');
+    if (submitBtn && submitBtn.getAttribute('href') && submitBtn.getAttribute('href').includes('preparation-review-details')) {
+      submitBtn.href = `preparation-review-details.html?id=${encodeURIComponent(eqId)}`;
+    }
+
+    // Step 4: Review Details view
+    const reviewStatusBox = root.querySelector('.review-status');
+    if (reviewStatusBox) {
+      const strong = reviewStatusBox.querySelector('strong');
+      const small = reviewStatusBox.querySelector('small');
+      if (strong) {
+        strong.textContent = item.status === 'review'
+          ? 'Preparation submitted for supervisor sign-off'
+          : item.status === 'ready'
+          ? 'Equipment ready for lending'
+          : item.status === 'in-prep'
+          ? 'Preparation in progress'
+          : 'Awaiting preparation assignment';
+      }
+      if (small) {
+        small.textContent = `Assigned to ${item.assignedStaff || 'Unassigned'} · Target ${item.targetDate || 'Pending'}`;
+      }
+    }
+
+    const reviewItemsContainer = root.querySelector('.review-items');
+    if (reviewItemsContainer && item.checklist && item.checklist.length > 0) {
+      const completedCount = item.checklist.filter(s => s.completed).length;
+      reviewItemsContainer.innerHTML = item.checklist.map(step => `
+        <div>
+          <span>${step.title}</span>
+          <strong style="${step.completed ? 'color: #26734d;' : 'color: #6b6474;'}">${step.completed ? 'Complete' : 'Pending'}</strong>
+        </div>
+      `).join('');
+
+      const reviewChecklistHeading = root.querySelector('.checklist-heading span');
+      if (reviewChecklistHeading) reviewChecklistHeading.textContent = `${completedCount} / ${item.checklist.length} complete`;
+    }
+
+    const reviewNotes = root.getElementById ? root.getElementById('review-notes') : root.querySelector('#review-notes');
+    if (reviewNotes && item.notes) reviewNotes.value = item.notes;
+
+    const returnLink = root.querySelector('.detail-actions a.secondary-action');
+    if (returnLink && returnLink.getAttribute('href') && returnLink.getAttribute('href').includes('preparation-checklist')) {
+      returnLink.href = `preparation-checklist.html?id=${encodeURIComponent(eqId)}`;
+    }
+
+    enforceAllStatusBadgeColors();
+  }
+
+  window.hydratePreparationUI = hydratePreparationUI;
+
+  function enforceAllStatusBadgeColors() {
     document.querySelectorAll('.status-badge').forEach((badge) => {
+      const explicitStatus = badge.getAttribute('data-status');
       const txt = (badge.textContent || '').trim().toLowerCase();
-      if (txt === 'awaiting review' || txt === 'review' || txt.includes('review')) {
+      let statusKey = explicitStatus;
+      if (!statusKey) {
+        if (txt === 'needs preparation' || txt.includes('needs prep') || txt === 'awaiting') statusKey = 'awaiting';
+        else if (txt === 'in preparation' || txt.includes('in prep') || txt === 'in progress') statusKey = 'in-prep';
+        else if (txt === 'awaiting review' || txt.includes('review')) statusKey = 'review';
+        else if (txt === 'ready for lending' || txt.includes('ready')) statusKey = 'ready';
+      }
+
+      if (statusKey === 'in-prep') {
+        badge.classList.remove('needs-prep', 'in-review', 'review', 'ready');
+        badge.classList.add('in-progress');
+        badge.setAttribute('data-status', 'in-prep');
+        badge.style.setProperty('color', '#9a6500', 'important');
+        badge.style.setProperty('background', '#fff3d8', 'important');
+        badge.style.setProperty('background-color', '#fff3d8', 'important');
+      } else if (statusKey === 'review') {
+        badge.classList.remove('needs-prep', 'in-progress', 'ready');
         badge.classList.add('in-review');
         badge.setAttribute('data-status', 'review');
         badge.style.setProperty('color', '#46166b', 'important');
         badge.style.setProperty('background', '#f1ebf6', 'important');
         badge.style.setProperty('background-color', '#f1ebf6', 'important');
+      } else if (statusKey === 'ready') {
+        badge.classList.remove('needs-prep', 'in-progress', 'in-review', 'review');
+        badge.classList.add('ready');
+        badge.setAttribute('data-status', 'ready');
+        badge.style.setProperty('color', '#26734d', 'important');
+        badge.style.setProperty('background', '#e8f5ed', 'important');
+        badge.style.setProperty('background-color', '#e8f5ed', 'important');
+      } else if (statusKey === 'awaiting' || txt === 'needs preparation' || txt.includes('needs prep')) {
+        badge.classList.remove('in-progress', 'in-review', 'review', 'ready');
+        badge.classList.add('needs-prep');
+        badge.setAttribute('data-status', 'awaiting');
+        badge.style.setProperty('color', '#a4262c', 'important');
+        badge.style.setProperty('background', '#fde8e8', 'important');
+        badge.style.setProperty('background-color', '#fde8e8', 'important');
       }
     });
   }
 
-  // Observe DOM changes to catch dynamically inserted review badges instantly
+  function enforceReviewBadgeColors() {
+    enforceAllStatusBadgeColors();
+  }
+  window.enforceReviewBadgeColors = enforceAllStatusBadgeColors;
+  window.enforceAllStatusBadgeColors = enforceAllStatusBadgeColors;
+
+  // Observe DOM changes to catch dynamically inserted status badges instantly
   if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
-    const reviewObserver = new MutationObserver(() => {
-      enforceReviewBadgeColors();
+    const statusObserver = new MutationObserver(() => {
+      enforceAllStatusBadgeColors();
     });
     if (document.body) {
-      reviewObserver.observe(document.body, { childList: true, subtree: true });
+      statusObserver.observe(document.body, { childList: true, subtree: true });
     } else {
       document.addEventListener('DOMContentLoaded', () => {
-        if (document.body) reviewObserver.observe(document.body, { childList: true, subtree: true });
+        if (document.body) statusObserver.observe(document.body, { childList: true, subtree: true });
       });
     }
   }
@@ -695,16 +1308,42 @@
           oldHeader.setAttribute('breadcrumbs', breadcrumbsAttr);
         }
 
+        // Push new URL to history first so window.location matches new page
+        history.pushState(null, '', targetUrl.href);
+        window.scrollTo(0, 0);
+
+        const targetId = targetUrl.searchParams.get('id') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('current_preparation_id') : null);
+
         // Update <main id="main-content"> or .login-page
         const oldMain = document.getElementById('main-content') || document.querySelector('main');
         const newMain = newDoc.getElementById('main-content') || newDoc.querySelector('main');
         if (oldMain && newMain) {
+          const isPrepTarget = targetUrl.pathname.includes('preparation-details') ||
+            targetUrl.pathname.includes('preparation-assignment') ||
+            targetUrl.pathname.includes('preparation-checklist') ||
+            targetUrl.pathname.includes('preparation-review-details');
+          if (isPrepTarget && targetId) {
+            hydratePreparationUI(newMain, targetId);
+          }
           oldMain.replaceWith(newMain);
         }
 
-        // Push new URL to history first so window.location matches new page
-        history.pushState(null, '', targetUrl.href);
-        window.scrollTo(0, 0);
+        if (targetId) {
+          try { sessionStorage.setItem('current_preparation_id', targetId); } catch (e) {}
+          document.querySelectorAll('preparation-steps').forEach((steps) => {
+            steps.setAttribute('item-id', targetId);
+            if (typeof steps.connectedCallback === 'function') {
+              steps.connectedCallback();
+            }
+          });
+          const isPrepPageNow = window.location.pathname.includes('preparation-details') ||
+            window.location.pathname.includes('preparation-assignment') ||
+            window.location.pathname.includes('preparation-checklist') ||
+            window.location.pathname.includes('preparation-review-details');
+          if (isPrepPageNow) {
+            hydratePreparationUI(document, targetId);
+          }
+        }
 
         // Re-initialize interactive behaviors for the new content
         initInteractiveBehaviors();
@@ -749,10 +1388,37 @@
           oldHeader.setAttribute('breadcrumbs', newHeader.getAttribute('breadcrumbs') || '');
         }
 
+        const popUrl = new URL(window.location.href);
+        const popId = popUrl.searchParams.get('id') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('current_preparation_id') : null);
+
         const oldMain = document.getElementById('main-content') || document.querySelector('main');
         const newMain = newDoc.getElementById('main-content') || newDoc.querySelector('main');
         if (oldMain && newMain) {
+          const isPrepTarget = popUrl.pathname.includes('preparation-details') ||
+            popUrl.pathname.includes('preparation-assignment') ||
+            popUrl.pathname.includes('preparation-checklist') ||
+            popUrl.pathname.includes('preparation-review-details');
+          if (isPrepTarget && popId) {
+            hydratePreparationUI(newMain, popId);
+          }
           oldMain.replaceWith(newMain);
+        }
+
+        if (popId) {
+          try { sessionStorage.setItem('current_preparation_id', popId); } catch (e) {}
+          document.querySelectorAll('preparation-steps').forEach((steps) => {
+            steps.setAttribute('item-id', popId);
+            if (typeof steps.connectedCallback === 'function') {
+              steps.connectedCallback();
+            }
+          });
+          const isPrepPageNow = window.location.pathname.includes('preparation-details') ||
+            window.location.pathname.includes('preparation-assignment') ||
+            window.location.pathname.includes('preparation-checklist') ||
+            window.location.pathname.includes('preparation-review-details');
+          if (isPrepPageNow) {
+            hydratePreparationUI(document, popId);
+          }
         }
 
         initInteractiveBehaviors();

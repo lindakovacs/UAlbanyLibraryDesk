@@ -8,9 +8,9 @@
       content="Review equipment readiness before lending."
     />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css" />
-    <script src="components.js"></script>
-    <script src="api-client.js"></script>
+    <link rel="stylesheet" href="styles.css?v=4.0" />
+    <script src="components.js?v=4.0"></script>
+    <script src="api-client.js?v=4.0"></script>
     <title>LibraryDesk | Readiness Review</title>
   </head>
   <body class="preparation-page">
@@ -18,7 +18,7 @@
     <div class="app-shell">
       <app-sidebar current="preparation"></app-sidebar>
       <div class="page-container">
-        <app-header breadcrumbs='[{"label":"Preparation dashboard","href":"preparation-review.html"},{"label":"Equipment details","href":"preparation-details.html"},{"label":"Review"}]'></app-header>
+        <app-header breadcrumbs='[{"label":"Preparation dashboard","href":"preparation-review.html"},{"label":"Equipment details","href":"preparation-details.html?id=EQ-014"},{"label":"Review"}]'></app-header>
         <main id="main-content">
           <section class="page-introduction" aria-labelledby="review-heading">
             <p class="eyebrow">University Library · Equipment preparation</p>
@@ -40,7 +40,7 @@
               <div>
                 <p class="equipment-id">EQ-014 · University Library</p>
                 <h2 id="equipment-name">Game Console</h2>
-                <span class="status-badge in-review">Awaiting review</span>
+                <span class="status-badge" data-status="awaiting">Needs preparation</span>
               </div>
               <div class="equipment-target">
                 <span>Target date</span><strong>15 Oct 2026</strong>
@@ -77,7 +77,7 @@
               placeholder="Add notes"
             ></textarea>
             <div class="detail-actions">
-              <a class="secondary-action" href="preparation-checklist.html"
+              <a class="secondary-action" href="preparation-checklist.html?id=EQ-014"
                 ><svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="m15 18-6-6 6-6"></path></svg
                 >Return to preparation</a
