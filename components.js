@@ -968,6 +968,12 @@
     const eqId = item.equipmentId || item.id;
     try { sessionStorage.setItem('current_preparation_id', eqId); } catch (e) {}
 
+    let savedTargetDate = null;
+    try {
+      savedTargetDate = sessionStorage.getItem('prep_target_date_' + eqId) || sessionStorage.getItem('prep_target_date_' + item.id);
+    } catch (e) {}
+    const effectiveTargetDate = savedTargetDate || item.targetDate;
+
     // Common equipment detail header elements
     const nameEl = root.getElementById ? root.getElementById('equipment-name') : root.querySelector('#equipment-name');
     if (nameEl) nameEl.textContent = item.equipmentName;
@@ -976,7 +982,7 @@
     if (idEl) idEl.textContent = `${eqId} · University Library`;
 
     const targetEl = root.querySelector('.equipment-target strong');
-    if (targetEl && item.targetDate) targetEl.textContent = item.targetDate;
+    if (targetEl && effectiveTargetDate) targetEl.textContent = effectiveTargetDate;
 
     const iconEl = root.querySelector('.equipment-detail-icon');
     if (iconEl) iconEl.innerHTML = getEquipmentIconSvg(item);
@@ -1020,7 +1026,7 @@
         } else if (label === 'assigned to') {
           dd.textContent = item.assignedStaff || 'Unassigned';
         } else if (label === 'target date') {
-          dd.textContent = item.targetDate || 'Pending';
+          dd.textContent = effectiveTargetDate || 'Pending';
         } else if (label === 'progress') {
           const completedCount = item.checklist ? item.checklist.filter(c => c.completed).length : (item.currentStep || 0);
           const totalCount = item.checklist ? item.checklist.length : 4;
@@ -1052,16 +1058,46 @@
     }
 
     const targetDateInput = root.getElementById ? root.getElementById('target-date') : root.querySelector('#target-date');
-    if (targetDateInput && item.targetDate) {
-      try {
-        const parsed = new Date(item.targetDate);
-        if (!isNaN(parsed.getTime())) {
-          const yyyy = parsed.getFullYear();
-          const mm = String(parsed.getMonth() + 1).padStart(2, '0');
-          const dd = String(parsed.getDate()).padStart(2, '0');
-          targetDateInput.value = `${yyyy}-${mm}-${dd}`;
-        }
-      } catch (e) {}
+    if (targetDateInput) {
+      if (effectiveTargetDate) {
+        try {
+          const parsed = new Date(effectiveTargetDate);
+          if (!isNaN(parsed.getTime())) {
+            const yyyy = parsed.getFullYear();
+            const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+            const dd = String(parsed.getDate()).padStart(2, '0');
+            targetDateInput.value = `${yyyy}-${mm}-${dd}`;
+          }
+        } catch (e) {}
+      }
+
+      if (!targetDateInput.dataset.boundTargetSync) {
+        targetDateInput.dataset.boundTargetSync = 'true';
+        const syncHeaderDate = () => {
+          const val = targetDateInput.value;
+          if (val) {
+            try {
+              const [yyyy, mm, dd] = val.split('-');
+              const dObj = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+              const formatted = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(dObj);
+              const headerTarget = root.querySelector('.equipment-target strong') || (typeof document !== 'undefined' ? document.querySelector('.equipment-target strong') : null);
+              if (headerTarget) {
+                headerTarget.textContent = formatted;
+              }
+              try {
+                sessionStorage.setItem('prep_target_date_' + eqId, formatted);
+                sessionStorage.setItem('prep_target_date_' + item.id, formatted);
+              } catch (e) {}
+              if (window.PREPARATION_CATALOG) {
+                const match = window.PREPARATION_CATALOG.find(c => (c.equipmentId && c.equipmentId.toLowerCase() === eqId.toLowerCase()) || (c.id && c.id.toLowerCase() === item.id.toLowerCase()));
+                if (match) match.targetDate = formatted;
+              }
+            } catch (e) {}
+          }
+        };
+        targetDateInput.addEventListener('input', syncHeaderDate);
+        targetDateInput.addEventListener('change', syncHeaderDate);
+      }
     }
 
     const taskOptions = root.querySelector('.task-options');
@@ -1137,7 +1173,7 @@
           : 'Awaiting preparation assignment';
       }
       if (small) {
-        small.textContent = `Assigned to ${item.assignedStaff || 'Unassigned'} · Target ${item.targetDate || 'Pending'}`;
+        small.textContent = `Assigned to ${item.assignedStaff || 'Unassigned'} · Target ${effectiveTargetDate || item.targetDate || 'Pending'}`;
       }
     }
 

@@ -1345,6 +1345,12 @@
                 iconSvg = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>';
               }
 
+              let itemTargetDate = item.targetDate;
+              try {
+                const savedTD = sessionStorage.getItem('prep_target_date_' + (item.equipmentId || item.id)) || (item.id ? sessionStorage.getItem('prep_target_date_' + item.id) : null);
+                if (savedTD) itemTargetDate = savedTD;
+              } catch (e) {}
+
               tr.dataset.equipmentId = item.equipmentId || item.id;
               tr.dataset.actionLink = actionLink;
               if (isSelected) {
@@ -1365,7 +1371,7 @@
                 </td>
                 <td><span class="status-badge ${badgeClass}" ${isReview ? 'data-status="review"' : ''}>${badgeLabel}</span></td>
                 <td>${escapeHtml(item.assignedStaff || 'Unassigned')}</td>
-                <td>${escapeHtml(item.targetDate || 'Pending')}</td>
+                <td>${escapeHtml(itemTargetDate || 'Pending')}</td>
                 <td>
                   <a class="row-arrow" href="${actionLink}" aria-label="View ${escapeHtml(item.equipmentName)} details">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
@@ -1480,6 +1486,13 @@
         }
 
         const eqId = tr.dataset.equipmentId || (tr.querySelector('.equipment-details small') ? tr.querySelector('.equipment-details small').textContent.trim() : '');
+        try {
+          const savedDate = sessionStorage.getItem('prep_target_date_' + eqId);
+          if (savedDate) {
+            const cells = tr.querySelectorAll('td');
+            if (cells && cells[3]) cells[3].textContent = savedDate;
+          }
+        } catch (e) {}
         const rowArrow = tr.querySelector('a.row-arrow');
         if (rowArrow) {
           rowArrow.addEventListener('click', () => {
@@ -1888,6 +1901,13 @@
         }
       }
 
+      // Effective target date
+      let savedTargetDate = null;
+      try {
+        savedTargetDate = sessionStorage.getItem('prep_target_date_' + currentId) || sessionStorage.getItem('prep_target_date_' + targetPrepId);
+      } catch (e) {}
+      const effectiveTargetDate = savedTargetDate || item.targetDate;
+
       // Common header elements across steps 1-4
       const nameHeading = document.getElementById('equipment-name');
       if (nameHeading) nameHeading.textContent = item.equipmentName;
@@ -1896,7 +1916,7 @@
       if (idDisplay) idDisplay.textContent = `${item.equipmentId || item.id} · University Library`;
 
       const targetDateEl = document.querySelector('.equipment-target strong');
-      if (targetDateEl && item.targetDate) targetDateEl.textContent = item.targetDate;
+      if (targetDateEl && effectiveTargetDate) targetDateEl.textContent = effectiveTargetDate;
 
       const iconContainer = document.querySelector('.equipment-detail-icon');
       if (iconContainer) iconContainer.innerHTML = getEquipmentIcon({ category: item.category, name: item.equipmentName });
@@ -1923,7 +1943,7 @@
             formatStatusBadge(statusBadge, item.status);
           }
           if (label === 'assigned to') dd.textContent = item.assignedStaff || 'Unassigned';
-          if (label === 'target date') dd.textContent = item.targetDate || 'Pending';
+          if (label === 'target date') dd.textContent = effectiveTargetDate || 'Pending';
           if (label === 'progress') dd.textContent = `${item.currentStep || 0} of 4 steps complete`;
         });
 
@@ -1965,16 +1985,48 @@
         }
 
         const targetDateInput = document.getElementById('target-date');
-        if (targetDateInput && item.targetDate) {
-          try {
-            const parsed = new Date(item.targetDate);
-            if (!isNaN(parsed.getTime())) {
-              const yyyy = parsed.getFullYear();
-              const mm = String(parsed.getMonth() + 1).padStart(2, '0');
-              const dd = String(parsed.getDate()).padStart(2, '0');
-              targetDateInput.value = `${yyyy}-${mm}-${dd}`;
-            }
-          } catch (e) {}
+        if (targetDateInput) {
+          if (effectiveTargetDate) {
+            try {
+              const parsed = new Date(effectiveTargetDate);
+              if (!isNaN(parsed.getTime())) {
+                const yyyy = parsed.getFullYear();
+                const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+                const dd = String(parsed.getDate()).padStart(2, '0');
+                targetDateInput.value = `${yyyy}-${mm}-${dd}`;
+              }
+            } catch (e) {}
+          }
+
+          if (!targetDateInput.dataset.boundTargetSync) {
+            targetDateInput.dataset.boundTargetSync = 'true';
+            const syncHeaderDate = () => {
+              const val = targetDateInput.value;
+              if (val) {
+                try {
+                  const parts = val.split('-');
+                  if (parts.length === 3) {
+                    const dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                    const formatted = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(dObj);
+                    const headerTarget = document.querySelector('.equipment-target strong');
+                    if (headerTarget) {
+                      headerTarget.textContent = formatted;
+                    }
+                    try {
+                      sessionStorage.setItem('prep_target_date_' + currentId, formatted);
+                      sessionStorage.setItem('prep_target_date_' + targetPrepId, formatted);
+                    } catch (e) {}
+                    if (window.PREPARATION_CATALOG) {
+                      const match = window.PREPARATION_CATALOG.find(c => (c.equipmentId && c.equipmentId.toLowerCase() === currentId.toLowerCase()) || (c.id && c.id.toLowerCase() === targetPrepId.toLowerCase()));
+                      if (match) match.targetDate = formatted;
+                    }
+                  }
+                } catch (e) {}
+              }
+            };
+            targetDateInput.addEventListener('input', syncHeaderDate);
+            targetDateInput.addEventListener('change', syncHeaderDate);
+          }
         }
 
         const instInput = document.getElementById('assignment-instructions');
@@ -1995,7 +2047,7 @@
             const tDate = targetDateInput ? targetDateInput.value : '';
             const instructions = instInput ? instInput.value : '';
 
-            let formattedDate = item.targetDate || '15 Oct 2026';
+            let formattedDate = effectiveTargetDate || item.targetDate || '15 Oct 2026';
             if (tDate) {
               try {
                 const parts = tDate.split('-');
@@ -2006,6 +2058,37 @@
               } catch (e) {}
             }
 
+            // Immediately update in-memory item
+            item.targetDate = formattedDate;
+            if (staff) item.assignedStaff = staff;
+            item.status = 'in-prep';
+            if (instructions) item.notes = instructions;
+
+            try {
+              sessionStorage.setItem('prep_target_date_' + currentId, formattedDate);
+              sessionStorage.setItem('prep_target_date_' + targetPrepId, formattedDate);
+              if (staff) sessionStorage.setItem('prep_assigned_staff_' + currentId, staff);
+            } catch (e) {}
+
+            if (window.PREPARATION_CATALOG) {
+              const catItem = window.PREPARATION_CATALOG.find(c =>
+                (c.equipmentId && c.equipmentId.toLowerCase() === currentId.toLowerCase()) ||
+                (c.id && c.id.toLowerCase() === targetPrepId.toLowerCase())
+              );
+              if (catItem) {
+                catItem.targetDate = formattedDate;
+                if (staff) catItem.assignedStaff = staff;
+                catItem.status = 'in-prep';
+                if (instructions) catItem.notes = instructions;
+              }
+            }
+
+            const submitBtn = assignForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'Saving assignment...';
+            }
+
             try {
               await apiClient.updatePreparation(targetPrepId, {
                 assignedStaff: staff || item.assignedStaff || 'Staff Specialist',
@@ -2013,10 +2096,10 @@
                 status: 'in-prep',
                 notes: instructions || item.notes
               });
-              window.location.href = `preparation-checklist.html?id=${encodeURIComponent(currentId)}`;
             } catch (err) {
-              window.location.href = `preparation-checklist.html?id=${encodeURIComponent(currentId)}`;
+              // Continue navigation
             }
+            window.location.href = `preparation-checklist.html?id=${encodeURIComponent(currentId)}`;
           });
         }
       }
@@ -2105,7 +2188,7 @@
               : 'Awaiting preparation assignment';
           }
           if (small) {
-            small.textContent = `Assigned to ${item.assignedStaff || 'Unassigned'} · Target ${item.targetDate || 'Pending'}`;
+            small.textContent = `Assigned to ${item.assignedStaff || 'Unassigned'} · Target ${effectiveTargetDate || item.targetDate || 'Pending'}`;
           }
         }
 

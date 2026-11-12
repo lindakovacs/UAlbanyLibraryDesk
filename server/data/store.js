@@ -1256,6 +1256,7 @@ class DataStore {
       const updates = [];
       const params = [];
       if (data.assignedStaff !== undefined) { updates.push('assigned_staff = ?'); params.push(data.assignedStaff); }
+      if (data.targetDate !== undefined) { updates.push('target_date = ?'); params.push(data.targetDate); }
       if (data.status !== undefined) { updates.push('status = ?'); params.push(data.status); }
       if (data.currentStep !== undefined) { updates.push('current_step = ?'); params.push(data.currentStep); }
       if (data.notes !== undefined) { updates.push('notes = ?'); params.push(data.notes); }
@@ -1271,6 +1272,7 @@ class DataStore {
     const item = this.preparation.find(p => p.id.toLowerCase() === id.toLowerCase());
     if (!item) return null;
     if (data.assignedStaff !== undefined) item.assignedStaff = data.assignedStaff;
+    if (data.targetDate !== undefined) item.targetDate = data.targetDate;
     if (data.status !== undefined) item.status = data.status;
     if (data.currentStep !== undefined) item.currentStep = data.currentStep;
     if (data.checklist !== undefined) item.checklist = data.checklist;
