@@ -112,6 +112,13 @@
       });
     },
 
+    async updateLoan(loanId, updates) {
+      return this.request(`/loans/${encodeURIComponent(loanId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates)
+      });
+    },
+
     // Borrowers directory
     async getBorrowers(params = {}) {
       const qs = new URLSearchParams(params).toString();
@@ -371,6 +378,9 @@
 
     // 12. Dynamic Borrowers Page Metrics & Rows (Borrowers Page)
     syncBorrowersTable();
+
+    // 12b. Dynamic Borrower Details View (Borrower Details Page)
+    syncBorrowerDetailsPage();
 
     // 13. Dynamic Reports & CSV Statistics (Reports Page)
     syncReportsPage();
@@ -717,6 +727,10 @@
     const subCount = document.querySelector('.section-heading p');
     const footerCount = document.querySelector('.loan-footer span:first-child');
     const tbody = tableContainer.querySelector('tbody');
+    const registrarTh = tableContainer.querySelector('thead th:nth-child(2)');
+    if (registrarTh) {
+      registrarTh.textContent = 'Registrar yes/no';
+    }
 
     async function fetchAndRenderLoans(query = '') {
       try {
@@ -754,6 +768,24 @@
               const statusLabel = loan.status === 'reserved' ? 'Reserved' : loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
               const displayDate = loan.checkoutDate ? formatShortEST(loan.checkoutDate) : (loan.reservedDate ? formatShortEST(loan.reservedDate) : '—');
               const displayDue = loan.dueDate ? formatShortEST(loan.dueDate) : '—';
+              const isOverdue = loan.status === 'overdue';
+
+              let isRegistrarYes = false;
+              let storedVal = null;
+              try {
+                storedVal = sessionStorage.getItem('registrar_status_' + loan.id) || localStorage.getItem('registrar_status_' + loan.id);
+              } catch (e) {}
+
+              if (storedVal !== null) {
+                isRegistrarYes = (storedVal === 'YES');
+              } else if (loan.registrar !== undefined && loan.registrar !== null) {
+                isRegistrarYes = String(loan.registrar).toUpperCase() === 'YES';
+              } else {
+                isRegistrarYes = isOverdue;
+              }
+
+              const registrarCell = `<td class="registrar-cell">${isRegistrarYes ? 'Yes' : 'No'}</td>`;
+
               tr.innerHTML = `
                 <td>
                   <span class="loan-equipment-icon" aria-hidden="true">
@@ -764,11 +796,11 @@
                     <small>${escapeHtml(loan.equipmentId)} · ${escapeHtml(loan.category || 'Library Equipment')}</small>
                   </span>
                 </td>
-                <td>NO</td>
+                ${registrarCell}
                 <td>
                   <span class="borrower-cell">
-                    <strong>${escapeHtml(loan.borrower)}</strong>
-                    <small>${escapeHtml(loan.netid)}</small>
+                    <strong>${escapeHtml(loan.borrower || '—')}</strong>
+                    <small>${escapeHtml(loan.netid || '—')}</small>
                   </span>
                 </td>
                 <td>${escapeHtml(displayDate)}</td>
@@ -780,6 +812,7 @@
                   </a>
                 </td>
               `;
+
               tr.addEventListener('click', (e) => {
                 if (e.target.closest('a')) return;
                 try { sessionStorage.setItem('current_loan_id', loan.id); } catch (err) {}
@@ -825,6 +858,18 @@
               try { sessionStorage.setItem('current_loan_id', loanId); } catch (e) {}
             });
           }
+
+          const regCell = tr.querySelector('.registrar-cell');
+          if (regCell) {
+            let storedVal = null;
+            try {
+              storedVal = sessionStorage.getItem('registrar_status_' + loanId) || localStorage.getItem('registrar_status_' + loanId);
+            } catch (err) {}
+            if (storedVal !== null) {
+              regCell.textContent = storedVal === 'YES' ? 'Yes' : 'No';
+            }
+          }
+
           tr.addEventListener('click', (e) => {
             if (e.target.closest('a')) return;
             try { sessionStorage.setItem('current_loan_id', loanId); } catch (e) {}
@@ -850,6 +895,28 @@
     const isLoanDetails = window.location.pathname.includes('loan-details');
     if (!isLoanDetails) return;
     try {
+      const staticCheckbox = document.getElementById('loan-registrar-checkbox');
+      if (staticCheckbox && !staticCheckbox.dataset.apiBound) {
+        staticCheckbox.dataset.apiBound = 'true';
+        staticCheckbox.addEventListener('change', async (e) => {
+          const checked = e.target.checked;
+          const textSpan = document.getElementById('loan-registrar-text');
+          if (textSpan) textSpan.textContent = checked ? 'Yes' : 'No';
+          const curId = staticCheckbox.dataset.loanId;
+          if (curId) {
+            try {
+              sessionStorage.setItem('registrar_status_' + curId, checked ? 'YES' : 'NO');
+              localStorage.setItem('registrar_status_' + curId, checked ? 'YES' : 'NO');
+            } catch (err) {}
+            try {
+              if (apiClient.updateLoan) {
+                await apiClient.updateLoan(curId, { registrar: checked ? 'YES' : 'NO' });
+              }
+            } catch (err) {}
+          }
+        });
+      }
+
       const urlParams = new URLSearchParams(window.location.search);
       let savedLoanId = null;
       try { savedLoanId = sessionStorage.getItem('current_loan_id'); } catch (e) {}
@@ -979,6 +1046,52 @@
         if (label === 'asset barcode' && loan.assetTag) dd.textContent = loan.assetTag;
       });
 
+      // Populate and bind Registrar toggle checkbox on Loan details page
+      const elRegistrar = document.getElementById('loan-registrar');
+      if (elRegistrar) {
+        let isRegistrarYes = false;
+        let storedVal = null;
+        try {
+          storedVal = sessionStorage.getItem('registrar_status_' + loan.id) || localStorage.getItem('registrar_status_' + loan.id);
+        } catch (e) {}
+
+        if (storedVal !== null) {
+          isRegistrarYes = (storedVal === 'YES');
+        } else if (loan.registrar !== undefined && loan.registrar !== null) {
+          isRegistrarYes = String(loan.registrar).toUpperCase() === 'YES';
+        } else {
+          // Check only for the one that is now overdue, for all other loans the checkbox should be no
+          isRegistrarYes = (loan.status === 'overdue');
+        }
+
+        elRegistrar.innerHTML = `
+          <label class="registrar-toggle-label">
+            <input type="checkbox" id="loan-registrar-checkbox" class="registrar-checkbox" data-loan-id="${escapeHtml(loan.id)}" ${isRegistrarYes ? 'checked' : ''} aria-label="Toggle Registrar status for ${escapeHtml(loan.id)}" />
+            <span id="loan-registrar-text" class="registrar-text">${isRegistrarYes ? 'Yes' : 'No'}</span>
+          </label>
+        `;
+
+        const checkbox = document.getElementById('loan-registrar-checkbox');
+        const textSpan = document.getElementById('loan-registrar-text');
+        if (checkbox) {
+          checkbox.addEventListener('change', async (e) => {
+            const checked = e.target.checked;
+            if (textSpan) {
+              textSpan.textContent = checked ? 'Yes' : 'No';
+            }
+            try {
+              sessionStorage.setItem('registrar_status_' + loan.id, checked ? 'YES' : 'NO');
+              localStorage.setItem('registrar_status_' + loan.id, checked ? 'YES' : 'NO');
+            } catch (err) {}
+            try {
+              if (apiClient.updateLoan) {
+                await apiClient.updateLoan(loan.id, { registrar: checked ? 'YES' : 'NO' });
+              }
+            } catch (err) {}
+          });
+        }
+      }
+
       // Update kit accessories manifest
       const accEl = document.getElementById('loan-accessories');
       if (accEl) {
@@ -1032,18 +1145,24 @@
               const statusClass = isOverdue ? 'overdue' : 'good';
               const statusLabel = isOverdue ? 'Overdue item' : 'Good standing';
               const initials = getInitials(b.name);
+              const targetUrl = `borrower-details.html?netid=${encodeURIComponent(b.netid)}`;
+              tr.style.cursor = 'pointer';
+              tr.addEventListener('click', (e) => {
+                if (e.target.closest('a')) return;
+                window.location.href = targetUrl;
+              });
               tr.innerHTML = `
                 <td>
                   <span class="borrower-profile">
                     <span class="borrower-initials">${initials}</span>
-                    <strong>${escapeHtml(b.name)}</strong>
+                    <a href="${targetUrl}" class="borrower-name-link"><strong>${escapeHtml(b.name)}</strong></a>
                   </span>
                 </td>
                 <td>${escapeHtml(b.universityId || b.netid)}</td>
                 <td>${b.openLoans != null ? b.openLoans : 0}</td>
                 <td><span class="borrower-status ${statusClass}">${statusLabel}</span></td>
                 <td>
-                  <a class="row-arrow" href="loans.html" aria-label="View ${escapeHtml(b.name)}'s loans">
+                  <a class="row-arrow" href="${targetUrl}" aria-label="View ${escapeHtml(b.name)}'s details">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
                   </a>
                 </td>
@@ -1065,6 +1184,153 @@
         fetchAndRenderBorrowers(borrowerSearch.value.trim());
       }, 250);
       borrowerSearch.addEventListener('input', debounced);
+    }
+  }
+
+  async function syncBorrowerDetailsPage() {
+    const detailPanel = document.querySelector('.borrower-detail-panel');
+    if (!detailPanel) return;
+
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const netid = urlParams.get('netid') || urlParams.get('id') || 'emma.wilson';
+
+      const res = await apiClient.getBorrower(netid);
+      if (!res || !res.borrower) return;
+
+      const borrower = res.borrower;
+      const initials = getInitials(borrower.name);
+
+      const elHeading = document.getElementById('borrower-details-heading');
+      if (elHeading) elHeading.textContent = `Borrower record: ${borrower.name}`;
+
+      const elPanelHeading = document.getElementById('borrower-panel-heading');
+      if (elPanelHeading) elPanelHeading.textContent = borrower.name;
+
+      const elAvatar = document.getElementById('borrower-avatar-initials');
+      if (elAvatar) elAvatar.textContent = initials;
+
+      const elNetIdBadge = document.getElementById('borrower-netid-badge');
+      if (elNetIdBadge) elNetIdBadge.textContent = `${borrower.netid} · ${borrower.universityId || '—'}`;
+
+      const elStandingBadge = document.getElementById('borrower-standing-badge');
+      const isGood = borrower.status === 'good' || borrower.status === 'good-standing';
+      if (elStandingBadge) {
+        elStandingBadge.className = `borrower-status ${isGood ? 'good' : 'overdue'}`;
+        elStandingBadge.textContent = isGood ? 'Good standing' : 'Overdue item';
+      }
+
+      const elName = document.getElementById('bdetail-name');
+      if (elName) elName.textContent = borrower.name;
+
+      const elNetid = document.getElementById('bdetail-netid');
+      if (elNetid) elNetid.textContent = borrower.netid;
+
+      const elUid = document.getElementById('bdetail-uid');
+      if (elUid) elUid.textContent = borrower.universityId || '—';
+
+      const elAffiliation = document.getElementById('bdetail-affiliation');
+      if (elAffiliation) elAffiliation.textContent = borrower.role || 'Undergraduate Student';
+
+      const elDept = document.getElementById('bdetail-dept');
+      if (elDept) elDept.textContent = borrower.department || '—';
+
+      const elEmail = document.getElementById('bdetail-email');
+      if (elEmail) elEmail.textContent = borrower.email || `${borrower.netid}@ualbany.edu`;
+
+      const elStatus = document.getElementById('bdetail-status');
+      if (elStatus) {
+        elStatus.innerHTML = `<span class="borrower-status ${isGood ? 'good' : 'overdue'}">${isGood ? 'Good standing' : 'Overdue item'}</span>`;
+      }
+
+      // Filter: only active, reserved, overdue (strictly exclude returned loans)
+      const allLoans = borrower.loans || [];
+      const eligibleLoans = allLoans.filter(l => l.status !== 'returned');
+
+      const activeCount = eligibleLoans.filter(l => l.status === 'active' || l.status === 'due-today').length;
+      const reservedCount = eligibleLoans.filter(l => l.status === 'reserved').length;
+      const overdueCount = eligibleLoans.filter(l => l.status === 'overdue').length;
+
+      const elActiveCount = document.getElementById('bdetail-active-count');
+      if (elActiveCount) elActiveCount.textContent = activeCount;
+
+      const elReservedCount = document.getElementById('bdetail-reserved-count');
+      if (elReservedCount) elReservedCount.textContent = reservedCount;
+
+      const elOverdueCount = document.getElementById('bdetail-overdue-count');
+      if (elOverdueCount) elOverdueCount.textContent = overdueCount;
+
+      const elCountVal = document.getElementById('borrower-loans-count-value');
+      if (elCountVal) {
+        const total = eligibleLoans.length;
+        elCountVal.textContent = `${total} ${total === 1 ? 'item' : 'items'}`;
+      }
+
+      const elBadge = document.getElementById('borrower-items-badge');
+      if (elBadge) {
+        elBadge.textContent = `${eligibleLoans.length} ${eligibleLoans.length === 1 ? 'item' : 'items'}`;
+      }
+
+      const newLoanBtn = document.getElementById('borrower-new-loan-btn');
+      if (newLoanBtn) {
+        newLoanBtn.href = `new-loan.html?netid=${encodeURIComponent(borrower.netid)}`;
+      }
+
+      const tbody = document.getElementById('borrower-items-rows');
+      const emptyMsg = document.getElementById('borrower-items-empty');
+
+      if (tbody) {
+        tbody.innerHTML = '';
+        if (eligibleLoans.length === 0) {
+          if (emptyMsg) emptyMsg.style.display = 'block';
+        } else {
+          if (emptyMsg) emptyMsg.style.display = 'none';
+          eligibleLoans.forEach(loan => {
+            const isReserved = loan.status === 'reserved' || (loan.reservedDate && !loan.checkoutDate);
+            const isOverdue = loan.status === 'overdue';
+            const isDueToday = loan.status === 'due-today';
+
+            let statusBadgeHtml = '';
+            if (isReserved) {
+              statusBadgeHtml = `<span class="loan-status reserved">Reserved</span>`;
+            } else if (isOverdue) {
+              statusBadgeHtml = `<span class="loan-status overdue">Overdue</span>`;
+            } else if (isDueToday) {
+              statusBadgeHtml = `<span class="loan-status due">Due today</span>`;
+            } else {
+              statusBadgeHtml = `<span class="loan-status active">On loan</span>`;
+            }
+
+            const checkedOutOrReserved = isReserved
+              ? (loan.reservedDate ? formatShortEST(loan.reservedDate) : '—')
+              : (loan.checkoutDate ? formatShortEST(loan.checkoutDate) : '—');
+
+            const returnDueDate = isReserved
+              ? '—'
+              : (loan.dueDate ? formatShortEST(loan.dueDate) : '—');
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>
+                <strong>${escapeHtml(loan.equipmentName || loan.equipmentId)}</strong>
+                <small style="display: block; color: #6b6474;">${escapeHtml(loan.equipmentId)} · ${escapeHtml(loan.category || 'Creative Technology')}</small>
+              </td>
+              <td><code>${escapeHtml(loan.id)}</code></td>
+              <td>${statusBadgeHtml}</td>
+              <td>${checkedOutOrReserved}</td>
+              <td>${returnDueDate}</td>
+              <td style="text-align: right;">
+                <a class="row-arrow" href="loan-details.html?id=${encodeURIComponent(loan.id)}" aria-label="View loan ${escapeHtml(loan.id)} details">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
+                </a>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      }
+    } catch (e) {
+      // Gracefully preserve fallback
     }
   }
 
@@ -1315,6 +1581,7 @@
     const semesterSelect = document.getElementById('overview-report-semester');
     const fromInput = document.getElementById('overview-report-from');
     const toInput = document.getElementById('overview-report-to');
+    const searchInput = document.getElementById('overview-report-search');
     const runBtn = document.getElementById('overview-btn-run-report');
     const summarySemester = document.getElementById('overview-summary-semester');
     const summaryDates = document.getElementById('overview-summary-dates');
@@ -1344,6 +1611,7 @@
         const semester = semesterSelect ? semesterSelect.value : 'fall-2026';
         const from = fromInput ? fromInput.value : '';
         const to = toInput ? toInput.value : '';
+        const search = searchInput ? searchInput.value.trim() : '';
 
         if (summarySemester && semesterSelect) {
           const opt = semesterSelect.options[semesterSelect.selectedIndex];
@@ -1356,6 +1624,7 @@
         const queryParams = { semester };
         if (from) queryParams.from = from;
         if (to) queryParams.to = to;
+        if (search) queryParams.search = search;
 
         const res = await apiClient.getReports(queryParams);
         if (!res || !res.reports) return;
@@ -1393,13 +1662,13 @@
           runBtn.textContent = '✓ Report updated';
           setTimeout(() => {
             runBtn.disabled = false;
-            runBtn.textContent = '▷ Run report';
+            runBtn.textContent = 'Run report';
           }, 1500);
         }
       } catch (e) {
         if (runBtn && isManual) {
           runBtn.disabled = false;
-          runBtn.textContent = '▷ Run report';
+          runBtn.textContent = 'Run report';
         }
       }
     }
@@ -1428,6 +1697,22 @@
         }
         loadOverviewReport(false);
       });
+    }
+
+    if (fromInput && !fromInput.dataset.apiBound) {
+      fromInput.dataset.apiBound = 'true';
+      fromInput.addEventListener('change', () => loadOverviewReport(false));
+    }
+
+    if (toInput && !toInput.dataset.apiBound) {
+      toInput.dataset.apiBound = 'true';
+      toInput.addEventListener('change', () => loadOverviewReport(false));
+    }
+
+    if (searchInput && !searchInput.dataset.apiBound) {
+      searchInput.dataset.apiBound = 'true';
+      const debounced = debounce(() => loadOverviewReport(false), 250);
+      searchInput.addEventListener('input', debounced);
     }
   }
 

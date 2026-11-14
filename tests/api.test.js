@@ -173,17 +173,28 @@ async function runTests() {
   });
 
   // 4. Borrowers
-  await test('GET /api/borrowers returns 5 registered borrowers', async () => {
+  await test('GET /api/borrowers returns 6 registered borrowers with dynamic open loans counts', async () => {
     const res = await request(app).get('/api/borrowers');
     assert.strictEqual(res.status, 200);
-    assert.strictEqual(res.body.total, 5);
+    assert.strictEqual(res.body.total, 6);
+    const emma = res.body.borrowers.find(b => b.netid === 'emma.wilson');
+    assert.ok(emma);
+    assert.strictEqual(emma.openLoans, 2, 'Emma Wilson openLoans must be 2 matching her active loans');
+    const james = res.body.borrowers.find(b => b.netid === 'james.chen');
+    assert.ok(james);
+    assert.strictEqual(james.openLoans, 2, 'James Chen openLoans must be 2 matching his open loans');
+    const marcus = res.body.borrowers.find(b => b.netid === 'marcus.vance');
+    assert.ok(marcus);
+    assert.strictEqual(marcus.openLoans, 1, 'Marcus Vance openLoans must be 1');
   });
 
-  await test('GET /api/borrowers/emma.wilson returns borrower profile and loans', async () => {
+  await test('GET /api/borrowers/emma.wilson returns borrower profile with dynamic open loans', async () => {
     const res = await request(app).get('/api/borrowers/emma.wilson');
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.borrower.netid, 'emma.wilson');
     assert(Array.isArray(res.body.borrower.loans));
+    assert.strictEqual(res.body.borrower.openLoans, res.body.borrower.loans.length, 'openLoans count must match non-returned loans array length');
+    assert.strictEqual(res.body.borrower.openLoans, 2, 'Emma Wilson must have 2 active loans');
   });
 
   // 5. Loans & Circulation
@@ -285,6 +296,7 @@ async function runTests() {
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.loan.status, 'returned');
     assert.strictEqual(res.body.loan.destination, 'ready-shelf');
+    assert.strictEqual(res.body.loan.borrowerNetId, null, 'Borrower information must be cleared after return');
   });
 
   // 6. Preparation Pipeline
@@ -401,7 +413,7 @@ async function runTests() {
 
   await test('All loan records return distinct equipment items matching catalog', async () => {
     const expected = {
-      'LN-1042': { equipmentName: 'Mirrorless Camera Kit', borrower: 'Emma Wilson' },
+      'LN-1042': { equipmentName: 'Mirrorless Camera Kit', borrower: null },
       'LN-1041': { equipmentName: 'Nintendo Switch', borrower: 'James Chen' },
       'LN-1040': { equipmentName: 'H4 Zoom Audio Recording Kit', borrower: 'Olivia Martinez' },
       'LN-1039': { equipmentName: '3D Scanning Kit (Revopoint POP 3 Plus)', borrower: 'Noah Thompson' },
@@ -461,6 +473,123 @@ async function runTests() {
     assert.strictEqual(k.totalLoans, k.openLoans + k.returnedLoans, 'Total loans must equal openLoans + returnedLoans');
     assert.ok(k.reserved >= 1, 'Reserved loans must be at least 1');
     assert.ok(k.overdue >= 1, 'Overdue loans must be at least 1');
+  });
+
+  await test('Post-checkout report controls in index.html and reports.html have all 5 elements and single-row compact CSS', async () => {
+    const indexHtml = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+    const reportsHtml = fs.readFileSync(path.join(__dirname, '../reports.html'), 'utf8');
+    const css = fs.readFileSync(path.join(__dirname, '../styles.css'), 'utf8');
+
+    // Check index.html controls
+    assert.ok(indexHtml.includes('id="overview-report-semester"'), 'index.html must have semester dropdown');
+    assert.ok(indexHtml.includes('id="overview-report-from"'), 'index.html must have from date');
+    assert.ok(indexHtml.includes('id="overview-report-to"'), 'index.html must have to date');
+    assert.ok(indexHtml.includes('id="overview-report-search"'), 'index.html must have search input');
+    assert.ok(indexHtml.includes('id="overview-btn-run-report"'), 'index.html must have Run report button');
+
+    // Check reports.html controls
+    assert.ok(reportsHtml.includes('id="report-semester"'), 'reports.html must have semester dropdown');
+    assert.ok(reportsHtml.includes('id="report-from"'), 'reports.html must have from date');
+    assert.ok(reportsHtml.includes('id="report-to"'), 'reports.html must have to date');
+    assert.ok(reportsHtml.includes('id="report-search"'), 'reports.html must have search input');
+    assert.ok(reportsHtml.includes('id="btn-run-report"'), 'reports.html must have Run report button');
+
+    // Check styles.css has compact height and 5 columns for single row layout
+    assert.ok(css.includes('.checkout-report-controls'), 'styles.css must have .checkout-report-controls class');
+    assert.ok(css.includes('min-height: 1.85rem;'), 'styles.css must style controls with compact height');
+  });
+
+  await test('GET /api/borrowers/:netid excludes completed/returned loans and only returns active, reserved, and overdue items', async () => {
+    const res = await request(app).get('/api/borrowers/emma.wilson');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.borrower.netid, 'emma.wilson');
+    assert(Array.isArray(res.body.borrower.loans));
+    const returnedLoans = res.body.borrower.loans.filter(l => l.status === 'returned');
+    assert.strictEqual(returnedLoans.length, 0, 'Returned loans must never be displayed in borrower profile');
+    const returnedLoanId = res.body.borrower.loans.find(l => l.id === 'LN-1042');
+    assert.strictEqual(returnedLoanId, undefined, 'LN-1042 was returned and must not appear in patron loans');
+  });
+
+  await test('Returned loan anonymizes borrower information while retaining equipment use for reports', async () => {
+    const loanRes = await request(app).get('/api/loans/LN-1042');
+    assert.strictEqual(loanRes.status, 200);
+    assert.strictEqual(loanRes.body.loan.status, 'returned');
+    assert.strictEqual(loanRes.body.loan.borrowerNetId, null, 'Borrower NetID must be cleared for returned loans');
+    assert.strictEqual(loanRes.body.loan.borrowerName, null, 'Borrower Name must be cleared for returned loans');
+    assert.strictEqual(loanRes.body.loan.universityId, null, 'University ID must be cleared for returned loans');
+    assert.strictEqual(loanRes.body.loan.equipmentId, 'EQ-001', 'Equipment ID must be retained for reporting');
+
+    const reportsRes = await request(app).get('/api/reports');
+    assert.strictEqual(reportsRes.status, 200);
+    assert(reportsRes.body.reports.length > 0, 'Reports retain anonymous equipment utilization');
+  });
+
+  await test('borrowers.html links borrower names to borrower-details.html and borrower-details.html renders correctly', async () => {
+    const html = fs.readFileSync(path.join(__dirname, '../borrowers.html'), 'utf8');
+    assert.ok(html.includes('href="borrower-details.html?netid=emma.wilson"'), 'borrowers.html must link Emma Wilson to borrower-details.html');
+    assert.ok(html.includes('href="borrower-details.html?netid=james.chen"'), 'borrowers.html must link James Chen to borrower-details.html');
+    assert.ok(html.includes('href="borrower-details.html?netid=marcus.vance"'), 'borrowers.html must link Marcus Vance to borrower-details.html');
+    assert.ok(html.includes('href="borrower-details.html?netid=noah.thompson"'), 'borrowers.html must link Noah Thompson to borrower-details.html');
+    assert.ok(html.includes('6 borrowers'), 'borrowers.html must show 6 borrowers');
+    assert.ok(html.includes('Showing 6 of 6 borrowers'), 'borrowers.html must show Showing 6 of 6 borrowers');
+
+    const detailHtml = fs.readFileSync(path.join(__dirname, '../borrower-details.html'), 'utf8');
+    assert.ok(detailHtml.includes('borrower-detail-panel'), 'borrower-details.html must contain borrower-detail-panel');
+    assert.ok(detailHtml.includes('id="borrower-items-rows"'), 'borrower-details.html must contain table rows for active/reserved/overdue items');
+    assert.ok(detailHtml.includes('id="borrower-items-empty"'), 'borrower-details.html must contain empty state element');
+  });
+
+  await test('GET /api/loans?status=overdue returns overdue loans with registrar set to YES for LN-1040', async () => {
+    const res = await request(app).get('/api/loans?status=overdue');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.loans.length, 1);
+    const overdueLoan = res.body.loans[0];
+    assert.strictEqual(overdueLoan.id, 'LN-1040');
+    assert.strictEqual(overdueLoan.status, 'overdue');
+    assert.strictEqual(overdueLoan.registrar, 'YES', 'LN-1040 must have registrar YES');
+  });
+
+  await test('PATCH /api/loans/:id updates registrar flag and validates loan existence', async () => {
+    const notFoundRes = await request(app)
+      .patch('/api/loans/LN-9999')
+      .send({ registrar: 'YES' });
+    assert.strictEqual(notFoundRes.status, 404);
+
+    const patchNoRes = await request(app)
+      .patch('/api/loans/LN-1040')
+      .send({ registrar: 'NO' });
+    assert.strictEqual(patchNoRes.status, 200);
+    assert.strictEqual(patchNoRes.body.loan.registrar, 'NO');
+
+    const patchYesRes = await request(app)
+      .patch('/api/loans/LN-1040')
+      .send({ registrar: 'YES' });
+    assert.strictEqual(patchYesRes.status, 200);
+    assert.strictEqual(patchYesRes.body.loan.registrar, 'YES');
+  });
+
+  await test('loan-details.html contains registrar toggle checkbox; loans.html and loans-overdue.html display Yes or No without checkbox', async () => {
+    const detailHtml = fs.readFileSync(path.join(__dirname, '../loan-details.html'), 'utf8');
+    assert.ok(detailHtml.includes('id="loan-registrar"'), 'loan-details.html must contain loan-registrar container');
+    assert.ok(detailHtml.includes('class="registrar-checkbox"'), 'loan-details.html must contain registrar-checkbox');
+    assert.ok(detailHtml.includes('id="loan-registrar-checkbox"'), 'loan-details.html must have id="loan-registrar-checkbox"');
+    assert.ok(detailHtml.includes('id="loan-registrar-text"'), 'loan-details.html must have id="loan-registrar-text"');
+
+    const overdueHtml = fs.readFileSync(path.join(__dirname, '../loans-overdue.html'), 'utf8');
+    assert.ok(overdueHtml.includes('<th scope="col">Registrar yes/no</th>'), 'loans-overdue.html must have header Registrar yes/no');
+    assert.ok(overdueHtml.includes('<td class="registrar-cell">Yes</td>'), 'loans-overdue.html must display Yes for overdue loan');
+    assert.ok(!overdueHtml.includes('class="registrar-checkbox"'), 'loans-overdue.html must not display checkbox control');
+
+    const loansHtml = fs.readFileSync(path.join(__dirname, '../loans.html'), 'utf8');
+    assert.ok(loansHtml.includes('<th scope="col">Registrar yes/no</th>'), 'loans.html must have header Registrar yes/no');
+    assert.ok(loansHtml.includes('<td class="registrar-cell">Yes</td>'), 'loans.html must display Yes for LN-1040');
+    assert.ok(loansHtml.includes('<td class="registrar-cell">No</td>'), 'loans.html must display No for non-overdue loans');
+    assert.ok(!loansHtml.includes('class="registrar-checkbox"'), 'loans.html must not display checkbox in table rows');
+
+    const css = fs.readFileSync(path.join(__dirname, '../styles.css'), 'utf8');
+    assert.ok(css.includes('.registrar-toggle-label'), 'styles.css must style .registrar-toggle-label');
+    assert.ok(css.includes('.registrar-checkbox'), 'styles.css must style .registrar-checkbox');
+    assert.ok(css.includes('.registrar-text'), 'styles.css must style .registrar-text');
   });
 
   console.log(`\n-----------------------------------------`);

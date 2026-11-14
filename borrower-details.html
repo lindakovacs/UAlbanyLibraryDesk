@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Review library borrower account, active equipment loans, reserved holds, and overdue items."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="components.js"></script>
+    <script src="api-client.js"></script>
+    <title>LibraryDesk | Borrower Details</title>
+  </head>
+  <body class="borrowers-page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="app-shell">
+      <app-sidebar current="borrowers"></app-sidebar>
+      <div class="page-container">
+        <app-header
+          breadcrumbs='[{"label":"Borrowers","href":"borrowers.html"},{"label":"Borrower details"}]'
+        ></app-header>
+        <main id="main-content">
+          <section
+            class="page-introduction"
+            aria-labelledby="borrower-details-heading"
+          >
+            <p class="eyebrow" id="borrower-details-eyebrow">Library patron directory · Circulation</p>
+            <h1 id="borrower-details-heading">Borrower record: Emma Wilson</h1>
+            <p id="borrower-details-sub">
+              Review borrower profile and active equipment circulations.
+            </p>
+          </section>
+
+          <section
+            class="equipment-detail-panel borrower-detail-panel"
+            aria-labelledby="borrower-panel-heading"
+          >
+            <div class="equipment-detail-heading">
+              <span class="equipment-detail-icon" aria-hidden="true" id="borrower-avatar-initials">
+                EW
+              </span>
+              <div>
+                <p class="equipment-id" id="borrower-netid-badge">emma.wilson · 001482759</p>
+                <h2 id="borrower-panel-heading">Emma Wilson</h2>
+                <span class="borrower-status good" id="borrower-standing-badge">Good standing</span>
+              </div>
+              <div class="equipment-target">
+                <span id="borrower-loans-count-label">Active Loans &amp; Holds</span>
+                <strong id="borrower-loans-count-value">3 items</strong>
+              </div>
+            </div>
+
+            <div class="detail-columns">
+              <section aria-labelledby="borrower-info-heading">
+                <h3 id="borrower-info-heading">Borrower Information</h3>
+                <dl class="detail-list">
+                  <div>
+                    <dt>Full name</dt>
+                    <dd id="bdetail-name">Emma Wilson</dd>
+                  </div>
+                  <div>
+                    <dt>NetID</dt>
+                    <dd id="bdetail-netid">emma.wilson</dd>
+                  </div>
+                  <div>
+                    <dt>University ID</dt>
+                    <dd id="bdetail-uid">001482759</dd>
+                  </div>
+                  <div>
+                    <dt>Affiliation</dt>
+                    <dd id="bdetail-affiliation">Undergraduate Student</dd>
+                  </div>
+                  <div>
+                    <dt>Department</dt>
+                    <dd id="bdetail-dept">Digital Arts &amp; Media</dd>
+                  </div>
+                  <div>
+                    <dt>Email</dt>
+                    <dd id="bdetail-email">ewilson@ualbany.edu</dd>
+                  </div>
+                  <div>
+                    <dt>Account standing</dt>
+                    <dd id="bdetail-status"><span class="borrower-status good">Good standing</span></dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section aria-labelledby="borrower-stats-heading">
+                <h3 id="borrower-stats-heading">Circulation Summary</h3>
+                <dl class="detail-list">
+                  <div>
+                    <dt>Current active loans</dt>
+                    <dd id="bdetail-active-count">3</dd>
+                  </div>
+                  <div>
+                    <dt>Reserved items</dt>
+                    <dd id="bdetail-reserved-count">0</dd>
+                  </div>
+                  <div>
+                    <dt>Overdue items</dt>
+                    <dd id="bdetail-overdue-count">0</dd>
+                  </div>
+                  <div>
+                    <dt>Primary checkout desk</dt>
+                    <dd>University Library Circulation Desk</dd>
+                  </div>
+                  <div>
+                    <dt>Loan eligibility</dt>
+                    <dd>Approved for all standard equipment</dd>
+                  </div>
+                  <div>
+                    <dt>Privacy protection</dt>
+                    <dd>Returned loan records anonymized</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+
+            <div class="borrower-items-section" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #eeeaf1;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; color: #2b2034; font-size: 1.05rem;" id="borrower-items-heading">Active, Reserved &amp; Overdue Items</h3>
+                <span id="borrower-items-badge" style="font-size: 0.8rem; color: #6b6474; font-weight: 600;">3 items</span>
+              </div>
+
+              <div class="table-container borrower-items-table-container">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <thead>
+                    <tr>
+                      <th scope="col" style="text-align: left; padding: 0.6rem 0.75rem;">Equipment</th>
+                      <th scope="col" style="text-align: left; padding: 0.6rem 0.75rem;">Loan ID</th>
+                      <th scope="col" style="text-align: left; padding: 0.6rem 0.75rem;">Status</th>
+                      <th scope="col" style="text-align: left; padding: 0.6rem 0.75rem;">Checked out / Reserved date</th>
+                      <th scope="col" style="text-align: left; padding: 0.6rem 0.75rem;">Return due date</th>
+                      <th scope="col" style="text-align: right; padding: 0.6rem 0.75rem;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="borrower-items-rows">
+                    <!-- Populated dynamically via api-client.js -->
+                  </tbody>
+                </table>
+                <div id="borrower-items-empty" style="display: none; padding: 2rem; text-align: center; color: #6b6474; font-style: italic;">
+                  No active equipment loans or reservations for this borrower.
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-actions" style="margin-top: 2rem; display: flex; gap: 0.75rem; align-items: center;">
+              <a class="primary-action" id="borrower-new-loan-btn" href="new-loan.html">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                New checkout
+              </a>
+              <a class="secondary-action" href="borrowers.html">Back to borrowers</a>
+            </div>
+          </section>
+        </main>
+        <app-footer></app-footer>
+      </div>
+    </div>
+  </body>
+</html>

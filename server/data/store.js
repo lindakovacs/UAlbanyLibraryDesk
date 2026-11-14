@@ -221,6 +221,16 @@ const initialBorrowers = [
     status: 'good-standing'
   },
   {
+    netid: 'marcus.vance',
+    name: 'Marcus Vance',
+    universityId: '001594821',
+    email: 'mvance@ualbany.edu',
+    department: 'Art & Art History',
+    role: 'Undergraduate Student',
+    openLoans: 1,
+    status: 'good-standing'
+  },
+  {
     netid: 'sophia.lee',
     name: 'Sophia Lee',
     universityId: '001482610',
@@ -238,9 +248,9 @@ const initialLoans = [
     equipmentId: 'EQ-002',
     equipmentName: 'Nintendo Switch',
     category: 'Gaming Consoles and Accessories',
-    borrowerNetId: 'emma.wilson',
-    borrowerName: 'Emma Wilson',
-    universityId: '001482759',
+    borrowerNetId: 'marcus.vance',
+    borrowerName: 'Marcus Vance',
+    universityId: '001594821',
     checkoutDate: '2026-11-14T15:58:13.000Z',
     dueDate: '2026-10-20T17:00:00.000Z',
     reservedDate: null,
@@ -270,9 +280,11 @@ const initialLoans = [
     equipmentId: 'EQ-001',
     equipmentName: 'Mirrorless Camera Kit',
     category: 'Creative Technology',
-    borrowerNetId: 'emma.wilson',
-    borrowerName: 'Emma Wilson',
-    universityId: '001482759',
+    borrowerNetId: null,
+    borrowerName: null,
+    borrower: null,
+    netid: null,
+    universityId: null,
     checkoutDate: '2026-10-06T18:30:00.000Z',
     dueDate: '2026-10-13T21:00:00.000Z',
     reservedDate: null,
@@ -311,6 +323,7 @@ const initialLoans = [
     dueDate: '2026-10-09T21:00:00.000Z',
     reservedDate: null,
     status: 'overdue',
+    registrar: 'YES',
     assetTag: 'ALB-EQ-003-B',
     accessories: ['H4n recorder', 'Windscreen', 'Power supply', 'Case', '16GB SD card']
   },
@@ -779,27 +792,34 @@ class DataStore {
   // Borrowers
   async getBorrowers(query = {}) {
     try {
-      let sql = 'SELECT * FROM borrowers WHERE 1=1';
+      let sql = `
+        SELECT b.netid, b.name, b.university_id, b.email, b.department, b.role, b.status,
+               COUNT(CASE WHEN l.status != 'returned' AND l.id IS NOT NULL THEN 1 END) AS dynamic_open_loans,
+               COUNT(CASE WHEN l.status = 'overdue' THEN 1 END) AS overdue_count
+        FROM borrowers b
+        LEFT JOIN loans l ON b.netid = l.borrower_netid
+        WHERE 1=1
+      `;
       const params = [];
       if (query.status) {
-        sql += ' AND status = ?';
+        sql += ' AND b.status = ?';
         params.push(query.status);
       }
       if (query.search) {
         const raw = query.search.trim().toLowerCase();
         const q = `%${raw}%`;
         sql += ` AND (
-          LOWER(name) LIKE ? OR 
-          LOWER(netid) LIKE ? OR 
-          LOWER(university_id) LIKE ? OR 
-          LOWER(email) LIKE ? OR 
-          LOWER(department) LIKE ? OR 
-          LOWER(role) LIKE ? OR 
-          LOWER(status) LIKE ?
+          LOWER(b.name) LIKE ? OR 
+          LOWER(b.netid) LIKE ? OR 
+          LOWER(b.university_id) LIKE ? OR 
+          LOWER(b.email) LIKE ? OR 
+          LOWER(b.department) LIKE ? OR 
+          LOWER(b.role) LIKE ? OR 
+          LOWER(b.status) LIKE ?
         )`;
         params.push(q, q, q, q, q, q, q);
       }
-      sql += ' ORDER BY name ASC;';
+      sql += ' GROUP BY b.netid HAVING dynamic_open_loans > 0 ORDER BY b.name ASC;';
 
       const [rows] = await pool.query(sql, params);
       if (rows && rows.length > 0) {
@@ -810,7 +830,8 @@ class DataStore {
           email: r.email,
           department: r.department,
           role: r.role,
-          openLoans: r.open_loans,
+          openLoans: Number(r.dynamic_open_loans != null ? r.dynamic_open_loans : 0),
+          hasOverdue: Number(r.overdue_count || 0) > 0,
           status: r.status
         }));
       }
@@ -818,7 +839,18 @@ class DataStore {
       // fallback
     }
 
-    let list = [...this.borrowers];
+    let list = this.borrowers.map(b => {
+      const bLoans = this.loans.filter(l =>
+        l.borrowerNetId &&
+        l.borrowerNetId.toLowerCase() === b.netid.toLowerCase() &&
+        l.status !== 'returned'
+      );
+      return {
+        ...b,
+        openLoans: bLoans.length,
+        hasOverdue: bLoans.some(l => l.status === 'overdue')
+      };
+    }).filter(b => b.openLoans > 0);
     if (query.status) {
       list = list.filter(b => b.status === query.status);
     }
@@ -839,7 +871,16 @@ class DataStore {
 
   async getBorrowerByNetId(netid) {
     try {
-      const [rows] = await pool.query('SELECT * FROM borrowers WHERE LOWER(netid) = LOWER(?);', [netid]);
+      const sql = `
+        SELECT b.netid, b.name, b.university_id, b.email, b.department, b.role, b.status,
+               COUNT(CASE WHEN l.status != 'returned' AND l.id IS NOT NULL THEN 1 END) AS dynamic_open_loans,
+               COUNT(CASE WHEN l.status = 'overdue' THEN 1 END) AS overdue_count
+        FROM borrowers b
+        LEFT JOIN loans l ON b.netid = l.borrower_netid
+        WHERE LOWER(b.netid) = LOWER(?)
+        GROUP BY b.netid;
+      `;
+      const [rows] = await pool.query(sql, [netid]);
       if (rows && rows.length > 0) {
         const r = rows[0];
         return {
@@ -849,14 +890,26 @@ class DataStore {
           email: r.email,
           department: r.department,
           role: r.role,
-          openLoans: r.open_loans,
+          openLoans: Number(r.dynamic_open_loans != null ? r.dynamic_open_loans : 0),
+          hasOverdue: Number(r.overdue_count || 0) > 0,
           status: r.status
         };
       }
     } catch (e) {
       // fallback
     }
-    return this.borrowers.find(b => b.netid.toLowerCase() === netid.toLowerCase()) || null;
+    const b = this.borrowers.find(br => br.netid.toLowerCase() === netid.toLowerCase());
+    if (!b) return null;
+    const bLoans = this.loans.filter(l =>
+      l.borrowerNetId &&
+      l.borrowerNetId.toLowerCase() === b.netid.toLowerCase() &&
+      l.status !== 'returned'
+    );
+    return {
+      ...b,
+      openLoans: bLoans.length,
+      hasOverdue: bLoans.some(l => l.status === 'overdue')
+    };
   }
 
   // Loans
@@ -866,7 +919,7 @@ class DataStore {
         SELECT l.*, e.name AS equipment_name, e.category, b.name AS borrower_name, b.university_id
         FROM loans l
         JOIN equipment e ON l.equipment_id = e.id
-        JOIN borrowers b ON l.borrower_netid = b.netid
+        LEFT JOIN borrowers b ON l.borrower_netid = b.netid
         WHERE 1=1
       `;
       const params = [];
@@ -915,11 +968,11 @@ class DataStore {
           equipmentId: r.equipment_id,
           equipmentName: r.equipment_name,
           category: r.category,
-          borrowerNetId: r.borrower_netid,
-          borrowerName: r.borrower_name,
-          borrower: r.borrower_name,
-          netid: r.borrower_netid,
-          universityId: r.university_id,
+          borrowerNetId: r.borrower_netid || null,
+          borrowerName: r.borrower_name || null,
+          borrower: r.borrower_name || null,
+          netid: r.borrower_netid || null,
+          universityId: r.university_id || null,
           checkoutDate: r.checkout_date,
           dueDate: r.due_date,
           reservedDate: r.reserved_date,
@@ -928,14 +981,18 @@ class DataStore {
           assetTag: r.asset_tag,
           returnCondition: r.return_condition,
           destination: r.destination,
-          returnNotes: r.return_notes
+          returnNotes: r.return_notes,
+          registrar: r.registrar || (r.status === 'overdue' ? 'YES' : 'NO')
         }));
       }
     } catch (e) {
       // fallback
     }
 
-    let list = [...this.loans];
+    let list = this.loans.map(l => ({
+      ...l,
+      registrar: l.registrar || (l.status === 'overdue' ? 'YES' : 'NO')
+    }));
     if (query.status && query.status !== 'all') {
       list = list.filter(l => l.status === query.status);
     }
@@ -989,7 +1046,7 @@ class DataStore {
         SELECT l.*, e.name AS equipment_name, e.category, b.name AS borrower_name, b.university_id
         FROM loans l
         JOIN equipment e ON l.equipment_id = e.id
-        JOIN borrowers b ON l.borrower_netid = b.netid
+        LEFT JOIN borrowers b ON l.borrower_netid = b.netid
         WHERE LOWER(l.id) = LOWER(?);
       `;
       const [rows] = await pool.query(sql, [id]);
@@ -1000,11 +1057,11 @@ class DataStore {
           equipmentId: r.equipment_id,
           equipmentName: r.equipment_name,
           category: r.category,
-          borrowerNetId: r.borrower_netid,
-          borrowerName: r.borrower_name,
-          borrower: r.borrower_name,
-          netid: r.borrower_netid,
-          universityId: r.university_id,
+          borrowerNetId: r.borrower_netid || null,
+          borrowerName: r.borrower_name || null,
+          borrower: r.borrower_name || null,
+          netid: r.borrower_netid || null,
+          universityId: r.university_id || null,
           checkoutDate: r.checkout_date,
           dueDate: r.due_date,
           reservedDate: r.reserved_date,
@@ -1013,13 +1070,56 @@ class DataStore {
           assetTag: r.asset_tag,
           returnCondition: r.return_condition,
           destination: r.destination,
-          returnNotes: r.return_notes
+          returnNotes: r.return_notes,
+          registrar: r.registrar || (r.status === 'overdue' ? 'YES' : 'NO')
         };
       }
     } catch (e) {
       // fallback
     }
-    return this.loans.find(l => l.id.toLowerCase() === id.toLowerCase()) || null;
+    const memLoan = this.loans.find(l => l.id.toLowerCase() === id.toLowerCase());
+    if (memLoan) {
+      return {
+        ...memLoan,
+        registrar: memLoan.registrar || (memLoan.status === 'overdue' ? 'YES' : 'NO')
+      };
+    }
+    return null;
+  }
+
+  async updateLoan(id, updates = {}) {
+    let conn;
+    try {
+      conn = await pool.getConnection();
+      const setClauses = [];
+      const params = [];
+      if (updates.registrar !== undefined) {
+        setClauses.push('registrar = ?');
+        params.push(String(updates.registrar).toUpperCase());
+      }
+      if (updates.status !== undefined) {
+        setClauses.push('status = ?');
+        params.push(updates.status);
+      }
+      if (setClauses.length > 0) {
+        params.push(id);
+        await conn.query(`UPDATE loans SET ${setClauses.join(', ')} WHERE LOWER(id) = LOWER(?);`, params);
+      }
+      conn.release();
+    } catch (e) {
+      if (conn) conn.release();
+    }
+
+    const loan = this.loans.find(l => l.id.toLowerCase() === id.toLowerCase());
+    if (loan) {
+      if (updates.registrar !== undefined) {
+        loan.registrar = String(updates.registrar).toUpperCase();
+      }
+      if (updates.status !== undefined) {
+        loan.status = updates.status;
+      }
+    }
+    return this.getLoanById(id);
   }
 
   async createLoan(data) {
@@ -1064,8 +1164,8 @@ class DataStore {
       );
 
       await conn.query(
-        'UPDATE borrowers SET open_loans = open_loans + 1 WHERE netid = ?;',
-        [data.netid]
+        'UPDATE borrowers SET open_loans = (SELECT COUNT(*) FROM loans WHERE borrower_netid = ? AND status != "returned") WHERE netid = ?;',
+        [data.netid, data.netid]
       );
 
       await conn.commit();
@@ -1115,6 +1215,7 @@ class DataStore {
     const condition = returnData.condition || 'good';
     const destination = returnData.destination || 'ready-shelf';
     const notes = returnData.notes || '';
+    const prevBorrowerNetId = loan.borrowerNetId || loan.netid;
 
     let conn;
     try {
@@ -1122,7 +1223,7 @@ class DataStore {
       await conn.beginTransaction();
 
       await conn.query(
-        'UPDATE loans SET status = ?, return_date = ?, return_condition = ?, destination = ?, return_notes = ? WHERE id = ?;',
+        'UPDATE loans SET status = ?, borrower_netid = NULL, return_date = ?, return_condition = ?, destination = ?, return_notes = ? WHERE id = ?;',
         ['returned', new Date(returnDate), condition, destination, notes, id]
       );
 
@@ -1133,10 +1234,12 @@ class DataStore {
         );
       }
 
-      await conn.query(
-        'UPDATE borrowers SET open_loans = GREATEST(0, open_loans - 1) WHERE netid = ?;',
-        [loan.borrowerNetId]
-      );
+      if (prevBorrowerNetId) {
+        await conn.query(
+          'UPDATE borrowers SET open_loans = (SELECT COUNT(*) FROM loans WHERE borrower_netid = ? AND status != "returned") WHERE netid = ?;',
+          [prevBorrowerNetId, prevBorrowerNetId]
+        );
+      }
 
       if (destination === 'prep-queue') {
         const nextPrepId = `PREP-${String(this.preparation.length + 1).padStart(3, '0')}`;
@@ -1156,6 +1259,11 @@ class DataStore {
     }
 
     loan.status = 'returned';
+    loan.borrowerNetId = null;
+    loan.borrowerName = null;
+    loan.borrower = null;
+    loan.netid = null;
+    loan.universityId = null;
     loan.returnDate = returnDate;
     loan.returnCondition = condition;
     loan.destination = destination;
@@ -1165,7 +1273,7 @@ class DataStore {
     if (eq && destination === 'ready-shelf') {
       eq.available = Math.min(eq.total, eq.available + 1);
     }
-    const b = this.borrowers.find(br => br.netid === loan.borrowerNetId);
+    const b = this.borrowers.find(br => br.netid === prevBorrowerNetId);
     if (b && b.openLoans > 0) {
       b.openLoans -= 1;
     }

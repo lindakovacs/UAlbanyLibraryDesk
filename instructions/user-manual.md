@@ -284,22 +284,27 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
 ### Step-by-Step Instructions:
 1. Click **Loans** in the sidebar.
 2. Toggle between queue tabs:
-   - **All Loans (`loans.html`):** Lists every active, reserved, and open equipment item.
-   - **Reserved (`loans-reserved.html`):** Filters strictly for loans claimed for future date pickup.
-   - **Overdue (`loans-overdue.html`):** Filters strictly for loans past their due date.
+   - **All Loans (`loans.html`):** Lists every active, reserved, and open equipment item. The **Registrar yes/no** column displays **Yes** for overdue items or **No** for non-overdue items without in-table checkboxes.
+   - **Reserved (`loans-reserved.html`):** Filters strictly for loans claimed for future date pickup (**Registrar yes/no** displays **No**).
+   - **Overdue (`loans-overdue.html`):** Filters strictly for loans past their due date (**Registrar yes/no** displays **Yes**).
 3. Multi-Field Search:
    - Type a borrower name (e.g. *Emma*), NetID (*alex.chen*), loan number (*LN-1042*), or item name (*Nintendo*).
    - The table live-filters dynamically.
 4. Timestamps & Timezone:
    - "Checked out/Reserved date" and "Due date" columns display concise Eastern Standard Time timestamps formatted as `MM/DD/YY, h:mm A EST` (e.g. `10/06/26, 2:30 PM EST`) for rapid visual scanning at the desk. For reserved items, the "Checked out/Reserved date" column displays the reservation date and "Due date" displays `—`.
-5. Inspecting Loan Details:
+5. Inspecting Loan Details & Registrar Hold Checkbox:
    - Click any loan row to open `loan-details.html?id=LN-XXXX`.
    - Field rules:
      - For **Reserved** records: `Checked out` and `Return due date` display `—` (empty), while `Reserved date` displays the scheduled pickup timestamp and status displays `Reserved`.
      - For **Standard** records (`active`, `due-today`, `overdue`, `returned`): `Checked out` and `Return due date` display their timestamps and standard loan terms, while `Reserved date` displays `—`.
+   - **Registrar Checkbox (Yes / No)**:
+     - Every loan record on `loan-details.html` contains an interactive **Registrar** checkbox under Loan Specifications.
+     - For the loan currently overdue (`LN-1040`), the checkbox is checked and displays **Yes** by default.
+     - For all other loans, the checkbox is unchecked and displays **No** by default.
+     - Staff can toggle the checkbox directly on the details page to flag or clear a Registrar hold. Toggling immediately updates the text between **Yes** and **No**, syncs to browser session cache, and updates the backend database record (`PATCH /api/loans/:id`).
    - View staff member who authorized the checkout, item serial barcode, kit accessory checklist, and borrower contact info.
-5. Overdue Protocol:
-   - For items in the Overdue tab, click **Send Reminder** to dispatch an automated notification to the patron's university email address.
+6. Overdue Protocol:
+   - For items in the Overdue tab, staff can click **Send Reminder** to dispatch an automated notification to the patron's university email address.
 
 ---
 
@@ -433,13 +438,13 @@ Items fully certified, inspected, and ready to be placed on library shelves:
 > *Capture: `borrowers.html` showing the Patron search bar, Department filter, active loan badges, and borrower standing.*
 
 ### Step-by-Step Instructions:
-1. Click **Borrowers** in the left sidebar.
+1. Click **Borrowers** in the left sidebar. The Borrowers directory dynamically populates all patrons with active or reserved loans (6 borrowers: Emma Wilson, Marcus Vance, Sophia Lee, James Chen, Olivia Martinez, Noah Thompson) fetched in real time from `GET /api/borrowers`. Patrons without active loans are automatically excluded.
 2. In the search bar, type the patron's name (e.g. *Emma*, *Marcus*, *Sophia*), NetID (`emma.wilson`), or academic department (*Computer Science*, *Art & Art History*).
 3. Review the patron card or table row:
    - **Standing:** `Good Standing` (green) or `Suspended / Overdue Hold` (red).
-   - **Active Loans:** Indicates how many equipment kits the student currently holds.
+   - **Active Loans:** Dynamically indicates how many open equipment kits the student currently holds (e.g., Emma Wilson: 2 active loans; Marcus Vance: 1 active loan).
    - **University ID:** 9-digit official UAlbany ID number.
-4. Click on any borrower to inspect their full borrowing history and past checkout logs.
+4. Click on any borrower's name to open their **Borrower details** page (`borrower-details.html`). This displays the patron's active loans, reserved holds, and overdue items. Completed or returned loans are excluded from the borrower's view, with borrower identity anonymized upon return while retaining anonymous equipment usage records for Post-checkout reports.
 
 ---
 

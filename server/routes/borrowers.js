@@ -36,7 +36,12 @@ router.get('/:netid', async (req, res, next) => {
       });
     }
 
-    const loans = await store.getLoans({ search: req.params.netid });
+    const allLoans = await store.getLoans();
+    const loans = allLoans.filter(l =>
+      l.borrowerNetId &&
+      l.borrowerNetId.toLowerCase() === req.params.netid.toLowerCase() &&
+      l.status !== 'returned'
+    );
 
     res.status(200).json({
       status: 'success',

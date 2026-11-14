@@ -115,4 +115,27 @@ router.post(
   }
 );
 
+/**
+ * @route   PATCH /api/loans/:id
+ * @desc    Update loan fields (e.g. registrar flag)
+ */
+router.patch('/:id', async (req, res, next) => {
+  try {
+    const loan = await store.updateLoan(req.params.id, req.body);
+    if (!loan) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: `Loan with ID '${req.params.id}' not found`,
+        status: 404
+      });
+    }
+    res.status(200).json({
+      status: 'success',
+      loan
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

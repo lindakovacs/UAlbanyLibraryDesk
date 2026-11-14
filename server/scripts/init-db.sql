@@ -95,7 +95,7 @@ DROP TABLE IF EXISTS `loans`;
 CREATE TABLE `loans` (
   `id` VARCHAR(20) NOT NULL PRIMARY KEY, -- e.g., 'LN-1042'
   `equipment_id` VARCHAR(20) NOT NULL,
-  `borrower_netid` VARCHAR(50) NOT NULL,
+  `borrower_netid` VARCHAR(50) NULL,
   `asset_tag` VARCHAR(50) NULL,
   `checkout_date` DATETIME NULL,
   `due_date` DATETIME NULL,
@@ -105,6 +105,7 @@ CREATE TABLE `loans` (
   `return_condition` VARCHAR(50) NULL,
   `destination` VARCHAR(50) NULL,
   `return_notes` TEXT NULL,
+  `registrar` VARCHAR(10) NULL DEFAULT 'NO',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX `idx_loans_status` (`status`),
@@ -258,23 +259,26 @@ INSERT INTO `equipment_accessories` (`equipment_id`, `accessory_name`) VALUES
 ('EQ-010', 'Power adapter'),
 ('EQ-010', 'USB-C cable');
 
--- Seed Borrowers (5 registered borrowers)
+-- Seed Borrowers (6 registered borrowers)
 INSERT INTO `borrowers` (`netid`, `name`, `university_id`, `email`, `department`, `role`, `open_loans`, `status`) VALUES
 ('emma.wilson', 'Emma Wilson', '001482759', 'ewilson@ualbany.edu', 'Digital Arts & Media', 'Undergraduate Student', 1, 'good-standing'),
 ('james.chen', 'James Chen', '001573024', 'jchen@ualbany.edu', 'Computer Science', 'Undergraduate Student', 1, 'good-standing'),
+('marcus.vance', 'Marcus Vance', '001594821', 'mvance@ualbany.edu', 'Art & Art History', 'Undergraduate Student', 1, 'good-standing'),
 ('olivia.martinez', 'Olivia Martinez', '001492831', 'omartinez@ualbany.edu', 'Communications & Journalism', 'Graduate Student', 1, 'restricted'),
 ('noah.thompson', 'Noah Thompson', '001583902', 'nthompson@ualbany.edu', 'Mechanical Engineering', 'Undergraduate Student', 1, 'good-standing'),
 ('sophia.lee', 'Sophia Lee', '001482610', 'slee@ualbany.edu', 'Informatics', 'Undergraduate Student', 1, 'good-standing')
-ON DUPLICATE KEY UPDATE `name`=VALUES(`name`);
+ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `university_id`=VALUES(`university_id`), `email`=VALUES(`email`), `department`=VALUES(`department`), `role`=VALUES(`role`);
 
--- Seed Loans (5 circulation records)
-INSERT INTO `loans` (`id`, `equipment_id`, `borrower_netid`, `asset_tag`, `checkout_date`, `due_date`, `reserved_date`, `status`) VALUES
-('LN-1042', 'EQ-001', 'emma.wilson', 'ALB-EQ-001-A', '2026-10-06 14:30:00', '2026-10-13 17:00:00', NULL, 'active'),
-('LN-1041', 'EQ-002', 'james.chen', 'ALB-EQ-002-C', '2026-10-04 10:15:00', '2026-10-11 17:00:00', NULL, 'due-today'),
-('LN-1040', 'EQ-003', 'olivia.martinez', 'ALB-EQ-003-B', '2026-10-02 11:00:00', '2026-10-09 17:00:00', NULL, 'overdue'),
-('LN-1039', 'EQ-004', 'noah.thompson', 'ALB-EQ-004-A', NULL, NULL, '2026-10-14 09:00:00', 'reserved'),
-('LN-1038', 'EQ-005', 'sophia.lee', 'ALB-EQ-005-B', '2026-10-04 09:30:00', '2026-10-11 17:00:00', NULL, 'due-today')
-ON DUPLICATE KEY UPDATE `status`=VALUES(`status`), `reserved_date`=VALUES(`reserved_date`), `checkout_date`=VALUES(`checkout_date`), `due_date`=VALUES(`due_date`);
+-- Seed Loans (7 circulation records: 6 open loans · 1 returned)
+INSERT INTO `loans` (`id`, `equipment_id`, `borrower_netid`, `asset_tag`, `checkout_date`, `due_date`, `reserved_date`, `status`, `registrar`) VALUES
+('LN-1044', 'EQ-002', 'marcus.vance', 'ALB-EQ-002-A', '2026-11-14 15:58:13', '2026-10-20 17:00:00', NULL, 'active', 'NO'),
+('LN-1043', 'EQ-002', 'emma.wilson', 'ALB-EQ-002-A', '2026-11-10 00:19:38', '2026-10-20 17:00:00', NULL, 'active', 'NO'),
+('LN-1042', 'EQ-001', NULL, 'ALB-EQ-001-A', '2026-10-06 14:30:00', '2026-10-13 17:00:00', NULL, 'returned', 'NO'),
+('LN-1041', 'EQ-002', 'james.chen', 'ALB-EQ-002-C', '2026-10-04 10:15:00', '2026-10-11 17:00:00', NULL, 'due-today', 'NO'),
+('LN-1040', 'EQ-003', 'olivia.martinez', 'ALB-EQ-003-B', '2026-10-02 11:00:00', '2026-10-09 17:00:00', NULL, 'overdue', 'YES'),
+('LN-1039', 'EQ-004', 'noah.thompson', 'ALB-EQ-004-A', NULL, NULL, '2026-10-14 09:00:00', 'reserved', 'NO'),
+('LN-1038', 'EQ-005', 'sophia.lee', 'ALB-EQ-005-B', '2026-10-04 09:30:00', '2026-10-11 17:00:00', NULL, 'due-today', 'NO')
+ON DUPLICATE KEY UPDATE `status`=VALUES(`status`), `reserved_date`=VALUES(`reserved_date`), `checkout_date`=VALUES(`checkout_date`), `due_date`=VALUES(`due_date`), `registrar`=VALUES(`registrar`);
 
 -- Seed Preparation Queue Items (11 records matching UI queue screenshots)
 INSERT INTO `preparation_items` (`id`, `equipment_id`, `equipment_name`, `category`, `assigned_staff`, `target_date`, `status`, `current_step`, `notes`) VALUES
