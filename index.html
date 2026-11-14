@@ -93,13 +93,13 @@
           >
             <div class="overview-section-heading">
               <div>
-                <h2 id="preparation-report-heading">Preparation reporting</h2>
+                <h2 id="preparation-report-heading">Preparation report</h2>
                 <p>
                   Equipment moving through readiness checks before it reaches
                   the shelf.
                 </p>
               </div>
-              <a href="preparation-progress.html">Open preparation ↗</a>
+              <a href="preparation-all.html">Open preparation ↗</a>
             </div>
             <div class="preparation-report">
               <div class="preparation-report-stats" id="overview-prep-stats">
@@ -193,10 +193,37 @@
                 ><time datetime="2026-10-13">Oct 13, 2026</time
                 ><em class="status-badge ready">Ready for lending</em>
               </div>
+              <div class="preparation-report-row prep-row-extra" style="display: none;">
+                <div>
+                  <strong>H4 Zoom Audio Recording Kit</strong
+                  ><small>EQ-003 · 0 of 4 steps complete</small>
+                </div>
+                <span>Unassigned</span
+                ><time datetime="2026-10-16">Oct 16, 2026</time
+                ><em class="status-badge">Needs preparation</em>
+              </div>
+              <div class="preparation-report-row prep-row-extra" style="display: none;">
+                <div>
+                  <strong>SmallRig All-in-One Smartphone Video Kit</strong
+                  ><small>EQ-012 · 0 of 4 steps complete</small>
+                </div>
+                <span>Unassigned</span
+                ><time datetime="2026-10-18">Oct 18, 2026</time
+                ><em class="status-badge">Needs preparation</em>
+              </div>
+              <div class="preparation-report-row prep-row-extra" style="display: none;">
+                <div>
+                  <strong>Nintendo Switch</strong
+                  ><small>EQ-002 · 2 of 4 steps complete</small>
+                </div>
+                <span>Alex Chen</span
+                ><time datetime="2026-10-17">Oct 17, 2026</time
+                ><em class="status-badge in-progress">In preparation</em>
+              </div>
               </div>
               <div class="preparation-report-footer">
                 <span id="overview-prep-count">Showing 8 of 11 items</span
-                ><a href="preparation-progress.html">View all preparation</a>
+                ><a href="preparation-all.html" id="overview-prep-view-all">View all preparation</a>
               </div>
             </div>
           </section>
@@ -311,21 +338,21 @@
           >
             <div class="overview-section-heading">
               <div>
-                <h2 id="recent-loans-heading">Recent loans</h2>
-                <p>A live look at what’s out and what’s coming back.</p>
+                <h2 id="recent-loans-heading">Loans report</h2>
+                <p id="overview-loans-sub">7 loans: 6 open loans · 1 returned</p>
               </div>
               <a href="loans.html">View all loans ↗</a>
             </div>
             <div class="table-container overview-loans">
               <div class="loan-toolbar">
                 <span id="overview-loans-stats"
-                  >All loans <b>5</b> &nbsp; Reserved <b>1</b> &nbsp; Overdue
+                  >All loans <b>7</b> &nbsp; Reserved <b>1</b> &nbsp; Overdue
                   <b>1</b></span
                 ><input id="overview-loans-search" type="search" placeholder="Search loans..." />
               </div>
               <table>
                 <caption>
-                  Recent equipment loans
+                  Loans report
                 </caption>
                 <thead>
                   <tr>
@@ -337,6 +364,30 @@
                   </tr>
                 </thead>
                 <tbody id="overview-loans-rows">
+                  <tr data-loan-id="LN-1044" style="cursor: pointer">
+                    <td>
+                      <strong>Nintendo Switch</strong
+                      ><small>EQ-002 · Gaming Consoles</small>
+                    </td>
+                    <td>
+                      <strong>Emma Wilson</strong><small>001482759</small>
+                    </td>
+                    <td>11/14/26, 3:58 PM EST</td>
+                    <td>10/20/26, 5:00 PM EST</td>
+                    <td><em class="loan-pill">On loan</em></td>
+                  </tr>
+                  <tr data-loan-id="LN-1043" style="cursor: pointer">
+                    <td>
+                      <strong>Nintendo Switch</strong
+                      ><small>EQ-002 · Gaming Consoles</small>
+                    </td>
+                    <td>
+                      <strong>Emma Wilson</strong><small>001482759</small>
+                    </td>
+                    <td>11/10/26, 12:19 AM EST</td>
+                    <td>10/20/26, 5:00 PM EST</td>
+                    <td><em class="loan-pill">On loan</em></td>
+                  </tr>
                   <tr data-loan-id="LN-1042" style="cursor: pointer">
                     <td>
                       <strong>Mirrorless Camera Kit</strong
@@ -347,7 +398,7 @@
                     </td>
                     <td>10/06/26, 2:30 PM EST</td>
                     <td>10/13/26, 5:00 PM EST</td>
-                    <td><em class="loan-pill">On loan</em></td>
+                    <td><em class="loan-pill good">Returned</em></td>
                   </tr>
                   <tr data-loan-id="LN-1041" style="cursor: pointer">
                     <td>
@@ -396,7 +447,7 @@
                 </tbody>
               </table>
               <div class="overview-table-footer">
-                <span>Showing 5 of 5 loans</span
+                <span id="overview-loans-footer-count">Showing 7 of 7 loans</span
                 ><span>All records up to date</span>
               </div>
             </div>

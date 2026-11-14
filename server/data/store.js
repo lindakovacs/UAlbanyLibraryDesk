@@ -234,6 +234,38 @@ const initialBorrowers = [
 
 const initialLoans = [
   {
+    id: 'LN-1044',
+    equipmentId: 'EQ-002',
+    equipmentName: 'Nintendo Switch',
+    category: 'Gaming Consoles and Accessories',
+    borrowerNetId: 'emma.wilson',
+    borrowerName: 'Emma Wilson',
+    universityId: '001482759',
+    checkoutDate: '2026-11-14T15:58:13.000Z',
+    dueDate: '2026-10-20T17:00:00.000Z',
+    reservedDate: null,
+    returnDate: null,
+    status: 'active',
+    assetTag: 'ALB-EQ-002-A',
+    accessories: ['Console', 'Left/Right Joy-Con', 'Dock', 'AC adapter', 'HDMI cable']
+  },
+  {
+    id: 'LN-1043',
+    equipmentId: 'EQ-002',
+    equipmentName: 'Nintendo Switch',
+    category: 'Gaming Consoles and Accessories',
+    borrowerNetId: 'emma.wilson',
+    borrowerName: 'Emma Wilson',
+    universityId: '001482759',
+    checkoutDate: '2026-11-10T00:19:38.000Z',
+    dueDate: '2026-10-20T17:00:00.000Z',
+    reservedDate: null,
+    returnDate: null,
+    status: 'active',
+    assetTag: 'ALB-EQ-002-A',
+    accessories: ['Console', 'Left/Right Joy-Con', 'Dock', 'AC adapter', 'HDMI cable']
+  },
+  {
     id: 'LN-1042',
     equipmentId: 'EQ-001',
     equipmentName: 'Mirrorless Camera Kit',
@@ -244,7 +276,11 @@ const initialLoans = [
     checkoutDate: '2026-10-06T18:30:00.000Z',
     dueDate: '2026-10-13T21:00:00.000Z',
     reservedDate: null,
-    status: 'active',
+    returnDate: '2026-11-14T18:12:23.000Z',
+    status: 'returned',
+    returnCondition: 'good',
+    destination: 'ready-shelf',
+    returnNotes: 'Returned on time and verified complete',
     assetTag: 'ALB-EQ-001-A',
     accessories: ['Camera body', '28-70mm lens', '64GB SD card', 'Rechargeable battery', 'Charger', 'Carry bag']
   },
@@ -1395,7 +1431,9 @@ class DataStore {
   async getSummaryKPIs() {
     try {
       const [eqRows] = await pool.query('SELECT SUM(total_quantity) AS total FROM equipment;');
+      const [totalLoanRows] = await pool.query('SELECT COUNT(*) AS total FROM loans;');
       const [loanRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status IN ('active', 'due-today', 'overdue', 'reserved');");
+      const [returnedRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status = 'returned';");
       const [reservedRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status = 'reserved';");
       const [dueRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status = 'due-today';");
       const [overdueRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status = 'overdue';");
@@ -1408,7 +1446,11 @@ class DataStore {
 
       return {
         totalEquipment: Number(eqRows[0].total) || 28,
+        totalLoans: Number(totalLoanRows[0].total),
+        allLoans: Number(totalLoanRows[0].total),
         activeLoans: Number(loanRows[0].total),
+        openLoans: Number(loanRows[0].total),
+        returnedLoans: Number(returnedRows[0].total),
         reserved: Number(reservedRows[0].total),
         dueToday: Number(dueRows[0].total),
         overdue: Number(overdueRows[0].total),
@@ -1425,7 +1467,10 @@ class DataStore {
     }
 
     const totalEquipment = this.equipment.reduce((acc, eq) => acc + eq.total, 0);
-    const activeLoans = this.loans.filter(l => l.status === 'active' || l.status === 'due-today' || l.status === 'overdue' || l.status === 'reserved').length;
+    const totalLoans = this.loans.length;
+    const openLoans = this.loans.filter(l => l.status === 'active' || l.status === 'due-today' || l.status === 'overdue' || l.status === 'reserved').length;
+    const returnedLoans = this.loans.filter(l => l.status === 'returned').length;
+    const activeLoans = openLoans;
     const reserved = this.loans.filter(l => l.status === 'reserved').length;
     const dueToday = this.loans.filter(l => l.status === 'due-today').length;
     const overdue = this.loans.filter(l => l.status === 'overdue').length;
@@ -1437,7 +1482,11 @@ class DataStore {
 
     return {
       totalEquipment: 28,
+      totalLoans,
+      allLoans: totalLoans,
       activeLoans,
+      openLoans,
+      returnedLoans,
       reserved,
       dueToday,
       overdue,

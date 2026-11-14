@@ -31,15 +31,14 @@
         cursor: pointer;
         transition: background-color 0.15s ease;
       }
-      .preparation-panel > table tbody tr:first-child {
-        background: transparent;
-      }
       .preparation-panel > table tbody tr.selected-row,
       .preparation-panel > table tbody tr:has(.selection-circle.selected) {
         background: #e5d8ef !important;
+        background-color: #e5d8ef !important;
       }
       .preparation-panel > table tbody tr:not(.selected-row):not(:has(.selection-circle.selected)) {
         background: transparent !important;
+        background-color: transparent !important;
       }
       .status-badge,
       .status-badge.needs-prep,
@@ -626,6 +625,12 @@
           <a class="tab-link${active === 'all' ? ' active-tab' : ''}" href="preparation-all.html"${active === 'all' ? ' aria-current="page"' : ''}>All equipment <span class="badge-all">${countTotal}</span></a>
         </div>
       `;
+
+      this.querySelectorAll('.tab-link').forEach(link => {
+        link.addEventListener('click', () => {
+          try { sessionStorage.removeItem('current_preparation_id'); } catch (e) {}
+        });
+      });
     }
 
     updateCounts(kpis) {
@@ -697,19 +702,42 @@
     }
 
     connectedCallback() {
+      this.render();
+      if (window.LibraryDeskAPI && typeof window.LibraryDeskAPI.syncGlobalTabBadges === 'function') {
+        window.LibraryDeskAPI.syncGlobalTabBadges();
+      }
+    }
+
+    render() {
       const active = (this.getAttribute('active') || 'all').toLowerCase();
+      const kpis = (window.LibraryDeskAPI && window.LibraryDeskAPI.lastKPIs) || null;
+      const countAll = kpis && (kpis.totalLoans != null ? kpis.totalLoans : (kpis.allLoans != null ? kpis.allLoans : kpis.activeLoans)) != null ? (kpis.totalLoans ?? kpis.allLoans ?? kpis.activeLoans) : 7;
+      const countReserved = kpis && kpis.reserved != null ? kpis.reserved : 1;
+      const countOverdue = kpis && kpis.overdue != null ? kpis.overdue : 1;
+
       this.innerHTML = `
         <div class="loan-tabs" role="tablist" aria-label="Loan status">
-          <a class="${active === 'all' ? 'active' : ''}" href="loans.html"${active === 'all' ? ' aria-current="page"' : ''}>All loans <span>5</span></a>
-          <a class="${active === 'reserved' ? 'active' : ''}" href="loans-reserved.html"${active === 'reserved' ? ' aria-current="page"' : ''}>Reserved <span>1</span></a>
-          <a class="${active === 'overdue' ? 'active' : ''}" href="loans-overdue.html"${active === 'overdue' ? ' aria-current="page"' : ''}>Overdue <span>1</span></a>
+          <a class="${active === 'all' ? 'active' : ''}" href="loans.html"${active === 'all' ? ' aria-current="page"' : ''}>All loans <span class="badge-all-loans">${countAll}</span></a>
+          <a class="${active === 'reserved' ? 'active' : ''}" href="loans-reserved.html"${active === 'reserved' ? ' aria-current="page"' : ''}>Reserved <span class="badge-reserved-loans">${countReserved}</span></a>
+          <a class="${active === 'overdue' ? 'active' : ''}" href="loans-overdue.html"${active === 'overdue' ? ' aria-current="page"' : ''}>Overdue <span class="badge-overdue-loans">${countOverdue}</span></a>
         </div>
       `;
     }
 
+    updateCounts(kpis) {
+      if (!kpis) return;
+      const totalAll = kpis.totalLoans != null ? kpis.totalLoans : (kpis.allLoans != null ? kpis.allLoans : kpis.activeLoans);
+      const s0 = this.querySelector('.badge-all-loans') || this.querySelectorAll('a span')[0];
+      if (s0 && totalAll != null) s0.textContent = totalAll;
+      const s1 = this.querySelector('.badge-reserved-loans') || this.querySelectorAll('a span')[1];
+      if (s1 && kpis.reserved != null) s1.textContent = kpis.reserved;
+      const s2 = this.querySelector('.badge-overdue-loans') || this.querySelectorAll('a span')[2];
+      if (s2 && kpis.overdue != null) s2.textContent = kpis.overdue;
+    }
+
     attributeChangedCallback(name, oldValue, newValue) {
       if (oldValue !== newValue && this.isConnected) {
-        this.connectedCallback();
+        this.render();
       }
     }
   }

@@ -1576,6 +1576,12 @@ main {
   background: #e0f2fe;
 }
 
+.loan-status.good,
+.loan-status.returned {
+  color: #15803d;
+  background: #dcfce7;
+}
+
 .overdue-date {
   color: #c43d43;
 }
@@ -3191,6 +3197,12 @@ tbody tr:last-child td {
 
   .loan-pill.overdue {
     background: #fde8e8;
+  }
+
+  .loan-pill.good,
+  .loan-pill.returned {
+    color: #15803d;
+    background: #dcfce7;
   }
 
   .inventory-glance {

@@ -261,13 +261,13 @@ async function runTests() {
       .send({
         netid: 'emma.wilson',
         borrower: 'Emma Wilson',
-        equipmentId: 'EQ-002',
+        equipmentId: 'EQ-001',
         dueDate: '2026-10-20T17:00:00.000Z'
       });
     assert.strictEqual(res.status, 201);
     assert.strictEqual(res.body.status, 'success');
     assert(res.body.loan.id.startsWith('LN-'));
-    assert.strictEqual(res.body.loan.equipmentId, 'EQ-002');
+    assert.strictEqual(res.body.loan.equipmentId, 'EQ-001');
     assert.strictEqual(res.body.loan.status, 'active');
     assert(res.body.loan.checkoutDate);
     assert(res.body.loan.dueDate);
@@ -414,6 +414,53 @@ async function runTests() {
       assert.strictEqual(res.body.loan.equipmentName, exp.equipmentName, `Item mismatch for ${id}`);
       assert.strictEqual(res.body.loan.borrowerName, exp.borrower, `Borrower mismatch for ${id}`);
     }
+  });
+
+  await test('preparation-all.html first item is highlighted with radio button and dark purple style', async () => {
+    const html = fs.readFileSync(path.join(__dirname, '../preparation-all.html'), 'utf8');
+    assert.ok(html.includes('<tr class="selected-row"'), 'First row must have selected-row class');
+    assert.ok(html.includes('background-color: #e5d8ef'), 'First row must have #e5d8ef background color');
+    assert.ok(html.includes('class="selection-circle selected"'), 'First row must have selection-circle selected');
+    assert.ok(html.includes('<span>EQ-014 selected</span>'), 'Footer must show EQ-014 selected');
+  });
+
+  await test('Reserved loan LN-1039 specifies reservedDate with null checkoutDate and dueDate', async () => {
+    const res = await request(app).get('/api/loans/LN-1039');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.loan.status, 'reserved');
+    assert.ok(res.body.loan.reservedDate, 'Must have reservedDate');
+    assert.strictEqual(res.body.loan.checkoutDate, null, 'Reserved loan must not have checkoutDate');
+    assert.strictEqual(res.body.loan.dueDate, null, 'Reserved loan must not have dueDate');
+  });
+
+  await test('index.html contains Preparation report and Loans report headings with updated counts', async () => {
+    const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+    assert.ok(html.includes('>Preparation report</h2>'), 'Heading must be Preparation report');
+    assert.ok(!html.includes('>Preparation reporting</h2>'), 'Old heading Preparation reporting must not be present');
+    assert.ok(html.includes('>Loans report</h2>'), 'Heading must be Loans report');
+    assert.ok(!html.includes('>Recent loans</h2>'), 'Old heading Recent loans must not be present');
+    assert.ok(html.includes('7 loans: 6 open loans · 1 returned'), 'Subtitle must show 7 loans: 6 open loans · 1 returned');
+    assert.ok(html.includes('All loans <b>7</b>'), 'Toolbar stats must show All loans 7');
+    assert.ok(html.includes('Showing 7 of 7 loans'), 'Footer must show Showing 7 of 7 loans');
+  });
+
+  await test('loans.html shows 7 loans with 6 open loans and 1 returned, and 7 rows total', async () => {
+    const html = fs.readFileSync(path.join(__dirname, '../loans.html'), 'utf8');
+    assert.ok(html.includes('<h2 id="loan-list-heading">7 loans</h2>'), 'Heading must be 7 loans');
+    assert.ok(html.includes('<p>6 open loans · 1 returned</p>'), 'Subheading must be 6 open loans · 1 returned');
+    assert.ok(html.includes('Showing 7 of 7 loans'), 'Footer must show Showing 7 of 7 loans');
+  });
+
+  await test('Summary KPIs include totalLoans, openLoans, returnedLoans, reserved, overdue', async () => {
+    const res = await request(app).get('/api/reports/summary');
+    assert.strictEqual(res.status, 200);
+    const k = res.body.kpis;
+    assert.ok(k.totalLoans >= 7, 'Total loans must be at least 7');
+    assert.ok(k.openLoans >= 6, 'Open loans must be at least 6');
+    assert.ok(k.returnedLoans >= 1, 'Returned loans must be at least 1');
+    assert.strictEqual(k.totalLoans, k.openLoans + k.returnedLoans, 'Total loans must equal openLoans + returnedLoans');
+    assert.ok(k.reserved >= 1, 'Reserved loans must be at least 1');
+    assert.ok(k.overdue >= 1, 'Overdue loans must be at least 1');
   });
 
   console.log(`\n-----------------------------------------`);

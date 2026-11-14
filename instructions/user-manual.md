@@ -204,6 +204,9 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
    - Click **+ New Loan** to open the checkout form.
    - Click **Check-in Return** to process a returned item.
    - Click **Preparation Queue** to inspect staging items.
+4. Review the **Preparation report** and **Loans report** sections:
+   - In **Preparation report**: Click **Open preparation ↗** at the top right to open the **All equipment** tab in the Preparation dashboard (`preparation-all.html`). Click **View all preparation** in the footer to toggle and display the remaining 3 items (all 11 items) directly within the overview page without navigating away, or click **Show less** to collapse back to 8 items.
+   - In **Loans report**: Displays the equipment circulation summary matching Loans & returns (`7 loans: 6 open loans · 1 returned`, toolbar statistics `All loans 7 · Reserved 1 · Overdue 1`, and table footer `Showing 7 of 7 loans`). Click any loan row to inspect details or click **View all loans ↗** to navigate to `loans.html`.
 
 ---
 

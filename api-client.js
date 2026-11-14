@@ -1477,9 +1477,13 @@
             const footerSpan = prepPanel.querySelector('.table-footer span');
             const footerBtn = prepPanel.querySelector('.table-footer a.primary-action');
 
-            let savedId = null;
-            try { savedId = sessionStorage.getItem('current_preparation_id'); } catch (e) {}
-            const matchedItem = savedId ? res.preparation.find(p => (p.equipmentId && p.equipmentId.toLowerCase() === savedId.toLowerCase()) || (p.id && p.id.toLowerCase() === savedId.toLowerCase())) : null;
+            const urlParams = new URLSearchParams(window.location.search);
+            const explicitId = urlParams.get('id');
+            let targetId = explicitId || null;
+            if (!targetId && query) {
+              try { targetId = sessionStorage.getItem('current_preparation_id'); } catch (e) {}
+            }
+            const matchedItem = targetId ? res.preparation.find(p => (p.equipmentId && p.equipmentId.toLowerCase() === targetId.toLowerCase()) || (p.id && p.id.toLowerCase() === targetId.toLowerCase())) : null;
             const activeItem = matchedItem || res.preparation[0];
             const activeId = activeItem ? (activeItem.equipmentId || activeItem.id) : null;
             if (activeId) {
@@ -1605,19 +1609,26 @@
       if (!tbody) return;
       const footerSpan = prepPanel.querySelector('.table-footer span');
       const footerBtn = prepPanel.querySelector('.table-footer a.primary-action');
-      let savedId = null;
-      try { savedId = sessionStorage.getItem('current_preparation_id'); } catch (e) {}
+      const urlParams = new URLSearchParams(window.location.search);
+      const explicitId = urlParams.get('id');
+      let targetId = explicitId || null;
 
       const allRows = Array.from(tbody.querySelectorAll('tr'));
       let initialSelectedRow = null;
-      if (savedId) {
+      if (targetId) {
         initialSelectedRow = allRows.find(r => {
           const rId = r.dataset.equipmentId || (r.querySelector('.equipment-details small') ? r.querySelector('.equipment-details small').textContent.trim() : '');
-          return rId && rId.toLowerCase() === savedId.toLowerCase();
+          return rId && rId.toLowerCase() === targetId.toLowerCase();
         });
       }
       if (!initialSelectedRow && allRows.length > 0) {
         initialSelectedRow = allRows[0];
+      }
+      if (initialSelectedRow) {
+        const initId = initialSelectedRow.dataset.equipmentId || (initialSelectedRow.querySelector('.equipment-details small') ? initialSelectedRow.querySelector('.equipment-details small').textContent.trim() : '');
+        if (initId) {
+          try { sessionStorage.setItem('current_preparation_id', initId); } catch (e) {}
+        }
       }
 
       allRows.forEach((tr) => {
@@ -1714,6 +1725,8 @@
     const prepSearch = document.getElementById('preparation-search');
     const prepCount = document.getElementById('overview-prep-count');
     const prepStats = document.getElementById('overview-prep-stats');
+    const prepViewAllBtn = document.getElementById('overview-prep-view-all') || document.querySelector('.preparation-report-footer a');
+    let showAllPrep = false;
 
     async function fetchAndRenderOverviewPrep(query = '') {
       const isOverview = document.querySelector('.preparation-report');
@@ -1738,8 +1751,24 @@
 
         if (!prepRes || !prepRes.preparation) return;
 
+        const totalItems = prepRes.total || prepRes.preparation.length;
+        const displayItems = (showAllPrep || query) ? prepRes.preparation : prepRes.preparation.slice(0, 8);
+
         if (prepCount) {
-          prepCount.textContent = `Showing ${Math.min(prepRes.preparation.length, 8)} of ${prepRes.total || prepRes.preparation.length} items`;
+          if (showAllPrep || query || prepRes.preparation.length <= 8) {
+            prepCount.textContent = `Showing ${prepRes.preparation.length} of ${totalItems} items`;
+          } else {
+            prepCount.textContent = `Showing ${Math.min(prepRes.preparation.length, 8)} of ${totalItems} items`;
+          }
+        }
+
+        if (prepViewAllBtn) {
+          if (query || prepRes.preparation.length <= 8) {
+            prepViewAllBtn.style.display = 'none';
+          } else {
+            prepViewAllBtn.style.display = '';
+            prepViewAllBtn.textContent = showAllPrep ? 'Show less' : 'View all preparation';
+          }
         }
 
         if (prepContainer) {
@@ -1760,9 +1789,11 @@
           }
         } else {
           let prev = document.querySelector('.preparation-report-tools');
-          prepRes.preparation.slice(0, 8).forEach(item => {
+          displayItems.forEach(item => {
             const row = document.createElement('div');
             row.className = 'preparation-report-row';
+            row.style.cursor = 'pointer';
+            row.title = `View preparation details for ${item.equipmentName || item.equipmentId}`;
             const isReview = (item.status === 'review' || item.status === 'in-review');
             const badgeClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : isReview ? 'in-review' : '';
             const badgeLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : isReview ? 'Awaiting review' : 'Ready for lending';
@@ -1777,6 +1808,17 @@
               <em class="status-badge ${badgeClass}" ${isReview ? 'data-status="review"' : ''}>${badgeLabel}</em>
             `;
 
+            row.addEventListener('click', () => {
+              const eqId = item.equipmentId || item.id;
+              if (eqId) {
+                try { sessionStorage.setItem('current_preparation_id', eqId); } catch (e) {}
+                let targetLink = `preparation-details.html?id=${encodeURIComponent(eqId)}`;
+                if (item.status === 'in-prep') targetLink = `preparation-checklist.html?id=${encodeURIComponent(eqId)}`;
+                else if (item.status === 'review') targetLink = `preparation-review-details.html?id=${encodeURIComponent(eqId)}`;
+                window.location.href = targetLink;
+              }
+            });
+
             if (prepContainer) {
               prepContainer.appendChild(row);
             } else if (prev) {
@@ -1790,6 +1832,23 @@
       } catch (e) {
         // Fallback gracefully
       }
+    }
+
+    if (prepViewAllBtn && !prepViewAllBtn.dataset.apiBound) {
+      prepViewAllBtn.dataset.apiBound = 'true';
+      prepViewAllBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        showAllPrep = !showAllPrep;
+        const extraStaticRows = document.querySelectorAll('.prep-row-extra');
+        if (extraStaticRows.length) {
+          extraStaticRows.forEach(r => r.style.display = showAllPrep ? '' : 'none');
+          if (prepCount) {
+            prepCount.textContent = showAllPrep ? 'Showing 11 of 11 items' : 'Showing 8 of 11 items';
+          }
+          prepViewAllBtn.textContent = showAllPrep ? 'Show less' : 'View all preparation';
+        }
+        fetchAndRenderOverviewPrep(prepSearch ? prepSearch.value.trim() : '');
+      });
     }
 
     if (document.querySelector('.preparation-report')) {
@@ -1817,9 +1876,20 @@
           apiClient.getSummaryKPIs().catch(() => null)
         ]);
 
+        const overviewLoansSub = document.getElementById('overview-loans-sub') || document.querySelector('.overview-section[aria-labelledby="recent-loans-heading"] .overview-section-heading p');
+        if (overviewLoansSub && !query) {
+          const totalCount = (kpiRes && kpiRes.kpis && kpiRes.kpis.totalLoans != null) ? kpiRes.kpis.totalLoans : (loanRes ? loanRes.loans.length : 7);
+          const openCount = (kpiRes && kpiRes.kpis && kpiRes.kpis.openLoans != null) ? kpiRes.kpis.openLoans : (loanRes ? loanRes.loans.filter(l => l.status !== 'returned').length : 6);
+          const retCount = (kpiRes && kpiRes.kpis && kpiRes.kpis.returnedLoans != null) ? kpiRes.kpis.returnedLoans : (loanRes ? loanRes.loans.filter(l => l.status === 'returned').length : 1);
+          overviewLoansSub.textContent = `${totalCount} loans: ${openCount} open loan${openCount === 1 ? '' : 's'} · ${retCount} returned`;
+        }
+
         if (kpiRes && kpiRes.kpis && loansStats && !query) {
           const k = kpiRes.kpis;
-          loansStats.innerHTML = `All loans <b>${k.activeLoans != null ? k.activeLoans : 5}</b> &nbsp; Reserved <b>${k.reserved != null ? k.reserved : 1}</b> &nbsp; Overdue <b>${k.overdue != null ? k.overdue : 1}</b>`;
+          const totalAll = k.totalLoans != null ? k.totalLoans : (k.allLoans != null ? k.allLoans : (loanRes ? loanRes.loans.length : 7));
+          const resCount = k.reserved != null ? k.reserved : (loanRes ? loanRes.loans.filter(l => l.status === 'reserved').length : 1);
+          const odCount = k.overdue != null ? k.overdue : (loanRes ? loanRes.loans.filter(l => l.status === 'overdue').length : 1);
+          loansStats.innerHTML = `All loans <b>${totalAll}</b> &nbsp; Reserved <b>${resCount}</b> &nbsp; Overdue <b>${odCount}</b>`;
         }
 
         if (!loanRes || !loanRes.loans) return;
@@ -1828,12 +1898,12 @@
         if (loanRes.loans.length === 0) {
           loansTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #6b6474; font-style: italic;">No loans matching "${escapeHtml(query)}"</td></tr>`;
         } else {
-          loanRes.loans.slice(0, 5).forEach(loan => {
+          loanRes.loans.forEach(loan => {
             const tr = document.createElement('tr');
             tr.dataset.loanId = loan.id;
             tr.style.cursor = 'pointer';
             tr.title = `View details for loan ${loan.id}`;
-            const statusClass = loan.status === 'reserved' ? 'reserved' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : '';
+            const statusClass = loan.status === 'reserved' ? 'reserved' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : loan.status === 'returned' ? 'good' : '';
             const statusLabel = loan.status === 'reserved' ? 'Reserved' : loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
             const isOverdue = (loan.status === 'overdue');
 
@@ -1846,7 +1916,7 @@
                 <small>${escapeHtml(loan.equipmentId)} · ${escapeHtml(loan.category || 'Creative Technology')}</small>
               </td>
               <td>
-                <strong>${escapeHtml(loan.borrower)}</strong>
+                <strong>${escapeHtml(loan.borrower || loan.borrowerName)}</strong>
                 <small>${escapeHtml(loan.universityId || loan.netid)}</small>
               </td>
               <td>${escapeHtml(displayDate)}</td>
@@ -1859,6 +1929,13 @@
             });
             loansTbody.appendChild(tr);
           });
+        }
+
+        const footerCount = document.querySelector('.overview-loans .overview-table-footer span:first-child') || document.getElementById('overview-loans-footer-count');
+        if (footerCount) {
+          const displayedCount = loanRes.loans.length;
+          const totalAll = (kpiRes && kpiRes.kpis && kpiRes.kpis.totalLoans != null) ? kpiRes.kpis.totalLoans : (loanRes.total || displayedCount);
+          footerCount.textContent = `Showing ${displayedCount} of ${totalAll} loans`;
         }
       } catch (e) {
         // Fallback gracefully
@@ -2617,21 +2694,26 @@
       if (window.LibraryDeskAPI) window.LibraryDeskAPI.lastKPIs = kpis;
 
       // Update <loan-tabs> count badges across loan pages
-      if (loanTabsEls.length && kpis.activeLoans != null) {
+      if (loanTabsEls.length) {
+        const totalLoansCount = (kpis.totalLoans != null ? kpis.totalLoans : (kpis.allLoans != null ? kpis.allLoans : (kpis.activeLoans != null ? kpis.activeLoans : 7)));
         loanTabsEls.forEach(loanEl => {
-          const links = loanEl.querySelectorAll('a');
-          if (links.length >= 3) {
-            const allBadge = links[0].querySelector('span');
-            if (allBadge) allBadge.textContent = kpis.activeLoans;
-            const reservedBadge = links[1].querySelector('span');
-            if (reservedBadge) reservedBadge.textContent = kpis.reserved != null ? kpis.reserved : 0;
-            const overdueBadge = links[2].querySelector('span');
-            if (overdueBadge) overdueBadge.textContent = kpis.overdue;
-          } else if (links.length === 2) {
-            const allBadge = links[0].querySelector('span');
-            if (allBadge) allBadge.textContent = kpis.activeLoans;
-            const overdueBadge = links[1].querySelector('span');
-            if (overdueBadge) overdueBadge.textContent = kpis.overdue;
+          if (typeof loanEl.updateCounts === 'function') {
+            loanEl.updateCounts(kpis);
+          } else {
+            const links = loanEl.querySelectorAll('a');
+            if (links.length >= 3) {
+              const allBadge = links[0].querySelector('span');
+              if (allBadge) allBadge.textContent = totalLoansCount;
+              const reservedBadge = links[1].querySelector('span');
+              if (reservedBadge) reservedBadge.textContent = kpis.reserved != null ? kpis.reserved : 0;
+              const overdueBadge = links[2].querySelector('span');
+              if (overdueBadge) overdueBadge.textContent = kpis.overdue;
+            } else if (links.length === 2) {
+              const allBadge = links[0].querySelector('span');
+              if (allBadge) allBadge.textContent = totalLoansCount;
+              const overdueBadge = links[1].querySelector('span');
+              if (overdueBadge) overdueBadge.textContent = kpis.overdue;
+            }
           }
         });
       }
