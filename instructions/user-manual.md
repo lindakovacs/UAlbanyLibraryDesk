@@ -272,25 +272,29 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
 
 ## 8. SOP 4: Managing Active & Overdue Loans
 
-**Files:** `loans.html`, `loans-overdue.html`, `loan-details.html`  
-**When to Use:** Tracking outstanding loans, answering patron inquiries, and managing delinquent returns.
+**Files:** `loans.html`, `loans-reserved.html`, `loans-overdue.html`, `loan-details.html`  
+**When to Use:** Tracking outstanding loans, reserved equipment claimed for future dates, answering patron inquiries, and managing delinquent returns.
 
 > 📷 **[Screenshot Placeholder: Active Loans Table]**  
-> *Capture: `loans.html` displaying the All Loans / Overdue tabs, search bar, borrower name column, due date column, and status badges.*
+> *Capture: `loans.html` displaying the All Loans / Reserved / Overdue tabs, search bar, borrower name column, due date column, and status badges.*
 
 ### Step-by-Step Instructions:
 1. Click **Loans** in the sidebar.
 2. Toggle between queue tabs:
-   - **All Loans:** Lists every active, unreturned equipment item.
+   - **All Loans (`loans.html`):** Lists every active, reserved, and open equipment item.
+   - **Reserved (`loans-reserved.html`):** Filters strictly for loans claimed for future date pickup.
    - **Overdue (`loans-overdue.html`):** Filters strictly for loans past their due date.
 3. Multi-Field Search:
    - Type a borrower name (e.g. *Emma*), NetID (*alex.chen*), loan number (*LN-1042*), or item name (*Nintendo*).
    - The table live-filters dynamically.
 4. Timestamps & Timezone:
-   - "Checked out" and "Due date" columns display concise Eastern Standard Time timestamps formatted as `MM/DD/YY, h:mm A EST` (e.g. `10/06/26, 2:30 PM EST`) for rapid visual scanning at the desk.
+   - "Checked out/Reserved date" and "Due date" columns display concise Eastern Standard Time timestamps formatted as `MM/DD/YY, h:mm A EST` (e.g. `10/06/26, 2:30 PM EST`) for rapid visual scanning at the desk. For reserved items, the "Checked out/Reserved date" column displays the reservation date and "Due date" displays `—`.
 5. Inspecting Loan Details:
    - Click any loan row to open `loan-details.html?id=LN-XXXX`.
-   - View checkout timestamp, staff member who authorized the checkout, item serial number, and borrower email.
+   - Field rules:
+     - For **Reserved** records: `Checked out` and `Return due date` display `—` (empty), while `Reserved date` displays the scheduled pickup timestamp and status displays `Reserved`.
+     - For **Standard** records (`active`, `due-today`, `overdue`, `returned`): `Checked out` and `Return due date` display their timestamps and standard loan terms, while `Reserved date` displays `—`.
+   - View staff member who authorized the checkout, item serial barcode, kit accessory checklist, and borrower contact info.
 5. Overdue Protocol:
    - For items in the Overdue tab, click **Send Reminder** to dispatch an automated notification to the patron's university email address.
 

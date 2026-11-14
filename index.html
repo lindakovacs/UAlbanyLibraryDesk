@@ -319,7 +319,7 @@
             <div class="table-container overview-loans">
               <div class="loan-toolbar">
                 <span id="overview-loans-stats"
-                  >All loans <b>5</b> &nbsp; Due today <b>2</b> &nbsp; Overdue
+                  >All loans <b>5</b> &nbsp; Reserved <b>1</b> &nbsp; Overdue
                   <b>1</b></span
                 ><input id="overview-loans-search" type="search" placeholder="Search loans..." />
               </div>
@@ -331,13 +331,13 @@
                   <tr>
                     <th scope="col">Equipment</th>
                     <th scope="col">Borrower</th>
-                    <th scope="col">Checked out</th>
+                    <th scope="col">Checked out/Reserved date</th>
                     <th scope="col">Due date</th>
                     <th scope="col">Status</th>
                   </tr>
                 </thead>
                 <tbody id="overview-loans-rows">
-                  <tr>
+                  <tr data-loan-id="LN-1042" style="cursor: pointer">
                     <td>
                       <strong>Mirrorless Camera Kit</strong
                       ><small>EQ-001 · Creative Technology</small>
@@ -349,7 +349,7 @@
                     <td>10/13/26, 5:00 PM EST</td>
                     <td><em class="loan-pill">On loan</em></td>
                   </tr>
-                  <tr>
+                  <tr data-loan-id="LN-1041" style="cursor: pointer">
                     <td>
                       <strong>Nintendo Switch</strong
                       ><small>EQ-002 · Gaming Consoles</small>
@@ -359,7 +359,7 @@
                     <td>10/11/26, 5:00 PM EST</td>
                     <td><em class="loan-pill due">Due today</em></td>
                   </tr>
-                  <tr>
+                  <tr data-loan-id="LN-1040" style="cursor: pointer">
                     <td>
                       <strong>H4 Zoom Audio Recording Kit</strong
                       ><small>EQ-003 · Creative Technology</small>
@@ -371,7 +371,7 @@
                     <td class="overdue-text">10/09/26, 5:00 PM EST</td>
                     <td><em class="loan-pill overdue">Overdue</em></td>
                   </tr>
-                  <tr>
+                  <tr data-loan-id="LN-1039" style="cursor: pointer">
                     <td>
                       <strong>3D Scanning Kit (Revopoint POP 3 Plus)</strong
                       ><small>EQ-004 · Creative Technology</small>
@@ -379,11 +379,11 @@
                     <td>
                       <strong>Noah Thompson</strong><small>001583902</small>
                     </td>
-                    <td>10/05/26, 1:45 PM EST</td>
-                    <td>10/12/26, 5:00 PM EST</td>
-                    <td><em class="loan-pill">On loan</em></td>
+                    <td>10/14/26, 9:00 AM EST</td>
+                    <td>—</td>
+                    <td><em class="loan-pill reserved">Reserved</em></td>
                   </tr>
-                  <tr>
+                  <tr data-loan-id="LN-1038" style="cursor: pointer">
                     <td>
                       <strong>Rode Wireless GO II Microphone System</strong
                       ><small>EQ-005 · Creative Technology</small>

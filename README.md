@@ -43,9 +43,10 @@ Static Site Deployed via [GitHub Pages](https://lindakovacs.github.io/UAlbany_Li
 
 ### Loans & Circulation
 - **`loans.html`** — Active equipment loans management table with live search, borrower avatars, due dates, loan status tags, and return triggers.
+- **`loans-reserved.html`** — Dedicated filtered view isolating reserved equipment loans claimed for future date pickup.
 - **`loans-overdue.html`** — Dedicated filtered view isolating overdue equipment loans requiring borrower follow-up.
-- **`loan-details.html`** — Comprehensive loan record view with borrower standing, loan timeline, included kit accessory manifest, and return actions.
-- **`new-loan.html`** — Equipment checkout form with borrower NetID input, 13-item collection selector with query pre-selection, loan duration, and accessory verification.
+- **`loan-details.html`** — Comprehensive loan record view with borrower standing, loan timeline, reserved date, included kit accessory manifest, and return actions.
+- **`new-loan.html`** — Equipment checkout form with borrower NetID input, 13-item collection selector with query pre-selection, loan duration, optional reserved date, and accessory verification.
 - **`return-item.html`** — Equipment check-in form with loan selector, condition assessment, accessory checklist, and destination routing.
 
 ### Equipment & Borrowers
@@ -71,7 +72,7 @@ Custom Web Components implemented in `components.js`:
 - **`<app-sidebar>`** — Navigation sidebar with automatic route detection, active state indicators, UAlbany crest, and persistent footer links.
 - **`<app-header>`** — Global page header featuring dynamic breadcrumb navigation, interactive library open/closed toggle, notification bell, profile summary, and sign-out link.
 - **`<app-footer>`** — Standard team copyright footer and institutional credits.
-- **`<loan-tabs>`** — Tab navigation bar switching between all loans and overdue loans with real-time count badges.
+- **`<loan-tabs>`** — Tab navigation bar switching between All loans, Reserved loans, and Overdue loans with real-time count badges.
 - **`<preparation-tabs>`** — 5-status queue navigation tabs with live item counts across preparation stages.
 - **`<preparation-steps>`** — 4-step preparation workflow progress navigation (1 Details, 2 Assignment, 3 Checklist, 4 Review).
 
@@ -259,6 +260,7 @@ All 22 frontend HTML views and workflows are actively wired to the Node.js/Expre
 | **`equipment.html`** | Live equipment catalog & debounced search | `GET /api/equipment?search=...&category=...` | `equipment`, `equipment_accessories` |
 | **`new-loan.html`** | Equipment checkout form & NetID autofill | `POST /api/loans` (Atomic transaction) | `loans` (insert), `equipment` (decrement stock), `borrowers` (increment active loans) |
 | **`loans.html`** | Active equipment loans table & live search | `GET /api/loans?search=...` | `loans`, `equipment`, `borrowers` |
+| **`loans-reserved.html`** | Reserved loans filtered table & live search | `GET /api/loans?status=reserved&search=...` | `loans` (filtered by reserved status) |
 | **`loans-overdue.html`** | Overdue loans filtered table & live search | `GET /api/loans?status=overdue&search=...` | `loans` (filtered by due date) |
 | **`loan-details.html`** | Single loan record (`?id=LN-...`) | `GET /api/loans/:id` | `loans`, `equipment`, `borrowers` |
 | **`return-item.html`** | Return check-in & destination routing | `POST /api/loans/:id/return` | `loans` (status `returned`), `equipment` (increment stock), `preparation_items` (staging) |
@@ -505,6 +507,7 @@ Tests: 30 passed, 0 failed, 30 total
 ├── index.html
 ├── loan-details.html
 ├── loans.html
+├── loans-reserved.html
 ├── loans-overdue.html
 ├── login.html
 ├── new-loan.html

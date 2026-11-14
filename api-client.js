@@ -94,6 +94,10 @@
       return this.request(`/loans${qs ? '?' + qs : ''}`);
     },
 
+    async getLoanById(id) {
+      return this.request(`/loans/${encodeURIComponent(id)}`);
+    },
+
     async checkout(loanData) {
       return this.request('/loans', {
         method: 'POST',
@@ -112,6 +116,10 @@
     async getBorrowers(params = {}) {
       const qs = new URLSearchParams(params).toString();
       return this.request(`/borrowers${qs ? '?' + qs : ''}`);
+    },
+
+    async getBorrower(netid) {
+      return this.request(`/borrowers/${encodeURIComponent(netid)}`);
     },
 
     // Preparation pipeline
@@ -236,11 +244,31 @@
         const assetTagInput = document.getElementById('asset-tag');
         const submitBtn = checkoutForm.querySelector('button[type="submit"]');
 
+        const checkoutDateInput = document.getElementById('checkout-date');
+        const dueDateInput = document.getElementById('due-date');
+        const reservedDateInput = document.getElementById('reserved-date');
+
+        const hasReserved = Boolean(reservedDateInput && reservedDateInput.value.trim() !== '');
+        const hasCheckout = Boolean(checkoutDateInput && checkoutDateInput.value.trim() !== '');
+
+        if (hasReserved && hasCheckout) {
+          alert('Both checkout date and reserved date cannot be filled at the same time. Clear one of the dates to proceed.');
+          return;
+        }
+
+        if (!hasReserved && (!dueDateInput || !dueDateInput.value.trim())) {
+          alert('Return due date is required for equipment checkout.');
+          return;
+        }
+
         const loanPayload = {
           borrower: borrowerInput ? borrowerInput.value.trim() : '',
           netid: netidInput ? netidInput.value.trim() : '',
           equipmentId: eqSelect ? eqSelect.value : '',
-          assetTag: assetTagInput ? assetTagInput.value.trim() : ''
+          assetTag: assetTagInput ? assetTagInput.value.trim() : '',
+          checkoutDate: hasReserved ? null : (hasCheckout ? checkoutDateInput.value.trim() : new Date().toISOString()),
+          dueDate: hasReserved ? null : (dueDateInput ? dueDateInput.value.trim() : ''),
+          reservedDate: hasReserved ? reservedDateInput.value.trim() : null
         };
 
         const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Complete checkout';
@@ -684,6 +712,7 @@
 
     const loanSearch = document.getElementById('loan-search');
     const isOverduePage = window.location.pathname.includes('overdue');
+    const isReservedPage = window.location.pathname.includes('reserved');
     const headingCount = document.querySelector('.section-heading h2');
     const subCount = document.querySelector('.section-heading p');
     const footerCount = document.querySelector('.loan-footer span:first-child');
@@ -691,20 +720,24 @@
 
     async function fetchAndRenderLoans(query = '') {
       try {
-        const params = isOverduePage ? { status: 'overdue' } : {};
+        const params = isOverduePage ? { status: 'overdue' } : isReservedPage ? { status: 'reserved' } : {};
         if (query) params.search = query;
         const res = await apiClient.getLoans(params);
         if (!res || !res.loans) return;
 
-        if (headingCount) headingCount.textContent = `${res.total} loans`;
+        if (headingCount) headingCount.textContent = `${res.total} loan${res.total === 1 ? '' : 's'}`;
         if (subCount && !query) {
-          const activeCount = res.loans.filter(l => l.status === 'active' || l.status === 'due-today' || l.status === 'overdue').length;
-          const returnedCount = res.loans.filter(l => l.status === 'returned').length;
-          subCount.textContent = `${activeCount} open loans · ${returnedCount} returned`;
+          if (isReservedPage) {
+            subCount.textContent = `${res.total} reserved loan${res.total === 1 ? '' : 's'} · Claimed for future pickup`;
+          } else {
+            const activeCount = res.loans.filter(l => l.status === 'active' || l.status === 'due-today' || l.status === 'overdue' || l.status === 'reserved').length;
+            const returnedCount = res.loans.filter(l => l.status === 'returned').length;
+            subCount.textContent = `${activeCount} open loan${activeCount === 1 ? '' : 's'} · ${returnedCount} returned`;
+          }
         }
 
         if (footerCount) {
-          footerCount.textContent = `Showing ${res.loans.length} of ${res.total} loans`;
+          footerCount.textContent = `Showing ${res.loans.length} of ${res.total} loan${res.total === 1 ? '' : 's'}`;
         }
 
         if (tbody) {
@@ -714,8 +747,13 @@
           } else {
             res.loans.forEach(loan => {
               const tr = document.createElement('tr');
-              const statusClass = loan.status === 'active' ? 'active' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : 'returned';
-              const statusLabel = loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
+              tr.dataset.loanId = loan.id;
+              tr.style.cursor = 'pointer';
+              tr.title = `View details for loan ${loan.id}`;
+              const statusClass = loan.status === 'reserved' ? 'reserved' : loan.status === 'active' ? 'active' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : 'returned';
+              const statusLabel = loan.status === 'reserved' ? 'Reserved' : loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
+              const displayDate = loan.checkoutDate ? formatShortEST(loan.checkoutDate) : (loan.reservedDate ? formatShortEST(loan.reservedDate) : '—');
+              const displayDue = loan.dueDate ? formatShortEST(loan.dueDate) : '—';
               tr.innerHTML = `
                 <td>
                   <span class="loan-equipment-icon" aria-hidden="true">
@@ -733,8 +771,8 @@
                     <small>${escapeHtml(loan.netid)}</small>
                   </span>
                 </td>
-                <td>${escapeHtml(formatShortEST(loan.checkoutDate))}</td>
-                <td>${escapeHtml(formatShortEST(loan.dueDate))}</td>
+                <td>${escapeHtml(displayDate)}</td>
+                <td>${escapeHtml(displayDue)}</td>
                 <td><span class="loan-status ${statusClass}">${statusLabel}</span></td>
                 <td>
                   <a class="row-arrow" href="loan-details.html?id=${encodeURIComponent(loan.id)}" aria-label="View loan ${escapeHtml(loan.id)}">
@@ -742,6 +780,17 @@
                   </a>
                 </td>
               `;
+              tr.addEventListener('click', (e) => {
+                if (e.target.closest('a')) return;
+                try { sessionStorage.setItem('current_loan_id', loan.id); } catch (err) {}
+                window.location.href = `loan-details.html?id=${encodeURIComponent(loan.id)}`;
+              });
+              const rowArrow = tr.querySelector('a.row-arrow');
+              if (rowArrow) {
+                rowArrow.addEventListener('click', () => {
+                  try { sessionStorage.setItem('current_loan_id', loan.id); } catch (err) {}
+                });
+              }
               tbody.appendChild(tr);
             });
           }
@@ -751,6 +800,41 @@
       }
     }
 
+    function bindStaticLoanRows() {
+      if (!tbody) return;
+      tbody.querySelectorAll('tr').forEach((tr) => {
+        let loanId = tr.dataset.loanId;
+        const rowArrow = tr.querySelector('a.row-arrow');
+        if (!loanId && rowArrow) {
+          const href = rowArrow.getAttribute('href') || '';
+          const m = href.match(/id=(LN-\d+)/i);
+          if (m) loanId = m[1];
+          else {
+            const aria = rowArrow.getAttribute('aria-label') || '';
+            const m2 = aria.match(/LN-\d+/i);
+            if (m2) loanId = m2[0];
+          }
+        }
+        if (loanId) {
+          tr.dataset.loanId = loanId;
+          tr.style.cursor = 'pointer';
+          tr.title = `View details for loan ${loanId}`;
+          if (rowArrow) {
+            rowArrow.href = `loan-details.html?id=${encodeURIComponent(loanId)}`;
+            rowArrow.addEventListener('click', () => {
+              try { sessionStorage.setItem('current_loan_id', loanId); } catch (e) {}
+            });
+          }
+          tr.addEventListener('click', (e) => {
+            if (e.target.closest('a')) return;
+            try { sessionStorage.setItem('current_loan_id', loanId); } catch (e) {}
+            window.location.href = `loan-details.html?id=${encodeURIComponent(loanId)}`;
+          });
+        }
+      });
+    }
+
+    bindStaticLoanRows();
     fetchAndRenderLoans(loanSearch ? loanSearch.value.trim() : '');
 
     if (loanSearch && !loanSearch.dataset.apiBound) {
@@ -767,67 +851,146 @@
     if (!isLoanDetails) return;
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const loanId = urlParams.get('id') || 'LN-1042';
-      const res = await apiClient.request(`/loans/${loanId}`).catch(() => null);
+      let savedLoanId = null;
+      try { savedLoanId = sessionStorage.getItem('current_loan_id'); } catch (e) {}
+      const loanId = urlParams.get('id') || savedLoanId || 'LN-1039';
+      const res = await (apiClient.getLoanById ? apiClient.getLoanById(loanId) : apiClient.request(`/loans/${loanId}`)).catch(() => null);
       if (!res || !res.loan) return;
       const loan = res.loan;
+      try { sessionStorage.setItem('current_loan_id', loan.id); } catch (e) {}
+
+      const isReserved = loan.status === 'reserved' || (Boolean(loan.reservedDate) && !loan.checkoutDate);
+      const borrowerName = loan.borrower || loan.borrowerName || 'Borrower';
+      const bNetId = loan.borrowerNetId || loan.netid;
 
       const heading = document.getElementById('loan-details-heading');
       if (heading) heading.textContent = `Loan record: ${loan.id}`;
 
-      const headingSub = document.querySelector('.page-introduction p');
-      if (headingSub && loan.borrower) {
-        headingSub.textContent = `Detailed record for active equipment loan to ${loan.borrower}.`;
+      const eyebrow = document.getElementById('loan-details-eyebrow') || document.querySelector('.page-introduction .eyebrow');
+      if (eyebrow) eyebrow.textContent = 'University Library · Equipment circulation';
+
+      const headingSub = document.getElementById('loan-details-sub') || document.querySelector('.page-introduction p:not(.eyebrow)');
+      if (headingSub) {
+        if (isReserved) {
+          headingSub.textContent = `Detailed record for reserved equipment hold for ${borrowerName}.`;
+        } else {
+          headingSub.textContent = `Detailed record for active equipment loan to ${borrowerName}.`;
+        }
       }
 
       const itemName = document.getElementById('item-name');
       if (itemName) itemName.textContent = loan.equipmentName || loan.equipmentId;
 
-      const equipId = document.querySelector('.equipment-id');
+      const equipId = document.getElementById('loan-equipment-id') || document.querySelector('.equipment-id');
       if (equipId) equipId.textContent = `${loan.equipmentId} · ${loan.category || 'Creative Technology'}`;
 
-      const statusBadge = document.querySelector('.loan-status');
-      if (statusBadge && loan.status) {
-        const sClass = loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : 'active';
-        const sLabel = loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
-        statusBadge.className = `loan-status ${sClass}`;
-        statusBadge.textContent = sLabel;
+      const statusBadge = document.getElementById('loan-status-badge') || document.querySelector('.loan-status');
+      if (statusBadge) {
+        if (isReserved) {
+          statusBadge.className = 'loan-status reserved';
+          statusBadge.textContent = 'Reserved';
+        } else {
+          const sClass = loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : loan.status === 'returned' ? 'good' : 'active';
+          const sLabel = loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : loan.status === 'returned' ? 'Returned' : 'On loan';
+          statusBadge.className = `loan-status ${sClass}`;
+          statusBadge.textContent = sLabel;
+        }
       }
 
-      const targetDueDate = document.querySelector('.equipment-target strong');
-      if (targetDueDate && loan.dueDate) targetDueDate.textContent = formatShortEST(loan.dueDate);
+      const targetDueDate = document.getElementById('loan-target-value') || document.querySelector('.equipment-target strong');
+      const targetLabel = document.getElementById('loan-target-label') || document.querySelector('.equipment-target span');
+      if (isReserved) {
+        if (targetLabel) targetLabel.textContent = 'Reserved Date';
+        if (targetDueDate) targetDueDate.textContent = loan.reservedDate ? formatShortEST(loan.reservedDate) : '—';
+      } else {
+        if (targetLabel) targetLabel.textContent = 'Due Date';
+        if (targetDueDate) targetDueDate.textContent = loan.dueDate ? formatShortEST(loan.dueDate) : '—';
+      }
 
       // Populate borrower profile information
       let borrowerInfo = null;
-      if (loan.borrowerNetId) {
-        const bRes = await apiClient.getBorrower(loan.borrowerNetId).catch(() => null);
+      if (bNetId) {
+        const bRes = typeof apiClient.getBorrower === 'function'
+          ? await apiClient.getBorrower(bNetId).catch(() => null)
+          : await apiClient.request(`/borrowers/${encodeURIComponent(bNetId)}`).catch(() => null);
         if (bRes && bRes.borrower) borrowerInfo = bRes.borrower;
       }
 
+      // Direct ID assignments
+      const elFullName = document.getElementById('borrower-full-name');
+      if (elFullName) elFullName.textContent = borrowerName;
+
+      const elNetId = document.getElementById('borrower-netid-val');
+      if (elNetId) elNetId.textContent = bNetId || (borrowerInfo && borrowerInfo.netid) || '—';
+
+      const elUid = document.getElementById('borrower-uid-val');
+      if (elUid) elUid.textContent = loan.universityId || (borrowerInfo && borrowerInfo.universityId) || '—';
+
+      const elAffiliation = document.getElementById('borrower-affiliation-val');
+      if (elAffiliation) elAffiliation.textContent = (borrowerInfo && borrowerInfo.role) || 'Undergraduate Student';
+
+      const elDept = document.getElementById('borrower-dept-val');
+      if (elDept) elDept.textContent = (borrowerInfo && borrowerInfo.department) || '—';
+
+      const elEmail = document.getElementById('borrower-email-val');
+      if (elEmail) elEmail.textContent = loan.email || (borrowerInfo && borrowerInfo.email) || (bNetId ? `${bNetId}@ualbany.edu` : '—');
+
+      const elStanding = document.getElementById('borrower-standing-val');
+      if (elStanding) {
+        const isGood = !borrowerInfo || borrowerInfo.status === 'good' || borrowerInfo.status === 'good-standing';
+        elStanding.innerHTML = `<span class="borrower-status ${isGood ? 'good' : 'warning'}">${isGood ? 'Good standing' : 'Follow-up needed'}</span>`;
+      }
+
+      const elLoanId = document.getElementById('loan-spec-id');
+      if (elLoanId) elLoanId.textContent = loan.id;
+
+      const elCheckoutDate = document.getElementById('loan-checkout-date');
+      if (elCheckoutDate) elCheckoutDate.textContent = isReserved ? '—' : (loan.checkoutDate ? formatShortEST(loan.checkoutDate) : '—');
+
+      const elReservedDate = document.getElementById('loan-reserved-date');
+      if (elReservedDate) elReservedDate.textContent = isReserved ? (loan.reservedDate ? formatShortEST(loan.reservedDate) : '—') : '—';
+
+      const elDueDate = document.getElementById('loan-due-date');
+      if (elDueDate) elDueDate.textContent = isReserved ? '—' : (loan.dueDate ? `${formatShortEST(loan.dueDate)} (Standard loan)` : '—');
+
+      const elBarcode = document.getElementById('loan-asset-barcode');
+      if (elBarcode) elBarcode.textContent = loan.assetTag || '—';
+
+      // Update dl list rows as well for backward compatibility
       document.querySelectorAll('.detail-list div').forEach(row => {
         const dt = row.querySelector('dt');
         const dd = row.querySelector('dd');
         if (!dt || !dd) return;
         const label = dt.textContent.trim().toLowerCase();
-        if (label === 'full name' && loan.borrower) dd.textContent = loan.borrower;
-        if (label === 'netid' && loan.netid) dd.textContent = loan.netid;
-        if (label === 'university id' && (loan.universityId || (borrowerInfo && borrowerInfo.universityId))) {
-          dd.textContent = loan.universityId || borrowerInfo.universityId;
-        }
+        if (label === 'full name') dd.textContent = borrowerName;
+        if (label === 'netid') dd.textContent = bNetId || (borrowerInfo && borrowerInfo.netid) || dd.textContent;
+        if (label === 'university id') dd.textContent = loan.universityId || (borrowerInfo && borrowerInfo.universityId) || dd.textContent;
         if (label === 'affiliation' && borrowerInfo && borrowerInfo.role) dd.textContent = borrowerInfo.role;
         if (label === 'department' && borrowerInfo && borrowerInfo.department) dd.textContent = borrowerInfo.department;
-        if (label === 'email' && (loan.email || (borrowerInfo && borrowerInfo.email))) {
-          dd.textContent = loan.email || borrowerInfo.email;
-        }
+        if (label === 'email') dd.textContent = loan.email || (borrowerInfo && borrowerInfo.email) || (bNetId ? `${bNetId}@ualbany.edu` : dd.textContent);
         if (label === 'account standing' && borrowerInfo) {
-          const isGood = borrowerInfo.status === 'good';
+          const isGood = !borrowerInfo.status || borrowerInfo.status === 'good' || borrowerInfo.status === 'good-standing';
           dd.innerHTML = `<span class="borrower-status ${isGood ? 'good' : 'warning'}">${isGood ? 'Good standing' : 'Follow-up needed'}</span>`;
         }
         if (label === 'loan id') dd.textContent = loan.id;
-        if (label === 'return due date' && loan.dueDate) dd.textContent = `${formatShortEST(loan.dueDate)} (Standard loan)`;
-        if (label === 'checked out' && loan.checkoutDate) dd.textContent = formatShortEST(loan.checkoutDate);
+        if (label === 'return due date') dd.textContent = isReserved ? '—' : (loan.dueDate ? `${formatShortEST(loan.dueDate)} (Standard loan)` : '—');
+        if (label === 'reserved date') dd.textContent = isReserved ? (loan.reservedDate ? formatShortEST(loan.reservedDate) : '—') : '—';
+        if (label === 'checked out') dd.textContent = isReserved ? '—' : (loan.checkoutDate ? formatShortEST(loan.checkoutDate) : '—');
         if (label === 'asset barcode' && loan.assetTag) dd.textContent = loan.assetTag;
       });
+
+      // Update kit accessories manifest
+      const accEl = document.getElementById('loan-accessories');
+      if (accEl) {
+        if (loan.accessories && Array.isArray(loan.accessories) && loan.accessories.length > 0) {
+          accEl.textContent = loan.accessories.join(', ');
+        } else if (loan.equipmentId) {
+          const eqRes = await apiClient.getEquipmentById(loan.equipmentId).catch(() => null);
+          if (eqRes && eqRes.equipment && Array.isArray(eqRes.equipment.accessories) && eqRes.equipment.accessories.length > 0) {
+            accEl.textContent = eqRes.equipment.accessories.join(', ');
+          }
+        }
+      }
 
       const returnActionBtn = document.querySelector('.detail-actions a.primary-action');
       if (returnActionBtn) {
@@ -1656,7 +1819,7 @@
 
         if (kpiRes && kpiRes.kpis && loansStats && !query) {
           const k = kpiRes.kpis;
-          loansStats.innerHTML = `All loans <b>${k.activeLoans != null ? k.activeLoans : 5}</b> &nbsp; Due today <b>${k.dueToday != null ? k.dueToday : 2}</b> &nbsp; Overdue <b>${k.overdue != null ? k.overdue : 1}</b>`;
+          loansStats.innerHTML = `All loans <b>${k.activeLoans != null ? k.activeLoans : 5}</b> &nbsp; Reserved <b>${k.reserved != null ? k.reserved : 1}</b> &nbsp; Overdue <b>${k.overdue != null ? k.overdue : 1}</b>`;
         }
 
         if (!loanRes || !loanRes.loans) return;
@@ -1667,9 +1830,15 @@
         } else {
           loanRes.loans.slice(0, 5).forEach(loan => {
             const tr = document.createElement('tr');
-            const statusClass = loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : '';
-            const statusLabel = loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
+            tr.dataset.loanId = loan.id;
+            tr.style.cursor = 'pointer';
+            tr.title = `View details for loan ${loan.id}`;
+            const statusClass = loan.status === 'reserved' ? 'reserved' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : '';
+            const statusLabel = loan.status === 'reserved' ? 'Reserved' : loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
             const isOverdue = (loan.status === 'overdue');
+
+            const displayDate = loan.checkoutDate ? formatShortEST(loan.checkoutDate) : (loan.reservedDate ? formatShortEST(loan.reservedDate) : '—');
+            const displayDue = loan.dueDate ? formatShortEST(loan.dueDate) : '—';
 
             tr.innerHTML = `
               <td>
@@ -1680,10 +1849,14 @@
                 <strong>${escapeHtml(loan.borrower)}</strong>
                 <small>${escapeHtml(loan.universityId || loan.netid)}</small>
               </td>
-              <td>${escapeHtml(formatShortEST(loan.checkoutDate))}</td>
-              <td class="${isOverdue ? 'overdue-text' : ''}">${escapeHtml(formatShortEST(loan.dueDate))}</td>
+              <td>${escapeHtml(displayDate)}</td>
+              <td class="${isOverdue ? 'overdue-text' : ''}">${escapeHtml(displayDue)}</td>
               <td><em class="loan-pill ${statusClass}">${statusLabel}</em></td>
             `;
+            tr.addEventListener('click', () => {
+              try { sessionStorage.setItem('current_loan_id', loan.id); } catch (e) {}
+              window.location.href = `loan-details.html?id=${encodeURIComponent(loan.id)}`;
+            });
             loansTbody.appendChild(tr);
           });
         }
@@ -1691,6 +1864,23 @@
         // Fallback gracefully
       }
     }
+
+    function bindStaticOverviewLoanRows() {
+      if (!loansTbody) return;
+      loansTbody.querySelectorAll('tr').forEach((tr) => {
+        const loanId = tr.dataset.loanId;
+        if (loanId) {
+          tr.style.cursor = 'pointer';
+          tr.title = `View details for loan ${loanId}`;
+          tr.addEventListener('click', () => {
+            try { sessionStorage.setItem('current_loan_id', loanId); } catch (e) {}
+            window.location.href = `loan-details.html?id=${encodeURIComponent(loanId)}`;
+          });
+        }
+      });
+    }
+
+    bindStaticOverviewLoanRows();
 
     if (loansTbody) {
       fetchAndRenderOverviewLoans(loanSearch ? loanSearch.value.trim() : '');
@@ -2430,7 +2620,14 @@
       if (loanTabsEls.length && kpis.activeLoans != null) {
         loanTabsEls.forEach(loanEl => {
           const links = loanEl.querySelectorAll('a');
-          if (links.length >= 2) {
+          if (links.length >= 3) {
+            const allBadge = links[0].querySelector('span');
+            if (allBadge) allBadge.textContent = kpis.activeLoans;
+            const reservedBadge = links[1].querySelector('span');
+            if (reservedBadge) reservedBadge.textContent = kpis.reserved != null ? kpis.reserved : 0;
+            const overdueBadge = links[2].querySelector('span');
+            if (overdueBadge) overdueBadge.textContent = kpis.overdue;
+          } else if (links.length === 2) {
             const allBadge = links[0].querySelector('span');
             if (allBadge) allBadge.textContent = kpis.activeLoans;
             const overdueBadge = links[1].querySelector('span');

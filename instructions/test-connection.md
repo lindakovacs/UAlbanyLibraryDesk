@@ -40,6 +40,7 @@ All 22 frontend HTML views and workflows are actively wired to the Node.js/Expre
 | **`equipment.html`** | Live equipment catalog & debounced search | `GET /api/equipment?search=...&category=...` | `equipment`, `equipment_accessories` |
 | **`new-loan.html`** | Equipment checkout form & NetID autofill | `POST /api/loans` (Atomic transaction) | `loans` (insert), `equipment` (decrement stock), `borrowers` (increment active loans) |
 | **`loans.html`** | Active equipment loans table & live search | `GET /api/loans?search=...` | `loans`, `equipment`, `borrowers` |
+| **`loans-reserved.html`** | Reserved loans filtered table & live search | `GET /api/loans?status=reserved&search=...` | `loans` (filtered by reserved status) |
 | **`loans-overdue.html`** | Overdue loans filtered table & live search | `GET /api/loans?status=overdue&search=...` | `loans` (filtered by due date) |
 | **`loan-details.html`** | Single loan record (`?id=LN-...`) | `GET /api/loans/:id` | `loans`, `equipment`, `borrowers` |
 | **`return-item.html`** | Return check-in & destination routing | `POST /api/loans/:id/return` | `loans` (status `returned`), `equipment` (increment stock), `preparation_items` (staging) |
@@ -350,6 +351,9 @@ curl -s http://localhost:3000/api/loans
 
 # Filter overdue loans
 curl -s "http://localhost:3000/api/loans?status=overdue"
+
+# Filter reserved loans
+curl -s "http://localhost:3000/api/loans?status=reserved"
 ```
 
 ### 5.3 KPI Summary Metrics API

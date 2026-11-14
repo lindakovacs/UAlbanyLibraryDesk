@@ -687,6 +687,21 @@ main {
   background-color: #26734d !important;
 }
 
+.status-badge.reserved,
+.status-badge[data-status="reserved"],
+.loan-status.reserved,
+.loan-status[data-status="reserved"] {
+  color: #0369a1 !important;
+  background: #e0f2fe !important;
+  background-color: #e0f2fe !important;
+}
+
+.status-badge.reserved::before,
+.status-badge[data-status="reserved"]::before {
+  background: #0284c7 !important;
+  background-color: #0284c7 !important;
+}
+
 .preparation-panel > table td:nth-child(2) .status-badge {
   color: #a4262c;
   background: #fde8e8;
@@ -1554,6 +1569,11 @@ main {
 .loan-status.due {
   color: #9a6500;
   background: #fff3d8;
+}
+
+.loan-status.reserved {
+  color: #0369a1;
+  background: #e0f2fe;
 }
 
 .overdue-date {
@@ -3157,6 +3177,11 @@ tbody tr:last-child td {
   .loan-pill.due {
     color: #9a6500;
     background: #fff3d8;
+  }
+
+  .loan-pill.reserved {
+    color: #0369a1;
+    background: #e0f2fe;
   }
 
   .loan-pill.overdue,

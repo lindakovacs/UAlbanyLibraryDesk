@@ -146,26 +146,40 @@
                 </div>
               </div>
 
-              <h3>3. Loan Duration &amp; Due Date</h3>
+              <h3>3. Loan Duration, Reservation &amp; Due Date</h3>
+              <p style="margin: -0.25rem 0 0.85rem; color: #6b6474; font-size: 0.8rem">
+                Select either an immediate checkout (requires Due Date) or a future reservation (Reserved Date only). Both dates cannot be filled at the same time.
+              </p>
               <div class="assignment-fields">
                 <div>
-                  <label for="checkout-date">Checkout date</label>
+                  <label for="checkout-date">Checkout date (for immediate checkout)</label>
                   <input
                     id="checkout-date"
                     name="checkedOut"
                     type="date"
                     value="2026-10-11"
-                    readonly
                   />
                 </div>
                 <div>
-                  <label for="due-date">Return due date</label>
+                  <label for="due-date">Return due date (required for checkout)</label>
                   <input
                     id="due-date"
                     name="due"
                     type="date"
                     value="2026-10-15"
                     required
+                  />
+                </div>
+              </div>
+
+              <div class="assignment-fields" style="margin-top: 1rem">
+                <div style="grid-column: 1 / -1">
+                  <label for="reserved-date">Reserved date (future pickup claim — triggers Reserved status; leaves checkout date empty)</label>
+                  <input
+                    id="reserved-date"
+                    name="reservedDate"
+                    type="date"
+                    placeholder="YYYY-MM-DD"
                   />
                 </div>
               </div>
@@ -229,6 +243,46 @@
               }
             }
           }
+        }
+        const checkoutInput = document.getElementById('checkout-date');
+        const dueInput = document.getElementById('due-date');
+        const reservedInput = document.getElementById('reserved-date');
+
+        function syncDates() {
+          if (reservedInput && reservedInput.value.trim()) {
+            if (checkoutInput) {
+              checkoutInput.value = '';
+              checkoutInput.disabled = true;
+            }
+            if (dueInput) {
+              dueInput.value = '';
+              dueInput.removeAttribute('required');
+              dueInput.disabled = true;
+            }
+          } else {
+            if (checkoutInput) {
+              checkoutInput.disabled = false;
+              if (!checkoutInput.value) checkoutInput.value = '2026-10-11';
+            }
+            if (dueInput) {
+              dueInput.disabled = false;
+              dueInput.setAttribute('required', 'required');
+              if (!dueInput.value) dueInput.value = '2026-10-15';
+            }
+          }
+        }
+
+        if (reservedInput) {
+          reservedInput.addEventListener('input', syncDates);
+          reservedInput.addEventListener('change', syncDates);
+        }
+        if (checkoutInput) {
+          checkoutInput.addEventListener('input', function() {
+            if (checkoutInput.value && reservedInput) {
+              reservedInput.value = '';
+              syncDates();
+            }
+          });
         }
       })();
     </script>

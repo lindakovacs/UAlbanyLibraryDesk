@@ -180,7 +180,22 @@ JOIN equipment e ON l.equipment_id = e.id
 JOIN borrowers b ON l.borrower_netid = b.netid
 WHERE l.status = 'due-today' OR DATE(l.due_date) = CURDATE();
 
--- 5.4 Transaction Test: Simulate a new checkout
+-- 5.4 Filter: Reserved loans claimed for future date
+SELECT 
+  l.id AS loan_id,
+  e.name AS equipment_name,
+  b.name AS borrower_name,
+  b.email AS borrower_email,
+  l.reserved_date,
+  l.due_date,
+  l.status
+FROM loans l
+JOIN equipment e ON l.equipment_id = e.id
+JOIN borrowers b ON l.borrower_netid = b.netid
+WHERE l.status = 'reserved' OR l.reserved_date IS NOT NULL
+ORDER BY l.reserved_date ASC;
+
+-- 5.5 Transaction Test: Simulate a new checkout
 -- Step A: Insert new loan
 INSERT INTO loans (id, equipment_id, borrower_netid, asset_tag, checkout_date, due_date, status)
 VALUES ('LN-TEST-01', 'EQ-002', 'james.chen', 'ALB-EQ-002-TEST', NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 'active');

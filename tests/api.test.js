@@ -1,5 +1,7 @@
 const assert = require('assert');
 const request = require('supertest');
+const fs = require('fs');
+const path = require('path');
 
 // Set NODE_ENV to test to suppress access logs during testing
 process.env.NODE_ENV = 'test';
@@ -196,9 +198,64 @@ async function runTests() {
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.total, 1);
     assert.strictEqual(res.body.loans[0].id, 'LN-1040');
+    assert(res.body.loans[0].checkoutDate);
+    assert.strictEqual(res.body.loans[0].reservedDate, null);
   });
 
-  await test('POST /api/loans creates a new equipment checkout', async () => {
+  await test('GET /api/loans?status=reserved filters reserved loans', async () => {
+    const res = await request(app).get('/api/loans?status=reserved');
+    assert.strictEqual(res.status, 200);
+    assert(res.body.total >= 1);
+    const reservedLoan = res.body.loans.find(l => l.id === 'LN-1039');
+    assert(reservedLoan);
+    assert.strictEqual(reservedLoan.status, 'reserved');
+    assert(reservedLoan.reservedDate);
+    assert.strictEqual(reservedLoan.checkoutDate, null);
+    assert.strictEqual(reservedLoan.dueDate, null);
+  });
+
+  await test('GET /api/loans/:id returns reserved loan details without checkout date or due date', async () => {
+    const res = await request(app).get('/api/loans/LN-1039');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.status, 'success');
+    assert.strictEqual(res.body.loan.id, 'LN-1039');
+    assert.strictEqual(res.body.loan.status, 'reserved');
+    assert(res.body.loan.reservedDate);
+    assert.strictEqual(res.body.loan.checkoutDate, null);
+    assert.strictEqual(res.body.loan.dueDate, null);
+    assert.strictEqual(res.body.loan.borrowerNetId, 'noah.thompson');
+  });
+
+  await test('GET /api/loans/:id returns standard loan details with checkout and due dates but null reserved date', async () => {
+    const res = await request(app).get('/api/loans/LN-1040');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.status, 'success');
+    assert.strictEqual(res.body.loan.id, 'LN-1040');
+    assert.strictEqual(res.body.loan.status, 'overdue');
+    assert(res.body.loan.checkoutDate);
+    assert(res.body.loan.dueDate);
+    assert.strictEqual(res.body.loan.reservedDate, null);
+    assert.strictEqual(res.body.loan.borrowerNetId, 'olivia.martinez');
+  });
+
+  await test('POST /api/loans with reservedDate triggers reserved status without checkout date or return due date', async () => {
+    const res = await request(app)
+      .post('/api/loans')
+      .send({
+        netid: 'james.chen',
+        borrower: 'James Chen',
+        equipmentId: 'EQ-001',
+        reservedDate: '2026-10-18T10:00:00.000Z'
+      });
+    assert.strictEqual(res.status, 201);
+    assert.strictEqual(res.body.status, 'success');
+    assert.strictEqual(res.body.loan.status, 'reserved');
+    assert(res.body.loan.reservedDate);
+    assert.strictEqual(res.body.loan.checkoutDate, null);
+    assert.strictEqual(res.body.loan.dueDate, null);
+  });
+
+  await test('POST /api/loans creates a new equipment checkout with normal active status', async () => {
     const res = await request(app)
       .post('/api/loans')
       .send({
@@ -211,6 +268,10 @@ async function runTests() {
     assert.strictEqual(res.body.status, 'success');
     assert(res.body.loan.id.startsWith('LN-'));
     assert.strictEqual(res.body.loan.equipmentId, 'EQ-002');
+    assert.strictEqual(res.body.loan.status, 'active');
+    assert(res.body.loan.checkoutDate);
+    assert(res.body.loan.dueDate);
+    assert.strictEqual(res.body.loan.reservedDate, null);
   });
 
   await test('POST /api/loans/:id/return processes equipment return check-in', async () => {
@@ -322,6 +383,37 @@ async function runTests() {
     const res = await request(app).get('/api/unmatched-endpoint');
     assert.strictEqual(res.status, 404);
     assert.strictEqual(res.body.error, 'Not Found');
+  });
+
+  // 9. Client Scripts Syntax and Loan Record Integrity
+  await test('api-client.js and components.js parse cleanly without syntax errors', async () => {
+    const vm = require('vm');
+    const apiCode = fs.readFileSync(path.join(__dirname, '../api-client.js'), 'utf8');
+    assert.doesNotThrow(() => {
+      new vm.Script(apiCode);
+    }, 'api-client.js syntax error');
+
+    const compCode = fs.readFileSync(path.join(__dirname, '../components.js'), 'utf8');
+    assert.doesNotThrow(() => {
+      new vm.Script(compCode);
+    }, 'components.js syntax error');
+  });
+
+  await test('All loan records return distinct equipment items matching catalog', async () => {
+    const expected = {
+      'LN-1042': { equipmentName: 'Mirrorless Camera Kit', borrower: 'Emma Wilson' },
+      'LN-1041': { equipmentName: 'Nintendo Switch', borrower: 'James Chen' },
+      'LN-1040': { equipmentName: 'H4 Zoom Audio Recording Kit', borrower: 'Olivia Martinez' },
+      'LN-1039': { equipmentName: '3D Scanning Kit (Revopoint POP 3 Plus)', borrower: 'Noah Thompson' },
+      'LN-1038': { equipmentName: 'Rode Wireless GO II Microphone System', borrower: 'Sophia Lee' }
+    };
+
+    for (const [id, exp] of Object.entries(expected)) {
+      const res = await request(app).get(`/api/loans/${id}`);
+      assert.strictEqual(res.status, 200, `Loan ${id} not found`);
+      assert.strictEqual(res.body.loan.equipmentName, exp.equipmentName, `Item mismatch for ${id}`);
+      assert.strictEqual(res.body.loan.borrowerName, exp.borrower, `Borrower mismatch for ${id}`);
+    }
   });
 
   console.log(`\n-----------------------------------------`);

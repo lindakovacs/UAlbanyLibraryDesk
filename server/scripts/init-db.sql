@@ -97,10 +97,11 @@ CREATE TABLE `loans` (
   `equipment_id` VARCHAR(20) NOT NULL,
   `borrower_netid` VARCHAR(50) NOT NULL,
   `asset_tag` VARCHAR(50) NULL,
-  `checkout_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `due_date` DATETIME NOT NULL,
+  `checkout_date` DATETIME NULL,
+  `due_date` DATETIME NULL,
+  `reserved_date` DATETIME NULL,
   `return_date` DATETIME NULL,
-  `status` ENUM('active', 'due-today', 'overdue', 'returned') NOT NULL DEFAULT 'active',
+  `status` ENUM('active', 'due-today', 'overdue', 'returned', 'reserved') NOT NULL DEFAULT 'active',
   `return_condition` VARCHAR(50) NULL,
   `destination` VARCHAR(50) NULL,
   `return_notes` TEXT NULL,
@@ -108,6 +109,7 @@ CREATE TABLE `loans` (
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX `idx_loans_status` (`status`),
   INDEX `idx_loans_due_date` (`due_date`),
+  INDEX `idx_loans_reserved_date` (`reserved_date`),
   CONSTRAINT `fk_loans_equipment` FOREIGN KEY (`equipment_id`) 
     REFERENCES `equipment` (`id`),
   CONSTRAINT `fk_loans_borrower` FOREIGN KEY (`borrower_netid`) 
@@ -266,13 +268,13 @@ INSERT INTO `borrowers` (`netid`, `name`, `university_id`, `email`, `department`
 ON DUPLICATE KEY UPDATE `name`=VALUES(`name`);
 
 -- Seed Loans (5 circulation records)
-INSERT INTO `loans` (`id`, `equipment_id`, `borrower_netid`, `asset_tag`, `checkout_date`, `due_date`, `status`) VALUES
-('LN-1042', 'EQ-001', 'emma.wilson', 'ALB-EQ-001-A', '2026-10-06 14:30:00', '2026-10-13 17:00:00', 'active'),
-('LN-1041', 'EQ-002', 'james.chen', 'ALB-EQ-002-C', '2026-10-04 10:15:00', '2026-10-11 17:00:00', 'due-today'),
-('LN-1040', 'EQ-003', 'olivia.martinez', 'ALB-EQ-003-B', '2026-10-02 11:00:00', '2026-10-09 17:00:00', 'overdue'),
-('LN-1039', 'EQ-004', 'noah.thompson', 'ALB-EQ-004-A', '2026-10-05 13:45:00', '2026-10-12 17:00:00', 'active'),
-('LN-1038', 'EQ-005', 'sophia.lee', 'ALB-EQ-005-B', '2026-10-04 09:30:00', '2026-10-11 17:00:00', 'due-today')
-ON DUPLICATE KEY UPDATE `status`=VALUES(`status`);
+INSERT INTO `loans` (`id`, `equipment_id`, `borrower_netid`, `asset_tag`, `checkout_date`, `due_date`, `reserved_date`, `status`) VALUES
+('LN-1042', 'EQ-001', 'emma.wilson', 'ALB-EQ-001-A', '2026-10-06 14:30:00', '2026-10-13 17:00:00', NULL, 'active'),
+('LN-1041', 'EQ-002', 'james.chen', 'ALB-EQ-002-C', '2026-10-04 10:15:00', '2026-10-11 17:00:00', NULL, 'due-today'),
+('LN-1040', 'EQ-003', 'olivia.martinez', 'ALB-EQ-003-B', '2026-10-02 11:00:00', '2026-10-09 17:00:00', NULL, 'overdue'),
+('LN-1039', 'EQ-004', 'noah.thompson', 'ALB-EQ-004-A', NULL, NULL, '2026-10-14 09:00:00', 'reserved'),
+('LN-1038', 'EQ-005', 'sophia.lee', 'ALB-EQ-005-B', '2026-10-04 09:30:00', '2026-10-11 17:00:00', NULL, 'due-today')
+ON DUPLICATE KEY UPDATE `status`=VALUES(`status`), `reserved_date`=VALUES(`reserved_date`), `checkout_date`=VALUES(`checkout_date`), `due_date`=VALUES(`due_date`);
 
 -- Seed Preparation Queue Items (11 records matching UI queue screenshots)
 INSERT INTO `preparation_items` (`id`, `equipment_id`, `equipment_name`, `category`, `assigned_staff`, `target_date`, `status`, `current_step`, `notes`) VALUES

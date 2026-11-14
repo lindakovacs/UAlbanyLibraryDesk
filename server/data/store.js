@@ -243,6 +243,7 @@ const initialLoans = [
     universityId: '001482759',
     checkoutDate: '2026-10-06T18:30:00.000Z',
     dueDate: '2026-10-13T21:00:00.000Z',
+    reservedDate: null,
     status: 'active',
     assetTag: 'ALB-EQ-001-A',
     accessories: ['Camera body', '28-70mm lens', '64GB SD card', 'Rechargeable battery', 'Charger', 'Carry bag']
@@ -257,6 +258,7 @@ const initialLoans = [
     universityId: '001573024',
     checkoutDate: '2026-10-04T14:15:00.000Z',
     dueDate: '2026-10-11T21:00:00.000Z',
+    reservedDate: null,
     status: 'due-today',
     assetTag: 'ALB-EQ-002-C',
     accessories: ['Console', 'Left/Right Joy-Con', 'Dock', 'AC adapter', 'HDMI cable']
@@ -271,6 +273,7 @@ const initialLoans = [
     universityId: '001492831',
     checkoutDate: '2026-10-02T15:00:00.000Z',
     dueDate: '2026-10-09T21:00:00.000Z',
+    reservedDate: null,
     status: 'overdue',
     assetTag: 'ALB-EQ-003-B',
     accessories: ['H4n recorder', 'Windscreen', 'Power supply', 'Case', '16GB SD card']
@@ -283,9 +286,10 @@ const initialLoans = [
     borrowerNetId: 'noah.thompson',
     borrowerName: 'Noah Thompson',
     universityId: '001583902',
-    checkoutDate: '2026-10-05T17:45:00.000Z',
-    dueDate: '2026-10-12T21:00:00.000Z',
-    status: 'active',
+    checkoutDate: null,
+    dueDate: null,
+    reservedDate: '2026-10-14T13:00:00.000Z',
+    status: 'reserved',
     assetTag: 'ALB-EQ-004-A',
     accessories: ['Scanner head', 'Turntable', 'Tripod', 'Calibration board', 'USB-C cable']
   },
@@ -299,6 +303,7 @@ const initialLoans = [
     universityId: '001482610',
     checkoutDate: '2026-10-04T13:30:00.000Z',
     dueDate: '2026-10-11T21:00:00.000Z',
+    reservedDate: null,
     status: 'due-today',
     assetTag: 'ALB-EQ-005-B',
     accessories: ['Dual transmitters', 'Single receiver', '2x furry windshields', '3.5mm TRS cable', 'Pouch']
@@ -853,6 +858,8 @@ class DataStore {
 
         if (raw === 'overdue') {
           searchClauses.push("l.status = 'overdue'");
+        } else if (raw === 'reserved') {
+          searchClauses.push("l.status = 'reserved'");
         } else if (raw === 'due' || raw === 'due today' || raw === 'due-today' || raw === 'today') {
           searchClauses.push("l.status IN ('due-today', 'overdue')");
         } else if (raw === 'active') {
@@ -879,6 +886,7 @@ class DataStore {
           universityId: r.university_id,
           checkoutDate: r.checkout_date,
           dueDate: r.due_date,
+          reservedDate: r.reserved_date,
           returnDate: r.return_date,
           status: r.status,
           assetTag: r.asset_tag,
@@ -909,10 +917,12 @@ class DataStore {
         const tag = (l.assetTag || '').toLowerCase();
         const dDate = (l.dueDate || '').toLowerCase();
         const cDate = (l.checkoutDate || '').toLowerCase();
+        const rDate = (l.reservedDate || '').toLowerCase();
 
         const statusMatch = (
           s.includes(q) ||
           (q === 'overdue' && s === 'overdue') ||
+          (q === 'reserved' && s === 'reserved') ||
           ((q === 'due' || q === 'due today' || q === 'today') && (s === 'due-today' || s === 'overdue')) ||
           (q === 'active' && s === 'active') ||
           (q === 'returned' && s === 'returned')
@@ -929,6 +939,7 @@ class DataStore {
           tag.includes(q) ||
           dDate.includes(q) ||
           cDate.includes(q) ||
+          rDate.includes(q) ||
           statusMatch
         );
       });
@@ -960,6 +971,7 @@ class DataStore {
           universityId: r.university_id,
           checkoutDate: r.checkout_date,
           dueDate: r.due_date,
+          reservedDate: r.reserved_date,
           returnDate: r.return_date,
           status: r.status,
           assetTag: r.asset_tag,
@@ -977,8 +989,27 @@ class DataStore {
   async createLoan(data) {
     const nextNum = 1043 + this.loans.length - 5;
     const loanId = `LN-${nextNum}`;
-    const checkoutDate = new Date().toISOString();
-    const dueDate = data.dueDate || new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+    const hasReserved = Boolean(data.reservedDate && data.reservedDate.toString().trim() !== '');
+
+    let checkoutDate = null;
+    let dueDate = null;
+    let reservedDate = null;
+    let status = 'active';
+
+    if (hasReserved) {
+      // Reserved item: only reservedDate is filled; checkoutDate is null; status is reserved
+      reservedDate = new Date(data.reservedDate).toISOString();
+      checkoutDate = null;
+      dueDate = data.dueDate ? new Date(data.dueDate).toISOString() : null;
+      status = 'reserved';
+    } else {
+      // Checked out item: checkoutDate is filled, dueDate is required, reservedDate is null, normal status
+      checkoutDate = data.checkoutDate ? new Date(data.checkoutDate).toISOString() : new Date().toISOString();
+      dueDate = data.dueDate ? new Date(data.dueDate).toISOString() : new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+      reservedDate = null;
+      status = data.status || 'active';
+    }
+
     const assetTag = data.assetTag || `ALB-${data.equipmentId}-A`;
 
     let conn;
@@ -987,8 +1018,8 @@ class DataStore {
       await conn.beginTransaction();
 
       await conn.query(
-        'INSERT INTO loans (id, equipment_id, borrower_netid, asset_tag, checkout_date, due_date, status) VALUES (?, ?, ?, ?, ?, ?, ?);',
-        [loanId, data.equipmentId, data.netid, assetTag, new Date(checkoutDate), new Date(dueDate), 'active']
+        'INSERT INTO loans (id, equipment_id, borrower_netid, asset_tag, checkout_date, due_date, reserved_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
+        [loanId, data.equipmentId, data.netid, assetTag, checkoutDate ? new Date(checkoutDate) : null, dueDate ? new Date(dueDate) : null, reservedDate ? new Date(reservedDate) : null, status]
       );
 
       await conn.query(
@@ -1030,7 +1061,8 @@ class DataStore {
       universityId: borrower ? borrower.universityId : (data.universityId || '001999999'),
       checkoutDate,
       dueDate,
-      status: 'active',
+      reservedDate,
+      status,
       assetTag,
       accessories: eq ? eq.accessories : []
     };
@@ -1363,7 +1395,8 @@ class DataStore {
   async getSummaryKPIs() {
     try {
       const [eqRows] = await pool.query('SELECT SUM(total_quantity) AS total FROM equipment;');
-      const [loanRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status IN ('active', 'due-today', 'overdue');");
+      const [loanRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status IN ('active', 'due-today', 'overdue', 'reserved');");
+      const [reservedRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status = 'reserved';");
       const [dueRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status = 'due-today';");
       const [overdueRows] = await pool.query("SELECT COUNT(*) AS total FROM loans WHERE status = 'overdue';");
 
@@ -1376,6 +1409,7 @@ class DataStore {
       return {
         totalEquipment: Number(eqRows[0].total) || 28,
         activeLoans: Number(loanRows[0].total),
+        reserved: Number(reservedRows[0].total),
         dueToday: Number(dueRows[0].total),
         overdue: Number(overdueRows[0].total),
         preparation: {
@@ -1391,7 +1425,8 @@ class DataStore {
     }
 
     const totalEquipment = this.equipment.reduce((acc, eq) => acc + eq.total, 0);
-    const activeLoans = this.loans.filter(l => l.status === 'active' || l.status === 'due-today' || l.status === 'overdue').length;
+    const activeLoans = this.loans.filter(l => l.status === 'active' || l.status === 'due-today' || l.status === 'overdue' || l.status === 'reserved').length;
+    const reserved = this.loans.filter(l => l.status === 'reserved').length;
     const dueToday = this.loans.filter(l => l.status === 'due-today').length;
     const overdue = this.loans.filter(l => l.status === 'overdue').length;
 
@@ -1403,6 +1438,7 @@ class DataStore {
     return {
       totalEquipment: 28,
       activeLoans,
+      reserved,
       dueToday,
       overdue,
       preparation: {

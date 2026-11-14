@@ -8,7 +8,7 @@
  * - <app-footer></app-footer>
  * - <preparation-tabs [active="awaiting|in-prep|review|ready|all"]></preparation-tabs>
  * - <preparation-steps [active="1|2|3|4|details|assignment|checklist|review"]></preparation-steps>
- * - <loan-tabs [active="all|overdue"]></loan-tabs>
+ * - <loan-tabs [active="all|reserved|overdue"]></loan-tabs>
  */
 
 (function () {
@@ -701,6 +701,7 @@
       this.innerHTML = `
         <div class="loan-tabs" role="tablist" aria-label="Loan status">
           <a class="${active === 'all' ? 'active' : ''}" href="loans.html"${active === 'all' ? ' aria-current="page"' : ''}>All loans <span>5</span></a>
+          <a class="${active === 'reserved' ? 'active' : ''}" href="loans-reserved.html"${active === 'reserved' ? ' aria-current="page"' : ''}>Reserved <span>1</span></a>
           <a class="${active === 'overdue' ? 'active' : ''}" href="loans-overdue.html"${active === 'overdue' ? ' aria-current="page"' : ''}>Overdue <span>1</span></a>
         </div>
       `;
