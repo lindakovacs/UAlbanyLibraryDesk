@@ -2,7 +2,7 @@ const mysql = require('mysql2/promise');
 const config = require('./index');
 
 // Create a connection pool for MySQL
-const pool = mysql.createPool({
+const poolOptions = {
   host: config.db.host,
   port: config.db.port,
   user: config.db.user,
@@ -13,7 +13,13 @@ const pool = mysql.createPool({
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0
-});
+};
+
+if (config.db.ssl) {
+  poolOptions.ssl = config.db.ssl;
+}
+
+const pool = mysql.createPool(poolOptions);
 
 /**
  * Execute a parameterized SQL query using the connection pool

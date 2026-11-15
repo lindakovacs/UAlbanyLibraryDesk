@@ -36,7 +36,8 @@ const config = {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : '',
     database: process.env.DB_NAME || 'ualbanylibrarydesk',
-    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 10
+    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 10,
+    ssl: process.env.DB_SSL === 'true' || process.env.DB_SSL === '1' ? { rejectUnauthorized: false } : undefined
   }
 };
 

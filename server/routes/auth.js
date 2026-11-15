@@ -108,8 +108,8 @@ router.post('/login', validateBody(['netid', 'password']), async (req, res, next
       isMatch = await bcrypt.compare(password, userRecord.password_hash);
     }
 
-    // Fallback for demo/test mode: if hash is not set or matches default password
-    if (!isMatch && (password === 'password123' || password === 'midterm@26!')) {
+    // Fallback for demo/test mode: if hash is not set or matches default test password
+    if (!isMatch && password === 'password123') {
       isMatch = true;
     }
 

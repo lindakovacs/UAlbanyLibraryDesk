@@ -16,13 +16,17 @@ async function runMigrations() {
   try {
     // 1. Connect without selecting database first to create database if not exists
     console.log('Connecting to MySQL server...');
-    connection = await mysql.createConnection({
+    const connOptions = {
       host: config.db.host,
       port: config.db.port,
       user: config.db.user,
       password: config.db.password,
       multipleStatements: true
-    });
+    };
+    if (config.db.ssl) {
+      connOptions.ssl = config.db.ssl;
+    }
+    connection = await mysql.createConnection(connOptions);
     console.log('✓ Connected to MySQL server.');
 
     // 2. Create database if it does not exist

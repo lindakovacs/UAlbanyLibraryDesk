@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+  const API_BASE = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null' && !window.location.protocol.startsWith('file'))
     ? `${window.location.origin}/api`
     : 'http://localhost:3000/api';
 
