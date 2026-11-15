@@ -641,6 +641,50 @@ async function runTests() {
     assert.ok(css.includes('.registrar-text'), 'styles.css must style .registrar-text');
   });
 
+  await test('Server-side Auth Guard redirects unauthenticated visitors to login.html', async () => {
+    // 1. Unauthenticated root request redirects to /login.html
+    const rootRes = await request(app).get('/');
+    assert.strictEqual(rootRes.status, 302);
+    assert.strictEqual(rootRes.headers.location, '/login.html');
+
+    // 2. Unauthenticated request to /index.html redirects to /login.html
+    const indexRes = await request(app).get('/index.html');
+    assert.strictEqual(indexRes.status, 302);
+    assert.strictEqual(indexRes.headers.location, '/login.html');
+
+    // 3. Unauthenticated request to /loans.html preserves destination in query param
+    const loansRes = await request(app).get('/loans.html');
+    assert.strictEqual(loansRes.status, 302);
+    assert.strictEqual(loansRes.headers.location, '/login.html?redirect=%2Floans.html');
+
+    // 4. Authenticated request with session cookie is permitted to access /
+    const authRootRes = await request(app)
+      .get('/')
+      .set('Cookie', 'librarydesk_session=active');
+    assert.strictEqual(authRootRes.status, 200);
+    assert.ok(authRootRes.text.includes('LibraryDesk | Overview'));
+
+    // 5. Public assets (login.html, styles.css) are accessible without session cookie
+    const loginRes = await request(app).get('/login.html');
+    assert.strictEqual(loginRes.status, 200);
+
+    const cssRes = await request(app).get('/styles.css');
+    assert.strictEqual(cssRes.status, 200);
+
+    // 6. POST /api/auth/login sets session cookie and logout clears it
+    const loginApiRes = await request(app)
+      .post('/api/auth/login')
+      .send({ netid: 'linda.kovacs', password: 'password123' });
+    assert.strictEqual(loginApiRes.status, 200);
+    const setCookie = loginApiRes.headers['set-cookie'] || [];
+    assert.ok(setCookie.some(c => c.includes('librarydesk_session=active')));
+
+    const logoutApiRes = await request(app).post('/api/auth/logout');
+    assert.strictEqual(logoutApiRes.status, 200);
+    const clearCookie = logoutApiRes.headers['set-cookie'] || [];
+    assert.ok(clearCookie.some(c => c.includes('librarydesk_session=;')));
+  });
+
   console.log(`\n-----------------------------------------`);
   console.log(`API Tests: ${passed} passed, ${failed} failed, ${passed + failed} total`);
   console.log(`-----------------------------------------`);

@@ -128,6 +128,9 @@ router.post('/login', validateBody(['netid', 'password']), async (req, res, next
     // Update in-memory session
     await store.login(netid, password);
 
+    // Set session cookie for protected static page navigation
+    res.setHeader('Set-Cookie', 'librarydesk_session=active; Path=/; SameSite=Lax; Max-Age=604800');
+
     res.status(200).json({
       status: 'success',
       message: `Successfully authenticated as ${user.name}`,
@@ -248,6 +251,9 @@ router.post('/register', validateBody(['netid', 'password', 'name', 'email']), a
     const token = generateToken(newUser);
     const user = sanitizeUser(newUser);
 
+    // Set session cookie for protected static page navigation
+    res.setHeader('Set-Cookie', 'librarydesk_session=active; Path=/; SameSite=Lax; Max-Age=604800');
+
     res.status(201).json({
       status: 'success',
       message: `Staff member ${name} registered successfully`,
@@ -281,6 +287,8 @@ router.get('/session', async (req, res) => {
  */
 router.post('/logout', async (req, res) => {
   const result = await store.logout();
+  // Clear session cookie on logout
+  res.setHeader('Set-Cookie', 'librarydesk_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
   res.status(200).json({
     status: 'success',
     message: 'Signed out successfully',

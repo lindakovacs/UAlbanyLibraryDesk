@@ -5,6 +5,31 @@
 (function () {
   'use strict';
 
+  // -------------------------------------------------------------
+  // Route Authentication Guard
+  // Redirect unauthenticated visitors on protected pages to login.html
+  // -------------------------------------------------------------
+  (function enforceAuthGuard() {
+    if (typeof window === 'undefined' || !window.location || typeof localStorage === 'undefined') return;
+
+    const path = (window.location.pathname || '').toLowerCase();
+    const isLoginPage = path.endsWith('/login.html') || path.endsWith('/login') || path.endsWith('login.html');
+
+    if (isLoginPage) return;
+
+    const token = localStorage.getItem('librarydesk_token');
+    if (!token) {
+      if (typeof document !== 'undefined' && document.documentElement) {
+        document.documentElement.style.display = 'none';
+      }
+      const target = window.location.pathname + window.location.search;
+      const redirectQuery = (target && target !== '/' && !target.endsWith('index.html'))
+        ? `?redirect=${encodeURIComponent(target)}`
+        : '';
+      window.location.replace(`login.html${redirectQuery}`);
+    }
+  })();
+
   const API_BASE = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null' && !window.location.protocol.startsWith('file'))
     ? `${window.location.origin}/api`
     : 'http://localhost:3000/api';
@@ -45,6 +70,15 @@
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        if (res.status === 401 && !endpoint.includes('/auth/login')) {
+          this.clearSession();
+          if (typeof window !== 'undefined' && window.location) {
+            const currentPath = (window.location.pathname || '').toLowerCase();
+            if (!currentPath.endsWith('login.html')) {
+              window.location.replace('login.html?expired=1');
+            }
+          }
+        }
         const error = new Error(data.message || `Request failed with status ${res.status}`);
         error.status = res.status;
         error.data = data;
@@ -161,6 +195,28 @@
     const loginForm = document.querySelector('.login-card');
     if (loginForm && !loginForm.dataset.apiBound) {
       loginForm.dataset.apiBound = 'true';
+
+      // Check for session expired notice
+      if (typeof window !== 'undefined' && window.location) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('expired') === '1' && !loginForm.querySelector('.login-error-banner')) {
+          const expiredBanner = document.createElement('div');
+          expiredBanner.className = 'login-error-banner';
+          expiredBanner.setAttribute('role', 'alert');
+          expiredBanner.style.cssText = `
+            background: #fff8e6;
+            border: 1px solid #ffd591;
+            color: #874d00;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+          `;
+          expiredBanner.textContent = 'Your session has expired. Sign in with your NetID credentials to continue.';
+          loginForm.insertBefore(expiredBanner, loginForm.querySelector('.form-field'));
+        }
+      }
+
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const netidInput = document.getElementById('netid');
@@ -199,7 +255,15 @@
 
         try {
           await apiClient.login(netid, password);
-          window.location.href = 'index.html';
+          const params = (typeof window !== 'undefined' && window.location)
+            ? new URLSearchParams(window.location.search)
+            : null;
+          const redirectTarget = params ? params.get('redirect') : null;
+          if (redirectTarget && redirectTarget.startsWith('/') && !redirectTarget.includes('//')) {
+            window.location.href = redirectTarget;
+          } else {
+            window.location.href = 'index.html';
+          }
         } catch (err) {
           if (submitBtn) {
             submitBtn.disabled = false;

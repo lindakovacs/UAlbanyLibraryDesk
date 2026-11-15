@@ -47,6 +47,41 @@ app.use('/api/loans', loansRoutes);
 app.use('/api/preparation', preparationRoutes);
 app.use('/api/reports', reportsRoutes);
 
+// Helper to parse cookies from incoming HTTP requests
+function parseCookies(req) {
+  const list = {};
+  const cookieHeader = req.headers && req.headers.cookie;
+  if (!cookieHeader) return list;
+  cookieHeader.split(';').forEach(cookie => {
+    let [name, ...rest] = cookie.split('=');
+    name = name ? name.trim() : '';
+    if (name) {
+      list[name] = decodeURIComponent(rest.join('=').trim());
+    }
+  });
+  return list;
+}
+
+// Server-side Authentication Guard: Protect root and staff HTML pages
+app.use((req, res, next) => {
+  const reqPath = req.path.toLowerCase();
+
+  const isRoot = reqPath === '/';
+  const isHtml = reqPath.endsWith('.html');
+  const isLoginPage = reqPath === '/login.html' || reqPath === '/login';
+
+  if ((isRoot || isHtml) && !isLoginPage) {
+    const cookies = parseCookies(req);
+    if (!cookies.librarydesk_session) {
+      const redirectQuery = (!isRoot && reqPath !== '/index.html')
+        ? `?redirect=${encodeURIComponent(req.originalUrl || reqPath)}`
+        : '';
+      return res.redirect(302, `/login.html${redirectQuery}`);
+    }
+  }
+  next();
+});
+
 // Serve static frontend assets (HTML, CSS, client-side JS, images)
 const publicDir = path.resolve(__dirname, '..');
 app.use(express.static(publicDir, {
