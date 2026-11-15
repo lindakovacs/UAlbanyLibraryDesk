@@ -845,7 +845,8 @@
       res.loans.forEach(loan => {
         const opt = document.createElement('option');
         opt.value = loan.id;
-        opt.textContent = `${loan.id} · ${loan.borrower} · ${loan.equipmentName || loan.equipmentId} (Due ${formatShortEST(loan.dueDate)})`;
+        const bName = loan.borrowerName || loan.borrower || 'Borrower';
+        opt.textContent = `${loan.id} · ${bName} · ${loan.equipmentName || loan.equipmentId} (Due ${formatShortEST(loan.dueDate)})`;
         if (loan.id === preselectedLoan) {
           opt.selected = true;
         }
@@ -939,8 +940,8 @@
                 ${registrarCell}
                 <td>
                   <span class="borrower-cell">
-                    <strong>${escapeHtml(loan.borrower || '—')}</strong>
-                    <small>${escapeHtml(loan.netid || '—')}</small>
+                    <strong>${escapeHtml(loan.borrowerName || loan.borrower || '—')}</strong>
+                    <small>${escapeHtml(loan.universityId || loan.borrowerNetId || loan.netid || '—')}</small>
                   </span>
                 </td>
                 <td>${escapeHtml(displayDate)}</td>
@@ -2341,8 +2342,8 @@
                 <small>${escapeHtml(loan.equipmentId)} · ${escapeHtml(loan.category || 'Creative Technology')}</small>
               </td>
               <td>
-                <strong>${escapeHtml(loan.borrower || loan.borrowerName)}</strong>
-                <small>${escapeHtml(loan.universityId || loan.netid)}</small>
+                <strong>${escapeHtml(loan.borrowerName || loan.borrower || '—')}</strong>
+                <small>${escapeHtml(loan.universityId || loan.borrowerNetId || loan.netid || '—')}</small>
               </td>
               <td>${escapeHtml(displayDate)}</td>
               <td class="${isOverdue ? 'overdue-text' : ''}">${escapeHtml(displayDue)}</td>
@@ -2445,11 +2446,11 @@
               <span style="display: grid; width: 2.25rem; height: 2.25rem; place-items: center; background: #fdf2f2; color: #d9383a; border-radius: 50%; font-weight: bold; flex-shrink: 0">!</span>
               <div>
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem">
-                  <strong style="color: #252525; font-size: 0.95rem">Overdue loan: ${escapeHtml(loan.borrower)}</strong>
+                  <strong style="color: #252525; font-size: 0.95rem">Overdue loan: ${escapeHtml(loan.borrowerName || loan.borrower || 'Borrower')}</strong>
                   <span class="loan-status overdue">Overdue</span>
                 </div>
                 <p style="margin: 0 0 0.35rem; color: #5f6872; font-size: 0.85rem">
-                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) was due on ${escapeHtml(formatShortEST(loan.dueDate))}. University ID: ${escapeHtml(loan.universityId || loan.netid)}.
+                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) was due on ${escapeHtml(formatShortEST(loan.dueDate))}. University ID: ${escapeHtml(loan.universityId || loan.borrowerNetId || loan.netid || '—')}.
                 </p>
                 <small style="color: #8c8295; font-size: 0.75rem">Checked out: ${escapeHtml(formatShortEST(loan.checkoutDate))}</small>
               </div>
@@ -2473,11 +2474,11 @@
               <span style="display: grid; width: 2.25rem; height: 2.25rem; place-items: center; background: #fef9ee; color: #d97706; border-radius: 50%; font-weight: bold; flex-shrink: 0">&#128337;</span>
               <div>
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem">
-                  <strong style="color: #252525; font-size: 0.95rem">Due today: ${escapeHtml(loan.borrower)}</strong>
+                  <strong style="color: #252525; font-size: 0.95rem">Due today: ${escapeHtml(loan.borrowerName || loan.borrower || 'Borrower')}</strong>
                   <span class="loan-status due">Due today</span>
                 </div>
                 <p style="margin: 0 0 0.35rem; color: #5f6872; font-size: 0.85rem">
-                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) is expected back by ${escapeHtml(formatShortEST(loan.dueDate))}. University ID: ${escapeHtml(loan.universityId || loan.netid)}.
+                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) is expected back by ${escapeHtml(formatShortEST(loan.dueDate))}. University ID: ${escapeHtml(loan.universityId || loan.borrowerNetId || loan.netid || '—')}.
                 </p>
                 <small style="color: #8c8295; font-size: 0.75rem">Checked out: ${escapeHtml(formatShortEST(loan.checkoutDate))}</small>
               </div>

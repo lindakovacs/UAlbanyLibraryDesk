@@ -1035,6 +1035,11 @@ class DataStore {
 
     let list = this.loans.map(l => ({
       ...l,
+      borrower: l.borrower || l.borrowerName || null,
+      borrowerName: l.borrowerName || l.borrower || null,
+      borrowerNetId: l.borrowerNetId || l.netid || null,
+      netid: l.netid || l.borrowerNetId || null,
+      universityId: l.universityId || null,
       registrar: l.registrar || (l.status === 'overdue' ? 'YES' : 'NO')
     }));
     if (query.status && query.status !== 'all') {
@@ -1125,6 +1130,11 @@ class DataStore {
     if (memLoan) {
       return {
         ...memLoan,
+        borrower: memLoan.borrower || memLoan.borrowerName || null,
+        borrowerName: memLoan.borrowerName || memLoan.borrower || null,
+        borrowerNetId: memLoan.borrowerNetId || memLoan.netid || null,
+        netid: memLoan.netid || memLoan.borrowerNetId || null,
+        universityId: memLoan.universityId || null,
         registrar: memLoan.registrar || (memLoan.status === 'overdue' ? 'YES' : 'NO')
       };
     }
