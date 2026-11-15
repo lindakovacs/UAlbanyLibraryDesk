@@ -178,10 +178,12 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- =============================================================================
 
 -- Seed Staff Users (Default password: password123)
--- 1. Circulation Supervisor: Linda Kovacs
--- 2. Circulation Specialist: Maria Santos
+-- Core accounts: Linda Kovacs (Supervisor & Specialist)
+-- Team Testers (2 accounts each: Supervisor & Specialist): Veronica Dindial, Rym Mahiddine, Wendy Ouedraogo, Amari Scott, Abby Adams
+-- External Testers (2 accounts each: Supervisor & Specialist): External Users 1, 2, 3
 INSERT INTO `staff_users` (`netid`, `name`, `university_id`, `department`, `division`, `email`, `role`, `desk_station`, `workstation_id`, `permissions`, `password_hash`, `status`)
 VALUES 
+-- Linda Kovacs
 (
   'linda.kovacs',
   'Linda Kovacs',
@@ -197,12 +199,244 @@ VALUES
   'active'
 ),
 (
-  'maria.santos',
-  'Maria Santos',
-  '001298452',
+  'linda.kovacs.spec',
+  'Linda Kovacs',
+  '001239848',
   'University Libraries',
   'Access & Circulation Services',
-  'msantos@albany.edu',
+  'linda.kovacs.spec@ualbany.edu',
+  'Circulation Specialist',
+  'Uptown Circulation Desk #1',
+  'DESK-CIRC-01 (Uptown)',
+  '["checkout", "return", "preparation"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+-- Veronica Dindial
+(
+  'veronica.dindial',
+  'Veronica Dindial',
+  '001384920',
+  'University Libraries',
+  'Access & Circulation Services',
+  'veronica.dindial@ualbany.edu',
+  'Circulation Supervisor',
+  'Uptown Circulation Desk #2',
+  'DESK-CIRC-02 (Uptown)',
+  '["checkout", "return", "review", "reports", "supervisor", "admin"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+(
+  'veronica.dindial.spec',
+  'Veronica Dindial',
+  '001384921',
+  'University Libraries',
+  'Access & Circulation Services',
+  'veronica.dindial.spec@ualbany.edu',
+  'Circulation Specialist',
+  'Uptown Circulation Desk #1',
+  'DESK-CIRC-01 (Uptown)',
+  '["checkout", "return", "preparation"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+-- Rym Mahiddine
+(
+  'rym.mahiddine',
+  'Rym Mahiddine',
+  '001429815',
+  'University Libraries',
+  'Access & Circulation Services',
+  'rym.mahiddine@ualbany.edu',
+  'Circulation Supervisor',
+  'Uptown Circulation Desk #2',
+  'DESK-CIRC-02 (Uptown)',
+  '["checkout", "return", "review", "reports", "supervisor", "admin"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+(
+  'rym.mahiddine.spec',
+  'Rym Mahiddine',
+  '001429816',
+  'University Libraries',
+  'Access & Circulation Services',
+  'rym.mahiddine.spec@ualbany.edu',
+  'Circulation Specialist',
+  'Uptown Circulation Desk #1',
+  'DESK-CIRC-01 (Uptown)',
+  '["checkout", "return", "preparation"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+-- Wendy Ouedraogo
+(
+  'wendy.ouedraogo',
+  'Wendy Ouedraogo',
+  '001563204',
+  'University Libraries',
+  'Access & Circulation Services',
+  'wendy.ouedraogo@ualbany.edu',
+  'Circulation Supervisor',
+  'Uptown Circulation Desk #2',
+  'DESK-CIRC-02 (Uptown)',
+  '["checkout", "return", "review", "reports", "supervisor", "admin"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+(
+  'wendy.ouedraogo.spec',
+  'Wendy Ouedraogo',
+  '001563205',
+  'University Libraries',
+  'Access & Circulation Services',
+  'wendy.ouedraogo.spec@ualbany.edu',
+  'Circulation Specialist',
+  'Uptown Circulation Desk #1',
+  'DESK-CIRC-01 (Uptown)',
+  '["checkout", "return", "preparation"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+-- Amari Scott
+(
+  'amari.scott',
+  'Amari Scott',
+  '001648192',
+  'University Libraries',
+  'Access & Circulation Services',
+  'amari.scott@ualbany.edu',
+  'Circulation Supervisor',
+  'Uptown Circulation Desk #2',
+  'DESK-CIRC-02 (Uptown)',
+  '["checkout", "return", "review", "reports", "supervisor", "admin"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+(
+  'amari.scott.spec',
+  'Amari Scott',
+  '001648193',
+  'University Libraries',
+  'Access & Circulation Services',
+  'amari.scott.spec@ualbany.edu',
+  'Circulation Specialist',
+  'Uptown Circulation Desk #1',
+  'DESK-CIRC-01 (Uptown)',
+  '["checkout", "return", "preparation"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+-- Abby Adams
+(
+  'abby.adams',
+  'Abby Adams',
+  '001712953',
+  'University Libraries',
+  'Access & Circulation Services',
+  'abby.adams@ualbany.edu',
+  'Circulation Supervisor',
+  'Uptown Circulation Desk #2',
+  'DESK-CIRC-02 (Uptown)',
+  '["checkout", "return", "review", "reports", "supervisor", "admin"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+(
+  'abby.adams.spec',
+  'Abby Adams',
+  '001712954',
+  'University Libraries',
+  'Access & Circulation Services',
+  'abby.adams.spec@ualbany.edu',
+  'Circulation Specialist',
+  'Uptown Circulation Desk #1',
+  'DESK-CIRC-01 (Uptown)',
+  '["checkout", "return", "preparation"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+-- External User 1
+(
+  'external.user1',
+  'External User 1',
+  '001801001',
+  'University Libraries',
+  'Access & Circulation Services',
+  'external.user1@ualbany.edu',
+  'Circulation Supervisor',
+  'Uptown Circulation Desk #2',
+  'DESK-CIRC-02 (Uptown)',
+  '["checkout", "return", "review", "reports", "supervisor", "admin"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+(
+  'external.user1.spec',
+  'External User 1',
+  '001801002',
+  'University Libraries',
+  'Access & Circulation Services',
+  'external.user1.spec@ualbany.edu',
+  'Circulation Specialist',
+  'Uptown Circulation Desk #1',
+  'DESK-CIRC-01 (Uptown)',
+  '["checkout", "return", "preparation"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+-- External User 2
+(
+  'external.user2',
+  'External User 2',
+  '001802001',
+  'University Libraries',
+  'Access & Circulation Services',
+  'external.user2@ualbany.edu',
+  'Circulation Supervisor',
+  'Uptown Circulation Desk #2',
+  'DESK-CIRC-02 (Uptown)',
+  '["checkout", "return", "review", "reports", "supervisor", "admin"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+(
+  'external.user2.spec',
+  'External User 2',
+  '001802002',
+  'University Libraries',
+  'Access & Circulation Services',
+  'external.user2.spec@ualbany.edu',
+  'Circulation Specialist',
+  'Uptown Circulation Desk #1',
+  'DESK-CIRC-01 (Uptown)',
+  '["checkout", "return", "preparation"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+-- External User 3
+(
+  'external.user3',
+  'External User 3',
+  '001803001',
+  'University Libraries',
+  'Access & Circulation Services',
+  'external.user3@ualbany.edu',
+  'Circulation Supervisor',
+  'Uptown Circulation Desk #2',
+  'DESK-CIRC-02 (Uptown)',
+  '["checkout", "return", "review", "reports", "supervisor", "admin"]',
+  '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq',
+  'active'
+),
+(
+  'external.user3.spec',
+  'External User 3',
+  '001803002',
+  'University Libraries',
+  'Access & Circulation Services',
+  'external.user3.spec@ualbany.edu',
   'Circulation Specialist',
   'Uptown Circulation Desk #1',
   'DESK-CIRC-01 (Uptown)',

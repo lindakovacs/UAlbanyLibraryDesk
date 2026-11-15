@@ -97,7 +97,7 @@ Access to circulation tools is governed by institutional role-based permissions:
 ├──────────────────────────┼─────────────────────────────┼───────────────────────────────┤
 │ Circulation Specialist   │ Circulation desk clerks,    │ OPERATIONAL ACCESS:           │
 │                          │ Student staff assistants    │ - Overview & Dashboard        │
-│                          │ (Maria Santos)              │ - Equipment Catalog Search    │
+│                          │ (Linda Kovacs - Specialist) │ - Equipment Catalog Search    │
 │                          │                             │ - Loans & Returns Processing  │
 │                          │                             │ - New Loan Checkout           │
 │                          │                             │ - Borrowers Directory         │
@@ -110,7 +110,7 @@ Access to circulation tools is governed by institutional role-based permissions:
 
 ### 3.2 Account Types & Page Access Matrix
 
-| Page / Feature | URL | Circulation Supervisor<br>*(Linda Kovacs)* | Circulation Specialist<br>*(Maria Santos)* |
+| Page / Feature | URL | Circulation Supervisor<br>*(Linda Kovacs)* | Circulation Specialist<br>*(Linda Kovacs - Specialist)* |
 |---|---|:---:|:---:|
 | **Dashboard / Overview** | `index.html` | Full Access | Full Access |
 | **Equipment Catalog** | `equipment.html` | Full Access | Full Access |
@@ -136,12 +136,37 @@ Access to circulation tools is governed by institutional role-based permissions:
 > *Capture: `login.html` showing the NetID input field, Password input field, University Libraries seal, and "Sign in" button.*
 
 #### Training & Evaluation Test Credentials
-For workstation evaluation and system testing, the following verified accounts are pre-configured:
+For workstation evaluation and system testing, the following verified accounts are pre-configured (Default Password for all test accounts: `password123`):
 
-| Role | NetID | Password | Workstation | Permissions & Access Scope |
-|---|---|---|---|---|
-| **Circulation Supervisor** | `linda.kovacs` | `password123` | DESK-CIRC-02 | All pages, Supervisor Review signoff, Reports & Analytics |
-| **Circulation Specialist** | `maria.santos` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
+##### Core Station Accounts
+| Role | NetID | Email | Password | Workstation | Permissions & Access Scope |
+|---|---|---|---|---|---|
+| **Circulation Supervisor** | `linda.kovacs` | `linda.kovacs@ualbany.edu` | `password123` | DESK-CIRC-02 | All pages, Supervisor Review signoff, Reports & Analytics |
+| **Circulation Specialist** | `linda.kovacs.spec` | `linda.kovacs.spec@ualbany.edu` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
+
+##### Team Evaluator Accounts (2 Accounts Each: Supervisor & Specialist)
+| Team Member | Role | NetID | Email | Password | Workstation | Access Scope |
+|---|---|---|---|---|---|---|
+| **Veronica Dindial** | Circulation Supervisor | `veronica.dindial` | `veronica.dindial@ualbany.edu` | `password123` | DESK-CIRC-02 | Full access, Reports & Analytics, Ready signoff |
+| **Veronica Dindial** | Circulation Specialist | `veronica.dindial.spec` | `veronica.dindial.spec@ualbany.edu` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
+| **Rym Mahiddine** | Circulation Supervisor | `rym.mahiddine` | `rym.mahiddine@ualbany.edu` | `password123` | DESK-CIRC-02 | Full access, Reports & Analytics, Ready signoff |
+| **Rym Mahiddine** | Circulation Specialist | `rym.mahiddine.spec` | `rym.mahiddine.spec@ualbany.edu` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
+| **Wendy Ouedraogo** | Circulation Supervisor | `wendy.ouedraogo` | `wendy.ouedraogo@ualbany.edu` | `password123` | DESK-CIRC-02 | Full access, Reports & Analytics, Ready signoff |
+| **Wendy Ouedraogo** | Circulation Specialist | `wendy.ouedraogo.spec` | `wendy.ouedraogo.spec@ualbany.edu` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
+| **Amari Scott** | Circulation Supervisor | `amari.scott` | `amari.scott@ualbany.edu` | `password123` | DESK-CIRC-02 | Full access, Reports & Analytics, Ready signoff |
+| **Amari Scott** | Circulation Specialist | `amari.scott.spec` | `amari.scott.spec@ualbany.edu` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
+| **Abby Adams** | Circulation Supervisor | `abby.adams` | `abby.adams@ualbany.edu` | `password123` | DESK-CIRC-02 | Full access, Reports & Analytics, Ready signoff |
+| **Abby Adams** | Circulation Specialist | `abby.adams.spec` | `abby.adams.spec@ualbany.edu` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
+
+##### External Tester Accounts (2 Accounts Each: Supervisor & Specialist)
+| Tester | Role | NetID | Email | Password | Workstation | Access Scope |
+|---|---|---|---|---|---|---|
+| **External User 1** | Circulation Supervisor | `external.user1` | `external.user1@ualbany.edu` | `password123` | DESK-CIRC-02 | Full access, Reports & Analytics, Ready signoff |
+| **External User 1** | Circulation Specialist | `external.user1.spec` | `external.user1.spec@ualbany.edu` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
+| **External User 2** | Circulation Supervisor | `external.user2` | `external.user2@ualbany.edu` | `password123` | DESK-CIRC-02 | Full access, Reports & Analytics, Ready signoff |
+| **External User 2** | Circulation Specialist | `external.user2.spec` | `external.user2.spec@ualbany.edu` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
+| **External User 3** | Circulation Supervisor | `external.user3` | `external.user3@ualbany.edu` | `password123` | DESK-CIRC-02 | Full access, Reports & Analytics, Ready signoff |
+| **External User 3** | Circulation Specialist | `external.user3.spec` | `external.user3.spec@ualbany.edu` | `password123` | DESK-CIRC-01 | Checkouts, returns, prep checklists (Reports restricted) |
 
 > [!IMPORTANT]
 > Always sign out via the **Staff Profile** (`/profile.html`) when stepping away from the circulation desk to ensure student patron records and checkout logs remain protected.
@@ -191,15 +216,15 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
 **When to Use:** Daily shift start, ongoing monitoring of desk throughput, and quick access to frequent circulation tasks.
 
 > 📷 **[Screenshot Placeholder: Dashboard Overview]**  
-> *Capture: `index.html` displaying the top metric cards (Active Loans, Due Today, Overdue, Preparation Queue), Quick Action buttons, and Recent Activity feed.*
+> *Capture: `index.html` displaying the top metric cards (Total Equipment, Currently on Loan, Reserved, Overdue), Quick Action buttons, and Preparation & Loans reports.*
 
 ### Step-by-Step Instructions:
 1. Click **Overview** in the sidebar.
 2. Review the top KPI summary cards:
-   - **Active Loans:** Total equipment currently in patron possession.
-   - **Due Today:** Items expected before desk closing.
+   - **Total Equipment:** Complete catalog inventory count across categories.
+   - **Currently on Loan:** Total equipment currently in patron possession.
+   - **Reserved:** Held equipment kits claimed for future pickup (`02`).
    - **Overdue Loans:** Loans past their due date requiring immediate escalation.
-   - **Preparation Queue:** Items awaiting sanitization or supervisor review.
 3. Use the **Quick Actions** panel on the right side for fast-track tasks:
    - Click **+ New Loan** to open the checkout form.
    - Click **Check-in Return** to process a returned item.
@@ -377,7 +402,7 @@ Items returned from circulation awaiting task delegation:
 1. Select the radio button next to the desired item (e.g. `EQ-014 - Game Console`).
 2. Click **View equipment details &rarr;** to open `preparation-assignment.html`.
 3. In the assignment modal:
-   - Select the **Assigned Staff Member** (e.g. `John Doe`, `Maria Santos`, `Alex Chen`).
+   - Select the **Assigned Staff Member** (e.g. `John Doe`, `Linda Kovacs`, `Alex Chen`).
    - Set the **Target Completion Date**.
    - Add special inspection instructions (e.g. *"Check HDMI cable and factory reset console"*).
 4. Click **Assign Task**. The item immediately moves to the **In Preparation** tab.

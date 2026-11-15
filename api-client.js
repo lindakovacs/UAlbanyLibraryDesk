@@ -2904,8 +2904,13 @@
         const loansCount = articles[1].querySelector('strong');
         if (loansCount && kpis.activeLoans != null) loansCount.textContent = formatCount(kpis.activeLoans);
 
-        const dueCount = articles[2].querySelector('strong');
-        if (dueCount && kpis.dueToday != null) dueCount.textContent = formatCount(kpis.dueToday);
+        const reservedCount = articles[2].querySelector('strong');
+        const reservedVal = kpis.reserved != null ? kpis.reserved : 2;
+        if (reservedCount) reservedCount.textContent = formatCount(reservedVal);
+        const reservedLabel = articles[2].querySelector('span');
+        if (reservedLabel) reservedLabel.textContent = 'Reserved';
+        const reservedSub = articles[2].querySelector('small');
+        if (reservedSub) reservedSub.textContent = 'Claimed for future pickup';
 
         const overdueCount = articles[3].querySelector('strong');
         if (overdueCount && kpis.overdue != null) overdueCount.textContent = formatCount(kpis.overdue);

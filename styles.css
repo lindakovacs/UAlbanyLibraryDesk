@@ -3003,6 +3003,11 @@ tbody tr:last-child td {
     background: #fff3d8;
   }
 
+  .overview-stats .reserved b {
+    color: #0369a1;
+    background: #e0f2fe;
+  }
+
   .overview-stats .danger b {
     color: #a4262c;
     background: #fde8e8;

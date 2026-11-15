@@ -112,6 +112,12 @@ async function runTests() {
     assert.strictEqual(res.body.status, 'success');
     assert(res.body.token);
     assert.strictEqual(res.body.user.netid, testNetId);
+
+    // Clean up temporary registered staff user from DB to keep staff_users clean
+    try {
+      const { pool } = require('../server/config/db');
+      await pool.query('DELETE FROM staff_users WHERE netid = ?;', [testNetId]);
+    } catch (e) {}
   });
 
   await test('GET /api/auth/session returns active staff session', async () => {
@@ -121,19 +127,27 @@ async function runTests() {
     assert.strictEqual(res.body.session.user.role, 'Circulation Supervisor');
   });
 
-  await test('POST /api/auth/login authenticates Circulation Specialist (maria.santos)', async () => {
+  await test('POST /api/auth/login authenticates Circulation Specialist (linda.kovacs.spec)', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ netid: 'linda.kovacs.spec', password: 'password123' });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.user.role, 'Circulation Specialist');
+    assert.strictEqual(res.body.user.name, 'Linda Kovacs');
+    assert.strictEqual(res.body.user.email, 'linda.kovacs.spec@ualbany.edu');
+  });
+
+  await test('POST /api/auth/login rejects eliminated account (maria.santos)', async () => {
     const res = await request(app)
       .post('/api/auth/login')
       .send({ netid: 'maria.santos', password: 'password123' });
-    assert.strictEqual(res.status, 200);
-    assert.strictEqual(res.body.user.role, 'Circulation Specialist');
-    assert.strictEqual(res.body.user.name, 'Maria Santos');
+    assert.strictEqual(res.status, 401);
   });
 
   await test('GET /api/reports rejects Circulation Specialist with 403 Forbidden', async () => {
     const loginRes = await request(app)
       .post('/api/auth/login')
-      .send({ netid: 'maria.santos', password: 'password123' });
+      .send({ netid: 'linda.kovacs.spec', password: 'password123' });
     const specialistToken = loginRes.body.token;
     const res = await request(app)
       .get('/api/reports')
@@ -148,6 +162,40 @@ async function runTests() {
       .set('Authorization', `Bearer ${authToken}`);
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.status, 'success');
+  });
+
+  await test('POST /api/auth/login authenticates team and external Supervisor & Specialist accounts', async () => {
+    // Team accounts (2 per user: Supervisor and Specialist)
+    const teamTests = [
+      { netid: 'veronica.dindial', role: 'Circulation Supervisor', name: 'Veronica Dindial', email: 'veronica.dindial@ualbany.edu' },
+      { netid: 'veronica.dindial.spec', role: 'Circulation Specialist', name: 'Veronica Dindial', email: 'veronica.dindial.spec@ualbany.edu' },
+      { netid: 'rym.mahiddine', role: 'Circulation Supervisor', name: 'Rym Mahiddine', email: 'rym.mahiddine@ualbany.edu' },
+      { netid: 'rym.mahiddine.spec', role: 'Circulation Specialist', name: 'Rym Mahiddine', email: 'rym.mahiddine.spec@ualbany.edu' },
+      { netid: 'wendy.ouedraogo', role: 'Circulation Supervisor', name: 'Wendy Ouedraogo', email: 'wendy.ouedraogo@ualbany.edu' },
+      { netid: 'wendy.ouedraogo.spec', role: 'Circulation Specialist', name: 'Wendy Ouedraogo', email: 'wendy.ouedraogo.spec@ualbany.edu' },
+      { netid: 'amari.scott', role: 'Circulation Supervisor', name: 'Amari Scott', email: 'amari.scott@ualbany.edu' },
+      { netid: 'amari.scott.spec', role: 'Circulation Specialist', name: 'Amari Scott', email: 'amari.scott.spec@ualbany.edu' },
+      { netid: 'abby.adams', role: 'Circulation Supervisor', name: 'Abby Adams', email: 'abby.adams@ualbany.edu' },
+      { netid: 'abby.adams.spec', role: 'Circulation Specialist', name: 'Abby Adams', email: 'abby.adams.spec@ualbany.edu' },
+      // External accounts (2 per user: Supervisor and Specialist)
+      { netid: 'external.user1', role: 'Circulation Supervisor', name: 'External User 1', email: 'external.user1@ualbany.edu' },
+      { netid: 'external.user1.spec', role: 'Circulation Specialist', name: 'External User 1', email: 'external.user1.spec@ualbany.edu' },
+      { netid: 'external.user2', role: 'Circulation Supervisor', name: 'External User 2', email: 'external.user2@ualbany.edu' },
+      { netid: 'external.user2.spec', role: 'Circulation Specialist', name: 'External User 2', email: 'external.user2.spec@ualbany.edu' },
+      { netid: 'external.user3', role: 'Circulation Supervisor', name: 'External User 3', email: 'external.user3@ualbany.edu' },
+      { netid: 'external.user3.spec', role: 'Circulation Specialist', name: 'External User 3', email: 'external.user3.spec@ualbany.edu' }
+    ];
+
+    for (const item of teamTests) {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ netid: item.netid, password: 'password123' });
+      assert.strictEqual(res.status, 200, `Expected 200 for ${item.netid}`);
+      assert.strictEqual(res.body.user.role, item.role, `Expected role ${item.role} for ${item.netid}`);
+      assert.strictEqual(res.body.user.name, item.name, `Expected name ${item.name} for ${item.netid}`);
+      assert.strictEqual(res.body.user.email, item.email, `Expected email ${item.email} for ${item.netid}`);
+      assert(res.body.token, `Expected JWT token for ${item.netid}`);
+    }
   });
 
   // 3. Equipment
@@ -454,6 +502,7 @@ async function runTests() {
     assert.ok(html.includes('7 loans: 6 open loans · 1 returned'), 'Subtitle must show 7 loans: 6 open loans · 1 returned');
     assert.ok(html.includes('All loans <b>7</b>'), 'Toolbar stats must show All loans 7');
     assert.ok(html.includes('Showing 7 of 7 loans'), 'Footer must show Showing 7 of 7 loans');
+    assert.ok(html.includes('<span>Reserved</span><strong>02</strong>'), 'Overview stats card must show 02 Reserved');
   });
 
   await test('loans.html shows 7 loans with 6 open loans and 1 returned, and 7 rows total', async () => {

@@ -173,7 +173,7 @@ All 22 frontend HTML views and workflows are actively wired to the Node.js/Expre
 
 #### Account Types & Page Access Matrix
 
-| Page / Feature | URL | Circulation Supervisor<br>*(Linda Kovacs)* | Circulation Specialist<br>*(Maria Santos)* |
+| Page / Feature | URL | Circulation Supervisor<br>*(Linda Kovacs)* | Circulation Specialist<br>*(Linda Kovacs - Specialist)* |
 |---|---|:---:|:---:|
 | **Dashboard / Overview** | `index.html` | Full Access | Full Access |
 | **Equipment Catalog** | `equipment.html` | Full Access | Full Access |

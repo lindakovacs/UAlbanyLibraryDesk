@@ -74,16 +74,24 @@ router.post('/login', validateBody(['netid', 'password']), async (req, res, next
     }
 
     // 2. Fall back to store staff if DB query failed or returned nothing
-    if (!userRecord && netid.toLowerCase() === store.staff.netid.toLowerCase()) {
-      userRecord = {
-        ...store.staff,
-        password_hash: store.staff.password_hash || '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq' // password123
-      };
-    } else if (!userRecord && store.specialistStaff && netid.toLowerCase() === store.specialistStaff.netid.toLowerCase()) {
-      userRecord = {
-        ...store.specialistStaff,
-        password_hash: '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq' // password123
-      };
+    if (!userRecord) {
+      const fallbackStaff = store.getStaffUser ? store.getStaffUser(netid) : null;
+      if (fallbackStaff) {
+        userRecord = {
+          ...fallbackStaff,
+          password_hash: fallbackStaff.password_hash || '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq' // password123
+        };
+      } else if (netid.toLowerCase() === store.staff.netid.toLowerCase()) {
+        userRecord = {
+          ...store.staff,
+          password_hash: store.staff.password_hash || '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq' // password123
+        };
+      } else if (store.specialistStaff && netid.toLowerCase() === store.specialistStaff.netid.toLowerCase()) {
+        userRecord = {
+          ...store.specialistStaff,
+          password_hash: '$2a$10$o1pf200kha5sZE6OD8OvxuGZ7DjbPICdKB2nNtIkWAW3OzJbGGFoq' // password123
+        };
+      }
     }
 
     if (!userRecord) {
