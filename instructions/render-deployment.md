@@ -1,15 +1,20 @@
-# Render Deployment Guide (Milestone 8)
+# Render Deployment Guide
 
-This guide provides step-by-step instructions for deploying the **UAlbany LibraryDesk Portal** to [Render](https://render.com), configuring environment variables, running migrations against a managed MySQL database, and conducting smoke tests.
+Complete step-by-step guide to deploy the **UAlbany LibraryDesk Portal** to [Render.com](https://render.com), configure environment variables, connect to managed MySQL / TiDB Cloud, and deploy both the backend API and frontend static client.
 
 ---
 
-## 1. Architecture on Render
+## Architecture Overview
+
+Render supports two deployment architectures for UAlbany LibraryDesk:
+
+### Option 1: Unified Full-Stack Web Service (Recommended for Simplicity)
+In this architecture, a single Node.js Web Service hosts both the static frontend assets (`express.static`) and the REST API (`/api/*`). Both UI and API share the exact same domain, avoiding all cross-origin requests.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        Render Web Service                              │
-│                    (ualbany-librarydesk.onrender.com)                  │
+│                    (ualbanylibrarydesk.onrender.com)                   │
 │                                                                        │
 │   ┌───────────────────────────┐      ┌───────────────────────────────┐ │
 │   │     Frontend Client       │      │     Node.js / Express API     │ │
@@ -17,7 +22,7 @@ This guide provides step-by-step instructions for deploying the **UAlbany Librar
 │   └───────────────────────────┘      └──────────────┬────────────────┘ │
 └─────────────────────────────────────────────────────┼──────────────────┘
                                                       │
-                                                      │ SSL / TCP (Port 3306)
+                                                      │ SSL / TLS (Port 4000 / 3306)
                                                       ▼
                                        ┌───────────────────────────────┐
                                        │    Managed MySQL Database     │
@@ -25,43 +30,52 @@ This guide provides step-by-step instructions for deploying the **UAlbany Librar
                                        └───────────────────────────────┘
 ```
 
----
+### Option 2: Decoupled Architecture (Separate Frontend & Backend)
+The frontend is hosted as a CDN-cached **Render Static Site** (or GitHub Pages), while the backend API runs independently as a **Render Web Service**. The client communicates across domains via CORS.
 
-## 2. Prerequisites
-
-1. A [GitHub](https://github.com) account with repository access to `lindakovacs/UAlbanyLibraryDesk`.
-2. A [Render](https://render.com) account (free tier supported).
-3. A managed MySQL 8.0-compatible database instance:
-   - **Recommended Free Managed Options:**
-     - **[TiDB Cloud](https://tidbcloud.com)**: Free Serverless tier (5GB storage, 100% MySQL syntax compatible).
-     - **[Aiven for MySQL](https://aiven.io)**: Free trial / managed MySQL instance.
-     - **[Railway](https://railway.app)**: One-click managed MySQL database.
-
----
-
-## 3. Deployment Method A: Infrastructure as Code (`render.yaml` Blueprint)
-
-The repository includes a ready-to-use [`render.yaml`](../render.yaml) blueprint:
-
-1. Log in to your **Render Dashboard**.
-2. Click **New +** and select **Blueprint**.
-3. Connect your GitHub repository (`UAlbanyLibraryDesk`).
-4. Render will parse `render.yaml` and prompt you for the un-synced database credentials:
-   - `DB_HOST`: Your remote MySQL hostname (e.g. `gateway01.us-east-1.prod.aws.tidbcloud.com`)
-   - `DB_USER`: Your MySQL username
-   - `DB_PASSWORD`: Your MySQL user password
-5. Click **Apply**. Render will automatically provision the web service, install dependencies, and build the project.
+```text
+┌───────────────────────────────┐               ┌───────────────────────────────┐
+│      Render Static Site       │               │      Render Web Service       │
+│ (ualbany-librarydesk.         │   HTTP/REST   │ (ualbanylibrarydesk.          │
+│        onrender.com)          │ ────────────► │        onrender.com)          │
+│  Static HTML, CSS, client JS  │   (via CORS)  │   Node.js / Express Backend   │
+└───────────────────────────────┘               └──────────────┬────────────────┘
+                                                               │
+                                                               │ SSL / TLS (Port 4000)
+                                                               ▼
+                                                ┌───────────────────────────────┐
+                                                │       TiDB Cloud MySQL        │
+                                                │      (Serverless Cluster)     │
+                                                └───────────────────────────────┘
+```
 
 ---
 
-## 4. Deployment Method B: Manual Web Service Setup
+## Database Options Comparison
 
-If you prefer configuring via the Render web interface:
+| Feature | TiDB Cloud (Recommended) | Traditional MySQL |
+| :--- | :--- | :--- |
+| **Cost** | Free Tier (5 GB storage) | Variable (AWS RDS, DigitalOcean, etc.) |
+| **Setup Time** | 3–5 minutes | 15–30 minutes |
+| **SSL / Security** | Required, enabled by default | Manual configuration required |
+| **Default Port** | `4000` | `3306` |
+| **Maintenance** | Serverless, auto-scaling | Self-managed or managed instance |
+| **Best For** | Student evaluation, prototypes, free hosting | Dedicated institutional servers |
 
-1. In the **Render Dashboard**, click **New +** ➔ **Web Service**.
-2. Select your repository `UAlbanyLibraryDesk`.
+---
+
+## Part 1: Backend Deployment (Express API Web Service)
+
+### Step 1: Create Render Account
+1. Visit [render.com](https://render.com).
+2. Sign in with your GitHub account.
+3. Grant access to your repository: `lindakovacs/UAlbanyLibraryDesk`.
+
+### Step 2: Create New Web Service
+1. In the Render Dashboard, click **New +** ➔ **Web Service**.
+2. Select your repository `lindakovacs/UAlbanyLibraryDesk`.
 3. Configure the service settings:
-   - **Name:** `ualbany-librarydesk`
+   - **Name:** `ualbanylibrarydesk` *(produces `https://ualbanylibrarydesk.onrender.com`)*
    - **Region:** `Oregon (US West)` or closest to your database
    - **Branch:** `main`
    - **Root Directory:** *(leave blank for repository root)*
@@ -70,96 +84,286 @@ If you prefer configuring via the Render web interface:
    - **Start Command:** `npm start`
    - **Instance Type:** `Free`
 
-4. Click **Advanced** and set the **Health Check Path** to `/health`.
+4. Click **Advanced** and set:
+   - **Health Check Path:** `/health`
+   - **Auto-Deploy:** `Yes`
 
-5. Under **Environment Variables**, add the following keys:
+### Step 3: Add Environment Variables
+Under the **Environment Variables** section, add the following keys:
 
-| Environment Variable | Value / Example | Description |
-|---|---|---|
-| `NODE_ENV` | `production` | Enables production optimizations |
-| `FRONTEND_URL` | `https://ualbany-librarydesk.onrender.com` | Base URL of the deployed application |
+#### Configuration for TiDB Cloud (Recommended):
+
+| Key | Example Value | Description |
+| :--- | :--- | :--- |
+| `NODE_ENV` | `production` | Enables production mode and optimizations |
+| `FRONTEND_URL` | `https://ualbanylibrarydesk.onrender.com` | Base frontend URL |
+| `CORS_ORIGIN` | `*` | Allowed CORS origins for cross-domain requests |
+| `JWT_SECRET` | *(Click "Generate" or enter 32+ char string)* | Cryptographic signing secret for staff tokens |
+| `JWT_EXPIRE` | `7d` | Token expiration period |
+| `DB_HOST` | `gateway01.us-east-1.prod.aws.tidbcloud.com` | **TiDB gateway endpoint** (from TiDB Connect modal) |
+| `DB_PORT` | `4000` | **TiDB port is 4000** (not 3306) |
+| `DB_USER` | `xxxxxxxx.root` | TiDB user prefix and username |
+| `DB_PASSWORD` | `your_tidb_cluster_password` | Cluster password created in TiDB |
+| `DB_NAME` | `ualbanylibrarydesk` | Target database name |
+| `DB_SSL` | `true` | **Required for TiDB Cloud** (enforces TLS encryption) |
+| `DB_CONNECTION_LIMIT` | `5` | Pool connection limit for Render free tier |
+
+> [!IMPORTANT]
+> Do NOT use `ualbanylibrarydesk-db.tidbcloud.com` as the `DB_HOST`. You must copy the exact gateway hostname from the TiDB Cloud **Connect** modal (e.g. `gateway01.us-east-1.prod.aws.tidbcloud.com`).
+
+#### Configuration for Traditional MySQL:
+
+| Key | Example Value | Description |
+| :--- | :--- | :--- |
+| `NODE_ENV` | `production` | Enables production mode |
+| `FRONTEND_URL` | `https://ualbanylibrarydesk.onrender.com` | Base frontend URL |
 | `CORS_ORIGIN` | `*` | Allowed CORS origins |
-| `JWT_SECRET` | *(Click "Generate" or enter random 32+ char string)* | Signing secret for staff JWT tokens |
-| `JWT_EXPIRE` | `7d` | Token lifetime (7 days) |
-| `DB_HOST` | `your-managed-db.provider.com` | Remote MySQL server host |
-| `DB_PORT` | `3306` | MySQL port |
-| `DB_USER` | `your_remote_db_user` | Remote database username |
-| `DB_PASSWORD` | `your_actual_remote_password` | Remote database password |
+| `JWT_SECRET` | *(Generate random 32+ char string)* | JWT signing secret |
+| `JWT_EXPIRE` | `7d` | Token lifetime |
+| `DB_HOST` | `your-db-host.com` | MySQL server host |
+| `DB_PORT` | `3306` | Standard MySQL port |
+| `DB_USER` | `your_mysql_user` | MySQL username |
+| `DB_PASSWORD` | `your_secure_password` | MySQL password |
 | `DB_NAME` | `ualbanylibrarydesk` | Database name |
-| `DB_CONNECTION_LIMIT`| `10` | Pool connection limit |
+| `DB_CONNECTION_LIMIT` | `10` | Pool connection limit |
 
-6. Click **Create Web Service**.
+### Step 4: Deploy & Verify Backend Health
+1. Click **Create Web Service**.
+2. Render will build the service, install dependencies, and start Node.js.
+3. Wait for the status badge to display **Live**.
+4. Test the health endpoint:
+   ```bash
+   curl -i https://ualbanylibrarydesk.onrender.com/health
+   ```
+   Expected response:
+   ```json
+   {
+     "status": "ok",
+     "environment": "production",
+     "version": "1.0.0",
+     "database": {
+       "status": "connected",
+       "database": "ualbanylibrarydesk"
+     }
+   }
+   ```
 
 ---
 
-## 5. Running Database Migrations on Remote MySQL
+## Part 2: Frontend Deployment (Static Site)
 
-Before the service accepts traffic, initialize the database tables on your managed MySQL instance:
+If you prefer hosting the frontend on a dedicated static CDN (Decoupled Option 2), follow these instructions:
 
-### Option 1: Render One-Off Shell
-1. In the Render Dashboard, navigate to your web service.
-2. Click the **Shell** tab to open an SSH terminal into your running instance.
-3. Run the migration script:
+### Option A: Deploy Frontend as a Render Static Site (Recommended)
+
+1. In the Render Dashboard, click **New +** ➔ **Static Site**.
+2. Select your repository `lindakovacs/UAlbanyLibraryDesk`.
+3. Configure the Static Site settings:
+   - **Name:** `ualbany-librarydesk` *(produces `https://ualbany-librarydesk.onrender.com`)*
+   - **Branch:** `main`
+   - **Root Directory:** *(leave blank for repository root)*
+   - **Build Command:** *(leave empty — static site requires no build step)*
+   - **Publish Directory:** `.` *(dot indicates repository root containing `index.html` and `login.html`)*
+4. Click **Create Static Site**.
+5. Render deploys your HTML, CSS, JavaScript, and asset files to its global CDN within 30–60 seconds.
+6. Note your frontend URL:
+   ```text
+   https://ualbany-librarydesk.onrender.com
+   ```
+
+### Option B: Deploy Frontend on GitHub Pages (Alternative Free Host)
+
+1. Open your repository on GitHub: `https://github.com/lindakovacs/UAlbanyLibraryDesk`.
+2. Navigate to **Settings** ➔ **Pages**.
+3. Under **Build and deployment**:
+   - **Source:** `Deploy from a branch`
+   - **Branch:** `main`
+   - **Folder:** `/ (root)`
+4. Click **Save**.
+5. Your site is published at `https://lindakovacs.github.io/UAlbanyLibraryDesk/`.
+
+---
+
+## Part 3: Connecting Frontend to Backend (API URL & CORS)
+
+### Automatic API URL Resolution in `api-client.js`
+The client API helper in `api-client.js` automatically detects its deployment environment:
+
+```javascript
+const getApiBase = () => {
+  if (typeof window === 'undefined' || !window.location || !window.location.origin || window.location.protocol.startsWith('file')) {
+    return 'http://localhost:3000/api';
+  }
+  const origin = window.location.origin;
+  // Decoupled static frontend hosts pointing to backend Web Service
+  if (origin.includes('ualbany-librarydesk.onrender.com') || origin.includes('github.io')) {
+    return 'https://ualbanylibrarydesk.onrender.com/api';
+  }
+  if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    return 'http://localhost:3000/api';
+  }
+  return `${origin}/api`;
+};
+```
+
+- **When hosted on the Unified Web Service (`ualbanylibrarydesk.onrender.com`):** Calls use the same origin (`https://ualbanylibrarydesk.onrender.com/api`).
+- **When hosted on the Decoupled Static Site (`ualbany-librarydesk.onrender.com` or GitHub Pages):** Calls automatically route across domains to the backend Web Service at `https://ualbanylibrarydesk.onrender.com/api`.
+- **When running locally (`localhost:3000` or `127.0.0.1`):** Calls target `http://localhost:3000/api`.
+
+### CORS Configuration on the Backend
+In `server/app.js`, CORS is configured to permit cross-origin requests:
+```javascript
+const corsOptions = {
+  origin: config.corsOrigin === '*' ? '*' : config.corsOrigin.split(',').map(o => o.trim()),
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
+```
+
+When running in decoupled mode, ensure the backend Web Service has `CORS_ORIGIN=*` or includes your frontend URL (`https://ualbany-librarydesk.onrender.com`).
+
+---
+
+## Part 4: Remote Database Schema Migration & Seeding
+
+Before processing live checkouts and returns, initialize the database tables on your remote MySQL / TiDB Cloud instance.
+
+### Method 1: Local Terminal targeting Remote DB (Fastest)
+
+Run the migration script directly from your Mac terminal substituting your TiDB Cloud credentials:
+
+```bash
+DB_HOST="gateway01.us-east-1.prod.aws.tidbcloud.com" \
+DB_PORT=4000 \
+DB_USER="xxxxxxxx.root" \
+DB_PASSWORD="your_cluster_password" \
+DB_NAME=ualbanylibrarydesk \
+DB_SSL=true \
+npm run db:init
+```
+
+Verify that all 7 tables and seed records are created:
+
+```bash
+DB_HOST="gateway01.us-east-1.prod.aws.tidbcloud.com" \
+DB_PORT=4000 \
+DB_USER="xxxxxxxx.root" \
+DB_PASSWORD="your_cluster_password" \
+DB_NAME=ualbanylibrarydesk \
+DB_SSL=true \
+npm run db:check
+```
+
+### Method 2: Render One-Off Shell
+1. In the Render Dashboard, open your `ualbanylibrarydesk` Web Service.
+2. Click the **Shell** tab on the left menu.
+3. Run:
    ```bash
    npm run db:init
-   ```
-4. Verify table creation:
-   ```bash
    npm run db:check
    ```
 
-### Option 2: Run Migrations from Your Local Machine Targeting Remote DB
-You can run migrations locally pointing to your remote MySQL server:
+### Method 3: TiDB Cloud Web SQL Editor
+1. Log in to [tidbcloud.com](https://tidbcloud.com).
+2. Select your cluster `ualbanylibrarydesk-db` and click **SQL Editor**.
+3. Copy the full content of `server/scripts/init-db.sql`.
+4. Paste it into the query editor and click **Run**.
 
+---
+
+## Part 5: Deployment Verification Checklist
+
+### Pre-Deployment Checks:
+- [x] All `.env` and `server/.env` files are ignored in `.gitignore`.
+- [x] Zero real passwords or API keys are committed to Git.
+- [x] `server/config/db.js` supports `DB_SSL=true`.
+- [x] `api-client.js` routes dynamically to `https://ualbanylibrarydesk.onrender.com/api`.
+- [x] All 55 automated unit tests pass (`npm test`).
+
+### Post-Deployment Checks:
+- [ ] Backend Web Service shows **Live** on Render.
+- [ ] `GET https://ualbanylibrarydesk.onrender.com/health` returns `200 OK` with `"database": {"status": "connected"}`.
+- [ ] Navigating to root `/` redirects unauthenticated visitors to `/login.html`.
+- [ ] Staff authentication succeeds with `linda.kovacs` / `password123`.
+- [ ] Dashboard displays "Good afternoon, Linda." and live statistics.
+- [ ] Checkout (`new-loan.html`) and return (`return-item.html`) transactions succeed.
+- [ ] Clicking "Sign out" clears the session and returns to `login.html`.
+
+---
+
+## Part 6: Production Smoke Tests
+
+### 1. Test Backend Health Endpoint:
 ```bash
-DB_HOST=your-remote-host.com DB_USER=your_user DB_PASSWORD=your_password DB_NAME=ualbanylibrarydesk npm run db:init
+curl -i https://ualbanylibrarydesk.onrender.com/api/health
+```
+Expected output:
+```json
+{"status":"ok","database":{"status":"connected"}}
 ```
 
+### 2. Test Staff Authentication Endpoint:
+```bash
+curl -i -X POST https://ualbanylibrarydesk.onrender.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"netid":"linda.kovacs","password":"password123"}'
+```
+Expected output:
+```json
+{
+  "status": "success",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI...",
+  "user": {
+    "netid": "linda.kovacs",
+    "name": "Linda Kovacs",
+    "role": "Circulation Supervisor"
+  }
+}
+```
+
+### 3. Test Frontend Console Connection:
+1. Open `https://ualbanylibrarydesk.onrender.com/` (or your static frontend URL) in Google Chrome.
+2. Open Developer Tools (`F12` or `Cmd + Option + I`) and click the **Console** tab.
+3. Execute:
+   ```javascript
+   fetch('https://ualbanylibrarydesk.onrender.com/api/health')
+     .then(r => r.json())
+     .then(d => console.log('✅ API Connected:', d))
+     .catch(e => console.error('❌ Connection Error:', e));
+   ```
+
 ---
 
-## 6. Post-Deployment Verification & Smoke Tests
+## Part 7: Troubleshooting Guide
 
-Once Render shows the service as **Live**, perform the following smoke tests:
+### Issue: "Sign in returns empty 0-byte response or loops back to login.html"
+- **Cause:** Request went to a Render **Static Site** (`ualbany-librarydesk.onrender.com`) instead of the **Web Service** (`ualbanylibrarydesk.onrender.com`). Static sites do not run Node.js/Express.
+- **Fix:** Access the Web Service directly at `https://ualbanylibrarydesk.onrender.com/login.html` or ensure `api-client.js` routes API requests to `https://ualbanylibrarydesk.onrender.com/api`.
 
-### 1. Health Probe
-Open `https://<your-service-name>.onrender.com/api/health` in your browser.  
-Verify that:
-- HTTP status is `200 OK`
-- `status` is `"ok"`
-- `database.status` is `"connected"`
+### Issue: "Database status is disconnected / ping: cannot resolve host"
+- **Cause:** `DB_HOST` in Render Environment Variables was entered as a cluster name (e.g. `ualbanylibrarydesk-db.tidbcloud.com`), which is not a valid DNS host.
+- **Fix:** In TiDB Cloud, click **Connect** on your cluster. Copy the real host (e.g. `gateway01.us-east-1.prod.aws.tidbcloud.com`), set `DB_PORT=4000`, `DB_NAME=ualbanylibrarydesk`, and `DB_SSL=true`.
 
-### 2. Frontend Landing
-Open `https://<your-service-name>.onrender.com/` in your browser.  
-Verify that:
-- The Overview dashboard loads cleanly without console errors.
-- Navigation links between pages function via PJAX.
+### Issue: "TiDB SSL connection rejected"
+- **Cause:** Cloud databases require TLS/SSL encryption.
+- **Fix:** Set environment variable `DB_SSL=true` in Render.
 
-### 3. Staff Sign-in
-Open `https://<your-service-name>.onrender.com/login.html`.
-- NetID: `linda.kovacs`
-- Password: `password123`
-- Click **Sign in** and verify redirect to `index.html` with authenticated session.
+### Issue: "CORS error in browser console"
+- **Cause:** When using a decoupled static frontend, the backend rejected the origin.
+- **Fix:** In the backend Web Service environment variables, set `CORS_ORIGIN=*` and `FRONTEND_URL=https://ualbany-librarydesk.onrender.com`.
 
-### 4. Equipment Circulation
-1. Open `https://<your-service-name>.onrender.com/new-loan.html`.
-2. Check out an available equipment item to borrower `emma.wilson`.
-3. Verify that the active loan appears in `loans.html`.
-4. Open `return-item.html`, process the return, and confirm the stock count updates.
+### Issue: "Free Tier spins down after inactivity (Cold Start)"
+- **Note:** Render's free tier spins down web services after 15 minutes of inactivity. The first request after sleep may take 30–50 seconds while the container initializes. Subsequent requests respond immediately.
 
 ---
 
-## 7. Rollback & Troubleshooting Procedures
+## Part 8: URLs & Quick Reference Summary
 
-### Service Fails to Start
-- **Symptom:** Render displays `Build succeeded` followed by `Deploy failed` or container crash.
-- **Remedy:** Check Render's **Logs** tab. If the database is not reachable at startup, ensure your remote MySQL host allows incoming connections from `0.0.0.0/0` (or Render's outbound IPs) and that SSL/TLS is properly negotiated.
-
-### Free Tier Sleep Behavior
-- **Note:** Render's free tier spins down web services after 15 minutes of inactivity. The first request after spin-down may take 30–50 seconds to boot the container. Subsequent requests respond instantly.
-- **Tip:** For high-availability production without spin-down, upgrade the web service to the `Starter` plan ($7/mo).
-
-### Rollback to a Previous Deployment
-1. Go to your Web Service in the Render Dashboard.
-2. Click the **Deploys** tab.
-3. Find the previous successful deploy.
-4. Click the three dots (`...`) next to it and select **Rollback to this deploy**.
+| Service | Environment | URL |
+| :--- | :--- | :--- |
+| **Backend Web Service** | Production (Render) | `https://ualbanylibrarydesk.onrender.com` |
+| **Backend Health Check** | Production (Render) | `https://ualbanylibrarydesk.onrender.com/health` |
+| **Decoupled Frontend Static Site** | Production (Render CDN) | `https://ualbany-librarydesk.onrender.com` |
+| **Local Full-Stack Server** | Development (Localhost) | `http://localhost:3000` |
+| **Database Console** | TiDB Cloud | `https://tidbcloud.com` (Cluster: `ualbanylibrarydesk-db`) |

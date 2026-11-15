@@ -52,7 +52,7 @@ The **UAlbany LibraryDesk Portal** is a web-based circulation and equipment life
 - **Local Workstation Access:** Open any modern browser and navigate to:  
   `http://localhost:3000/` (or `http://localhost:3000/login.html`)
 - **Cloud/Hosted Production Access:**  
-  `https://ualbany-librarydesk.onrender.com/` (or your institution's designated portal domain)
+  `https://ualbanylibrarydesk.onrender.com/` (or your institution's designated portal domain)
 
 ### 2.2 Workstation Hardware & Hardware Compatibility
 | Component | Minimum Specification | Recommended Specification |
