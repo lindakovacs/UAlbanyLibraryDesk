@@ -54,6 +54,8 @@ The **UAlbany LibraryDesk Portal** is a web-based circulation and equipment life
 - **Cloud/Hosted Production Access:**  
   `https://ualbanylibrarydesk.onrender.com/` (or your institution's designated portal domain)
 
+![Render Cloud Web Service Deployment](../assets/screenshots/Render-server.png)
+
 ### 2.2 Workstation Hardware & Hardware Compatibility
 | Component | Minimum Specification | Recommended Specification |
 |---|---|---|
@@ -132,8 +134,7 @@ Access to circulation tools is governed by institutional role-based permissions:
    - A cryptographic JSON Web Token (JWT) is generated and stored locally in browser session storage.
    - You will be automatically redirected to the **Circulation Dashboard** (`/index.html`).
 
-> 📷 **[Screenshot Placeholder: Staff Sign-In Page]**  
-> *Capture: `login.html` showing the NetID input field, Password input field, University Libraries seal, and "Sign in" button.*
+![Staff Sign-In Page](../assets/screenshots/login.png)
 
 #### Training & Evaluation Test Credentials
 For workstation evaluation and system testing, the following verified accounts are pre-configured (Default Password for all test accounts: `password123`):
@@ -170,6 +171,8 @@ For workstation evaluation and system testing, the following verified accounts a
 
 > [!IMPORTANT]
 > Always sign out via the **Staff Profile** (`/profile.html`) when stepping away from the circulation desk to ensure student patron records and checkout logs remain protected.
+
+![Staff Profile and Workstation Session Controls](../assets/screenshots/profile.png)
 
 ---
 
@@ -215,8 +218,7 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
 **File:** `index.html`  
 **When to Use:** Daily shift start, ongoing monitoring of desk throughput, and quick access to frequent circulation tasks.
 
-> 📷 **[Screenshot Placeholder: Dashboard Overview]**  
-> *Capture: `index.html` displaying the top metric cards (Total Equipment, Currently on Loan, Reserved, Overdue), Quick Action buttons, and Preparation & Loans reports.*
+![Circulation Dashboard Overview](../assets/screenshots/index.png)
 
 ### Step-by-Step Instructions:
 1. Click **Overview** in the sidebar.
@@ -240,8 +242,7 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
 **File:** `equipment.html`  
 **When to Use:** Assisting patrons seeking specific technology, verifying item quantities, or checking maintenance status.
 
-> 📷 **[Screenshot Placeholder: Equipment Catalog]**  
-> *Capture: `equipment.html` displaying the category filter dropdown, live search input, and table of equipment items with stock pills.*
+![Equipment Catalog and Inventory Status](../assets/screenshots/equipment.png)
 
 ### Step-by-Step Instructions:
 1. Click **Equipment** in the navigation sidebar.
@@ -262,8 +263,7 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
 **File:** `new-loan.html`  
 **When to Use:** Checking out hardware to a registered student, faculty member, or researcher.
 
-> 📷 **[Screenshot Placeholder: New Loan Checkout Form]**  
-> *Capture: `new-loan.html` showing the Borrower NetID field with patron preview card, Equipment Item select box, Loan Period radio buttons, and "Complete Checkout" button.*
+![New Loan Checkout Form](../assets/screenshots/new-loan.png)
 
 ### Step-by-Step Instructions:
 
@@ -303,15 +303,20 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
 **Files:** `loans.html`, `loans-reserved.html`, `loans-overdue.html`, `loan-details.html`  
 **When to Use:** Tracking outstanding loans, reserved equipment claimed for future dates, answering patron inquiries, and managing delinquent returns.
 
-> 📷 **[Screenshot Placeholder: Active Loans Table]**  
-> *Capture: `loans.html` displaying the All Loans / Reserved / Overdue tabs, search bar, borrower name column, due date column, and status badges.*
+![All Loans Circulation Queue](../assets/screenshots/loans.png)
 
 ### Step-by-Step Instructions:
 1. Click **Loans** in the sidebar.
 2. Toggle between queue tabs:
    - **All Loans (`loans.html`):** Lists every active, reserved, and open equipment item. The **Registrar yes/no** column displays **Yes** for overdue items or **No** for non-overdue items without in-table checkboxes.
    - **Reserved (`loans-reserved.html`):** Filters strictly for loans claimed for future date pickup (**Registrar yes/no** displays **No**).
+
+   ![Reserved Loans Queue](../assets/screenshots/loans-reserved.png)
+
    - **Overdue (`loans-overdue.html`):** Filters strictly for loans past their due date (**Registrar yes/no** displays **Yes**).
+
+   ![Overdue Loans Queue](../assets/screenshots/loans-overdue.png)
+
 3. Multi-Field Search:
    - Type a borrower name (e.g. *Emma*), NetID (*alex.chen*), loan number (*LN-1042*), or item name (*Nintendo*).
    - The table live-filters dynamically.
@@ -319,6 +324,9 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
    - "Checked out/Reserved date" and "Due date" columns display concise Eastern Standard Time timestamps formatted as `MM/DD/YY, h:mm A EST` (e.g. `10/06/26, 2:30 PM EST`) for rapid visual scanning at the desk. For reserved items, the "Checked out/Reserved date" column displays the reservation date and "Due date" displays `—`.
 5. Inspecting Loan Details & Registrar Hold Checkbox:
    - Click any loan row to open `loan-details.html?id=LN-XXXX`.
+
+   ![Loan Details and Registrar Hold Checkbox](../assets/screenshots/loan-details.png)
+
    - Field rules:
      - For **Reserved** records: `Checked out` and `Return due date` display `—` (empty), while `Reserved date` displays the scheduled pickup timestamp and status displays `Reserved`.
      - For **Standard** records (`active`, `due-today`, `overdue`, `returned`): `Checked out` and `Return due date` display their timestamps and standard loan terms, while `Reserved date` displays `—`.
@@ -338,8 +346,7 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
 **File:** `return-item.html`  
 **When to Use:** When a borrower returns borrowed technology to the circulation desk.
 
-> 📷 **[Screenshot Placeholder: Return Check-in Screen]**  
-> *Capture: `return-item.html` showing the Loan ID lookup input, Equipment Condition selector, Destination Routing checkboxes, and "Process Return" button.*
+![Equipment Return Check-In Screen](../assets/screenshots/return-item.png)
 
 ### Step-by-Step Instructions:
 1. Click **Loans &rarr; Return Item** or click **Check-in Return** from the Dashboard.
@@ -384,19 +391,21 @@ Returned high-tech equipment passes through four quality gates before returning 
 ### 10.2 Queue Tab 1: All Equipment (Master Queue)
 Displays all items currently undergoing any phase of preparation:
 
-![All Equipment Preparation Queue](../assets/screenshots/01-preparation-all-equipment.jpg)
+![All Equipment Preparation Queue](../assets/screenshots/preparation-all.png)
 
 *Key Features Visible Above:*
 - Dynamic tab counts (*Awaiting assignment: 4, In preparation: 3, Review: 2, Ready: 2, All equipment: 11*).
 - Color-coded status pills: Coral (`Needs preparation`), Amber (`In preparation`), Purple (`Awaiting review`), Green (`Ready for lending`).
 - Radio selector for selecting an item to inspect.
 
+![Equipment Preparation Item Details](../assets/screenshots/preparation-details.png)
+
 ---
 
 ### 10.3 Queue Tab 2: Awaiting Assignment
 Items returned from circulation awaiting task delegation:
 
-![Awaiting Assignment Queue](../assets/screenshots/02-preparation-awaiting-assignment.png)
+![Awaiting Assignment Queue](../assets/screenshots/preparation-awaiting-assignment.png)
 
 #### Procedure to Assign Staff:
 1. Select the radio button next to the desired item (e.g. `EQ-014 - Game Console`).
@@ -405,6 +414,9 @@ Items returned from circulation awaiting task delegation:
    - Select the **Assigned Staff Member** (e.g. `John Doe`, `Linda Kovacs`, `Alex Chen`).
    - Set the **Target Completion Date**.
    - Add special inspection instructions (e.g. *"Check HDMI cable and factory reset console"*).
+
+![Staff Task Assignment Dialog](../assets/screenshots/preparation-assignment.png)
+
 4. Click **Assign Task**. The item immediately moves to the **In Preparation** tab.
 
 ---
@@ -412,7 +424,7 @@ Items returned from circulation awaiting task delegation:
 ### 10.4 Queue Tab 3: In Preparation (Sanitization & Inspection)
 Items currently assigned to staff undergoing technical checks:
 
-![In Preparation Queue](../assets/screenshots/03-preparation-in-preparation.png)
+![In Preparation Queue](../assets/screenshots/preparation-in-preparation.png)
 
 #### Procedure to Complete Technical Checklist:
 1. Select the item and click **View equipment details &rarr;** to open `preparation-checklist.html`.
@@ -423,6 +435,9 @@ Items currently assigned to staff undergoing technical checks:
    - [x] Cable & accessory bag verification
    - [x] Firmware check & operational test
 3. Add any staff notes regarding cosmetic wear or replaced batteries.
+
+![Equipment Technical & Sanitization Checklist](../assets/screenshots/preparation-checklist.png)
+
 4. Click **Submit for Supervisor Review**. The item status transitions to `awaiting-review` and moves to the Review tab.
 
 ---
@@ -430,12 +445,15 @@ Items currently assigned to staff undergoing technical checks:
 ### 10.5 Queue Tab 4: Supervisor Review
 Items awaiting final verification and supervisor quality approval:
 
-![Supervisor Review Queue](../assets/screenshots/04-preparation-review.png)
+![Supervisor Review Queue](../assets/screenshots/preparation-review.png)
 
 #### Procedure for Supervisor Approval:
 1. A designated supervisor opens the **Review** tab (indicated by the distinctive **Purple badge** `#46166b` on `#f1ebf6`).
 2. Select the item (e.g. `EQ-011 - Portable Podcasting Kit`) and click **View equipment details &rarr;**.
 3. Review the completed checklist items and staff notes.
+
+![Supervisor Review Details & Ready Sign-Off](../assets/screenshots/preparation-review-details.png)
+
 4. Click **Approve & Mark Ready for Lending**.
    - The item status updates to `ready`.
    - The item moves to the **Ready** queue.
@@ -445,7 +463,7 @@ Items awaiting final verification and supervisor quality approval:
 ### 10.6 Queue Tab 5: Ready for Lending (Re-shelving)
 Items fully certified, inspected, and ready to be placed on library shelves:
 
-![Ready for Lending Queue](../assets/screenshots/05-preparation-ready.png)
+![Ready for Lending Queue](../assets/screenshots/preparation-ready.png)
 
 #### Procedure to Re-shelve:
 1. Physical items are placed in their designated storage lockers or behind-the-desk bins.
@@ -459,8 +477,7 @@ Items fully certified, inspected, and ready to be placed on library shelves:
 **File:** `borrowers.html`  
 **When to Use:** Verifying student registration, checking active loan counts, and reviewing borrowing privileges.
 
-> 📷 **[Screenshot Placeholder: Borrower Accounts Table]**  
-> *Capture: `borrowers.html` showing the Patron search bar, Department filter, active loan badges, and borrower standing.*
+![Borrower Directory and Patron Account Lookup](../assets/screenshots/borrowers.png)
 
 ### Step-by-Step Instructions:
 1. Click **Borrowers** in the left sidebar. The Borrowers directory dynamically populates all patrons with active or reserved loans (6 borrowers: Emma Wilson, Marcus Vance, Sophia Lee, James Chen, Olivia Martinez, Noah Thompson) fetched in real time from `GET /api/borrowers`. Patrons without active loans are automatically excluded.
@@ -478,8 +495,7 @@ Items fully certified, inspected, and ready to be placed on library shelves:
 **File:** `reports.html`  
 **When to Use:** Preparing monthly circulation summaries, equipment utilization reviews, and semester audits.
 
-> 📷 **[Screenshot Placeholder: Reports & Analytics Screen]**  
-> *Capture: `reports.html` showing Semester dropdown selector, Date Range inputs, Run Report button, and Equipment Utilization Table with % metrics.*
+![Circulation Reports and Equipment Utilization Analytics](../assets/screenshots/reports.png)
 
 ### Step-by-Step Instructions:
 1. Click **Reports** in the navigation sidebar.
@@ -502,8 +518,7 @@ Items fully certified, inspected, and ready to be placed on library shelves:
 **File:** `notifications.html`  
 **When to Use:** Daily morning triage to review automated alerts.
 
-> 📷 **[Screenshot Placeholder: Notification Center]**  
-> *Capture: `notifications.html` displaying categorized alert cards: Overdue Warnings, Maintenance Flagged, and Supervisor Review Reminders.*
+![Notifications and Alert Center](../assets/screenshots/notifications.png)
 
 ### Step-by-Step Instructions:
 1. Click **Notifications** in the sidebar.
@@ -551,6 +566,8 @@ The following operational constraints are designed into the current system relea
 ---
 
 ## 16. Troubleshooting FAQ & Emergency Support Directory
+
+![Help and Operational Reference Portal](../assets/screenshots/help.png)
 
 ### Frequently Asked Questions
 
