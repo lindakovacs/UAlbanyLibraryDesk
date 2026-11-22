@@ -54,7 +54,8 @@ The **UAlbany LibraryDesk Portal** is a web-based circulation and equipment life
 - **Cloud/Hosted Production Access:**  
   `https://ualbanylibrarydesk.onrender.com/` (or your institution's designated portal domain)
 
-![Render Cloud Web Service Deployment](../assets/screenshots/Render-server.png)
+![Render Cloud Web Service Deployment](../assets/screenshots/Render-server.png)  
+*Note: The Render deployment may take a few minutes to spin up the server and display the application.*
 
 ### 2.2 Workstation Hardware & Hardware Compatibility
 | Component | Minimum Specification | Recommended Specification |
