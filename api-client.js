@@ -1143,12 +1143,48 @@
       registrarTh.textContent = 'Registrar yes/no';
     }
 
+    // Display success feedback banners when arriving from checkout or return workflows
+    if (typeof window !== 'undefined' && window.location) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const checkoutParam = urlParams.get('checkoutSuccess');
+      const returnParam = urlParams.get('returnSuccess');
+
+      if (checkoutParam && !document.querySelector('.checkout-success-banner')) {
+        const banner = document.createElement('div');
+        banner.className = 'form-success-banner checkout-success-banner';
+        banner.setAttribute('role', 'status');
+        banner.style.cssText = 'background: #eaf5ed; border: 1px solid #7dc294; color: #1e5e34; padding: 0.85rem 1.25rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;';
+        banner.innerHTML = `<span style="font-weight: bold; font-size: 1.15rem;">✓</span> <span>Equipment <strong>${escapeHtml(checkoutParam)}</strong> checked out successfully. New loan record added to active circulation roster.</span>`;
+        const headingDiv = document.querySelector('.section-heading') || tableContainer;
+        headingDiv.parentNode.insertBefore(banner, headingDiv);
+      }
+
+      if (returnParam && !document.querySelector('.return-success-banner')) {
+        const banner = document.createElement('div');
+        banner.className = 'form-success-banner return-success-banner';
+        banner.setAttribute('role', 'status');
+        banner.style.cssText = 'background: #eaf5ed; border: 1px solid #7dc294; color: #1e5e34; padding: 0.85rem 1.25rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;';
+        banner.innerHTML = `<span style="font-weight: bold; font-size: 1.15rem;">✓</span> <span>Loan <strong>${escapeHtml(returnParam)}</strong> returned successfully. Equipment inventory restocked and borrower record updated.</span>`;
+        const headingDiv = document.querySelector('.section-heading') || tableContainer;
+        headingDiv.parentNode.insertBefore(banner, headingDiv);
+      }
+    }
+
     async function fetchAndRenderLoans(query = '') {
       try {
         const params = isOverduePage ? { status: 'overdue' } : isReservedPage ? { status: 'reserved' } : {};
         if (query) params.search = query;
         const res = await apiClient.getLoans(params);
         if (!res || !res.loans) return;
+
+        // Sort loans so newest checkouts appear at the top for circulation desk visibility
+        if (!isOverduePage && !isReservedPage && !query && res.loans.length > 1) {
+          res.loans.sort((a, b) => {
+            const numA = parseInt((a.id || '').replace(/\D/g, ''), 10) || 0;
+            const numB = parseInt((b.id || '').replace(/\D/g, ''), 10) || 0;
+            return numB - numA;
+          });
+        }
 
         if (headingCount) headingCount.textContent = `${res.total} loan${res.total === 1 ? '' : 's'}`;
         if (subCount && !query) {
@@ -1170,11 +1206,20 @@
           if (res.loans.length === 0) {
             tbody.innerHTML = `<tr><td colspan="7" class="table-empty-message" style="text-align: center; padding: 2rem; color: #6b6474; font-style: italic;">No loans matching "${escapeHtml(query)}"</td></tr>`;
           } else {
-            res.loans.forEach(loan => {
+            const urlParams = (typeof window !== 'undefined' && window.location) ? new URLSearchParams(window.location.search) : null;
+            const justCheckedOutEq = urlParams ? urlParams.get('checkoutSuccess') : null;
+
+            res.loans.forEach((loan, idx) => {
               const tr = document.createElement('tr');
               tr.dataset.loanId = loan.id;
               tr.style.cursor = 'pointer';
               tr.title = `View details for loan ${loan.id}`;
+
+              // Highlight newly checked out loan if arriving from checkout workflow
+              if (justCheckedOutEq && (loan.equipmentId === justCheckedOutEq || loan.equipmentName === justCheckedOutEq) && idx === 0) {
+                tr.style.backgroundColor = '#f6fbf7';
+              }
+
               const statusClass = loan.status === 'reserved' ? 'reserved' : loan.status === 'active' ? 'active' : loan.status === 'due-today' ? 'due' : loan.status === 'overdue' ? 'overdue' : 'returned';
               const statusLabel = loan.status === 'reserved' ? 'Reserved' : loan.status === 'active' ? 'On loan' : loan.status === 'due-today' ? 'Due today' : loan.status === 'overdue' ? 'Overdue' : 'Returned';
               const displayDate = loan.checkoutDate ? formatShortEST(loan.checkoutDate) : (loan.reservedDate ? formatShortEST(loan.reservedDate) : '—');
@@ -1239,6 +1284,9 @@
             });
           }
         }
+
+        // Dynamically refresh tab count badges (All loans, Reserved, Overdue)
+        syncGlobalTabBadges();
       } catch (e) {
         // Fallback gracefully
       }
@@ -2211,20 +2259,26 @@
 
             const urlParams = new URLSearchParams(window.location.search);
             const explicitId = urlParams.get('id');
-            let targetId = explicitId || null;
-            if (!targetId && query) {
-              try { targetId = sessionStorage.getItem('current_preparation_id'); } catch (e) {}
+            let selectedIndex = 0;
+            if (explicitId) {
+              const matchedIdx = res.preparation.findIndex(p =>
+                (p.id && p.id.toLowerCase() === explicitId.toLowerCase()) ||
+                (p.equipmentId && p.equipmentId.toLowerCase() === explicitId.toLowerCase())
+              );
+              if (matchedIdx !== -1) {
+                selectedIndex = matchedIdx;
+              }
             }
-            const matchedItem = targetId ? res.preparation.find(p => (p.equipmentId && p.equipmentId.toLowerCase() === targetId.toLowerCase()) || (p.id && p.id.toLowerCase() === targetId.toLowerCase())) : null;
-            const activeItem = matchedItem || res.preparation[0];
+
+            const activeItem = res.preparation[selectedIndex] || res.preparation[0];
             const activeId = activeItem ? (activeItem.equipmentId || activeItem.id) : null;
             if (activeId) {
               try { sessionStorage.setItem('current_preparation_id', activeId); } catch (e) {}
             }
 
-            res.preparation.forEach((item) => {
+            res.preparation.forEach((item, index) => {
               const tr = document.createElement('tr');
-              const isSelected = activeId && (item.equipmentId === activeId || item.id === activeId);
+              const isSelected = (index === selectedIndex);
               const isReview = (item.status === 'review' || item.status === 'in-review');
               const badgeClass = item.status === 'in-prep' ? 'in-progress' : item.status === 'ready' ? 'ready' : isReview ? 'in-review' : 'needs-prep';
               const badgeLabel = item.status === 'awaiting' ? 'Needs preparation' : item.status === 'in-prep' ? 'In preparation' : isReview ? 'Awaiting review' : 'Ready for lending';

@@ -215,6 +215,190 @@ This document records identified system bugs, their visual manifestations, root 
 
 ---
 
+## Bug 7: Form Error Validation with User Guidance & Accessible Error Banners
+
+### Screenshot
+![Bug 7: Accessible Form Error Validation Banners and Field-Level Indicators](../assets/bug-fixes/error-validation.png)
+
+### Affected Views & Files
+- `login.html` (Staff Sign-In Form)
+- `new-loan.html` (New Checkout & Reservation Form)
+- `return-item.html` (Equipment Return Check-In Form)
+- `preparation-assignment.html` (Preparation Task Assignment Form)
+- `preparation-checklist.html` (Technician Sanitization Checklist)
+- `reports.html` & `index.html` (Utilization Filter Range)
+- `styles.css` (`.form-error-banner`, `.field-invalid`, `.form-field-error`, `.form-success-banner`)
+- `api-client.js` (`showFormErrors`, `clearFormErrors`, form submit handlers)
+
+### Problem Description
+1. **Disruptive and Inaccessible Validation Feedback:**
+   - Forms previously relied on native browser tooltip alerts or JavaScript `alert()` popups upon submission.
+   - When required fields were missing (such as unassigned staff in preparation, missing borrower full name in checkout, or empty damaged condition notes in returns), users received disruptive modal alerts that blocked workflow progression and failed WCAG accessibility criteria.
+2. **Missing Field-Level Visual Indicators:**
+   - Invalid fields lacked immediate visual styling (such as red border accents or inline error descriptions directly below the input) to guide users on required corrections.
+
+### Root Cause
+- HTML forms lacked structured validation components and error styling rules in `styles.css`.
+- Forms lacked the `novalidate` attribute, resulting in raw browser tooltip popups, while scripts in `api-client.js` invoked `alert()` for checkout and return validation failures.
+
+### Technical Fix Implemented
+1. **Accessible Error Summary Container:**
+   - Implemented `.form-error-banner` (`role="alert"`, `aria-live="assertive"`) in `styles.css` with UAlbany red styling (`#d9383a` border, `#fdf2f2` background) that renders an error title and itemized bullet points summarizing all form validation issues.
+2. **Field-Level Indicators & Real-Time Dismissal:**
+   - Implemented `.field-invalid` applying red focus borders (`#d9383a`) and `.form-field-error` inserting specific corrective guidance directly beneath each invalid input.
+   - Attached dynamic `input` and `change` event listeners to invalid fields so error styling and messages are immediately dismissed once the user begins typing or selects a valid dropdown option.
+3. **Comprehensive Form Validation Rules:**
+   - **Login Form:** Requires NetID and password; displays user-friendly credentials error on 401 response without exposing sensitive server details.
+   - **Checkout Form:** Validates borrower name, NetID format, 9-digit University ID, valid email, equipment availability (blocks 0 available units), date conflicts (prevents filling both checkout date and reserved date), minimum loan duration (due date >= checkout date), and blocks past reservation dates.
+   - **Return Form:** Requires loan selection and mandates detailed staff explanatory notes whenever condition is marked as "Damaged" or "Missing Accessory".
+   - **Preparation Assignment Form:** Mandates staff specialist selection, future target completion date, and at least one task checkbox.
+   - **Checklist & Reports:** Verifies all 4 checklist steps prior to supervisor review and checks date range validity (`From` date <= `To` date).
+
+---
+
+## Bug 8: Dynamic Synchronization of Loans, Equipment Available Count, and Borrower Open Loans Upon Checkout
+
+### Affected Views & Files
+- `loans.html` (Loans & Returns Main Roster)
+- `new-loan.html` (New Loan Checkout Form)
+- `equipment.html` (Equipment Catalog & Availability Counts)
+- `borrowers.html` (Borrower Directory & Open Loans Metrics)
+- `borrower-details.html` (Borrower Profile & Active Loans List)
+- `index.html` (Staff Workspace Overview Dashboard)
+- `server/data/store.js` (`getNextLoanId`, `createLoan`, `returnLoan`, `deleteLoan`, `getLoans`, `getSummaryKPIs`)
+- `api-client.js` (`syncLoansTable`, `fetchAndRenderLoans`, `syncGlobalTabBadges`, `syncEquipmentPage`, `syncBorrowersTable`)
+- `server/SQLQueries.sql` (Section 5.5 Transaction Checkout and Return Operations)
+
+### Problem Description
+1. **Newly Checked Out Items Missing on Loans Page:**
+   - When desk staff submitted a new equipment checkout on `new-loan.html`, the system redirected to `loans.html`, but the newly checked-out loan did not appear in the table roster.
+2. **Circulation Numbers & Inventory Counts Out of Sync:**
+   - The equipment available count on `equipment.html` and the checkout dropdown on `new-loan.html` did not decrement.
+   - The borrower's open loans count on `borrowers.html` and `borrower-details.html` did not increment.
+   - The total loans heading (`7 loans`), subheading (`6 open loans · 1 returned`), and tab badges (`All loans 7`, `Reserved 1`, `Overdue 1`) remained static.
+
+### Root Cause
+1. **Loan ID Primary Key Collision in Database:**
+   - In `server/data/store.js`, the loan ID calculation was computed as `const nextNum = 1043 + this.loans.length - 5;`.
+   - When the server restarted or initialized with 7 seed records in memory, `nextNum` evaluated to `1045` or `1046`.
+   - Because `LN-1045` and `LN-1046` already existed in MySQL, MySQL rejected the query with `ER_DUP_ENTRY: Duplicate entry 'LN-1045' for key 'loans.PRIMARY'`.
+   - The error was caught and rolled back the MySQL transaction (`conn.rollback()`), meaning the new loan was never saved to the database, equipment inventory was never decremented, and borrower open loans were never incremented.
+   - When `loans.html` fetched `GET /api/loans`, MySQL returned only the pre-existing seed rows, omitting the new checkout.
+2. **Static Roster Sorting by Due Date:**
+   - `store.getLoans()` queried with `ORDER BY l.due_date ASC`. When a checkout was scheduled with a due date in the future (e.g. November 2026), it was placed after all October seed records, making it difficult for circulation staff to see recent desk transactions.
+
+### Technical Fix Implemented
+1. **Dynamic Loan ID Sequence Generator:**
+   - Implemented `getNextLoanId()` in `server/data/store.js`:
+     ```javascript
+     async getNextLoanId() {
+       let maxNum = 1044;
+       try {
+         const [rows] = await pool.query("SELECT id FROM loans WHERE id LIKE 'LN-%'");
+         if (rows && rows.length > 0) {
+           rows.forEach(r => {
+             const m = (r.id || '').match(/LN-(\d+)/i);
+             if (m) {
+               const num = parseInt(m[1], 10);
+               if (!isNaN(num) && num > maxNum) maxNum = num;
+             }
+           });
+         }
+       } catch (e) {}
+       if (this.loans && this.loans.length > 0) {
+         this.loans.forEach(l => {
+           const m = (l.id || '').match(/LN-(\d+)/i);
+           if (m) {
+             const num = parseInt(m[1], 10);
+             if (!isNaN(num) && num > maxNum) maxNum = num;
+           }
+         });
+       }
+       return `LN-${maxNum + 1}`;
+     }
+     ```
+   - Automatically queries the highest existing loan numeric suffix across both MySQL and memory cache, guaranteeing unique IDs (`LN-1047`, `LN-1048`...) without primary key collisions.
+   - Similarly implemented `getNextPrepId()` for preparation items (`PREP-012`, `PREP-013`...).
+2. **Foreign Key Integrity & Automatic Borrower Registration:**
+   - In `store.createLoan`, verified borrower existence in `borrowers` table before inserting loan to satisfy `fk_loans_borrower` foreign key constraint. Auto-creates borrower record if absent.
+3. **Atomic Multi-Step SQL Transaction Matching `SQLQueries.sql` Section 5.5:**
+   - **Step A:** `INSERT INTO loans (id, equipment_id, borrower_netid, asset_tag, checkout_date, due_date, reserved_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`
+   - **Step B:** `UPDATE equipment SET available_quantity = GREATEST(0, available_quantity - 1) WHERE id = ?;`
+   - **Step C:** `UPDATE borrowers SET open_loans = (SELECT COUNT(*) FROM loans WHERE borrower_netid = ? AND status != 'returned') WHERE netid = ?;`
+   - **Step D:** Commits transaction and updates in-memory cache synchronously.
+4. **Circulation Desk Roster Sorting & Success Feedback Banners:**
+   - Updated `syncLoansTable` in `api-client.js` to sort loans by ID descending (`idB - idA`), placing the newest checkouts at the top of `loans.html`.
+   - Added green success alert banners (`.checkout-success-banner` and `.return-success-banner`) when arriving from checkout or return operations.
+   - Dynamically updates table heading (`X loans`), subheading (`X open loans · Y returned`), tab badges (`<loan-tabs>`), and table footer (`Showing X of Y loans`).
+5. **Real-Time Inventory & Directory Number Synchronization:**
+   - `equipment.html`: `syncEquipmentPage()` immediately renders the decremented `available` count.
+   - `borrowers.html`: `syncBorrowersTable()` immediately renders the incremented `openLoans` count.
+   - `index.html`: Dashboard KPI cards and Recent Loans report reflect the new active loan count in real time.
+
+---
+
+## Bug 9: Duplicate Item Highlighting on Preparation Queue Pages
+
+### Affected Views & Files
+- `preparation.html` (Preparation Awaiting Assignment Roster)
+- `preparation-all.html` (All Preparation Pipeline Items)
+- `preparation-progress.html` (In-Preparation Roster)
+- `preparation-review.html` (Supervisor Review Queue)
+- `preparation-ready.html` (Ready for Lending Staging)
+- `api-client.js` (`syncPreparationQueues`, `fetchAndRenderPrep`)
+
+### Problem Description
+1. **Simultaneous Highlighting of First and Last Queue Items:**
+   - On the preparation queue pages, two separate items were highlighted simultaneously by default: the first item in the table and the last item in the table.
+   - Both rows displayed the purple highlighted selection background (`#e5d8ef !important`) and active radio selection circle (`class="selection-circle selected"`).
+   - Only the first item in the list should be highlighted by default.
+
+### Root Cause
+- In `api-client.js`, `fetchAndRenderPrep()` resolved the active preparation item and checked selection via:
+  ```javascript
+  const isSelected = activeId && (item.equipmentId === activeId || item.id === activeId);
+  ```
+- Multiple distinct preparation queue items can share the same catalog equipment model (`equipmentId`). For example, in the awaiting preparation queue, both `PREP-002` (the first awaiting item) and `PREP-012` (the last item returned from circulation) represent units of `EQ-001` Mirrorless Camera Kit.
+- When `activeId` resolved to `EQ-001` from the first item, `item.equipmentId === activeId` evaluated to `true` for both `PREP-002` and `PREP-012`.
+- Consequently, both the first and the last table rows received the `.selected-row` class and `#e5d8ef` background styling.
+
+### Technical Fix Implemented
+1. **Index-Based Single Row Selection Enforcement:**
+   - Updated `syncPreparationQueues()` in `api-client.js` to track selection by unique item index:
+     ```javascript
+     let selectedIndex = 0;
+     if (explicitId) {
+       const matchedIdx = res.preparation.findIndex(p =>
+         (p.id && p.id.toLowerCase() === explicitId.toLowerCase()) ||
+         (p.equipmentId && p.equipmentId.toLowerCase() === explicitId.toLowerCase())
+       );
+       if (matchedIdx !== -1) {
+         selectedIndex = matchedIdx;
+       }
+     }
+     ```
+   - Conditioned row styling on exact index matching:
+     ```javascript
+     const isSelected = (index === selectedIndex);
+     ```
+   - Guarantees that only a single row can ever be marked selected.
+   - Defaults strictly to index `0` so that only the first item in the list is highlighted by default on initial page load.
+
+---
+
+## Verification & Testing Summary
+
+1. **Automated Unit & API Tests:**
+   - Ran `npm test`: all 61 tests (6 health checks + 55 API and resource tests) pass cleanly.
+2. **Date Format Verification:**
+   - Confirmed zero occurrences of European date patterns (`DD Mon YYYY` or `en-GB`) across all HTML files, client JavaScript, and server data.
+3. **Data Integrity & Roster Display:**
+   - Verified that borrower names and university IDs render across all rows in `loans.html`, `loans-reserved.html`, and `loans-overdue.html`.
+4. **Dynamic Circulation & Inventory Updates:**
+   - Verified end-to-end checkout execution: new loans generate unique incremental IDs, decrement equipment inventory, increment borrower open loans, and update UI metrics across all application pages.
+
+---
+
 ## Verification & Testing Summary
 
 1. **Automated Unit & API Tests:**

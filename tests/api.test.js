@@ -7,11 +7,24 @@ const path = require('path');
 process.env.NODE_ENV = 'test';
 
 const app = require('../server/app');
+const store = require('../server/data/store');
 
 async function runTests() {
   console.log('--- Running API and Resource Tests ---\n');
   let passed = 0;
   let failed = 0;
+
+  const cleanupEphemeralLoans = async () => {
+    try {
+      const allLoans = await store.getLoans({ status: 'all' });
+      for (const l of allLoans) {
+        if (!['LN-1038', 'LN-1039', 'LN-1040', 'LN-1041', 'LN-1042', 'LN-1043', 'LN-1044', 'LN-1045', 'LN-1046'].includes(l.id)) {
+          await store.deleteLoan(l.id);
+        }
+      }
+    } catch (e) {}
+  };
+  await cleanupEphemeralLoans();
 
   async function test(name, fn) {
     try {
@@ -684,6 +697,8 @@ async function runTests() {
     const clearCookie = logoutApiRes.headers['set-cookie'] || [];
     assert.ok(clearCookie.some(c => c.includes('librarydesk_session=;')));
   });
+
+  await cleanupEphemeralLoans();
 
   console.log(`\n-----------------------------------------`);
   console.log(`API Tests: ${passed} passed, ${failed} failed, ${passed + failed} total`);

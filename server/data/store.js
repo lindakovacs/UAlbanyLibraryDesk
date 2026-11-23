@@ -1176,9 +1176,64 @@ class DataStore {
     return this.getLoanById(id);
   }
 
+  async getNextLoanId() {
+    let maxNum = 1044;
+    try {
+      const [rows] = await pool.query("SELECT id FROM loans WHERE id LIKE 'LN-%'");
+      if (rows && rows.length > 0) {
+        rows.forEach(r => {
+          const m = (r.id || '').match(/LN-(\d+)/i);
+          if (m) {
+            const num = parseInt(m[1], 10);
+            if (!isNaN(num) && num > maxNum) maxNum = num;
+          }
+        });
+      }
+    } catch (e) {
+      // Database offline fallback
+    }
+    if (this.loans && this.loans.length > 0) {
+      this.loans.forEach(l => {
+        const m = (l.id || '').match(/LN-(\d+)/i);
+        if (m) {
+          const num = parseInt(m[1], 10);
+          if (!isNaN(num) && num > maxNum) maxNum = num;
+        }
+      });
+    }
+    return `LN-${maxNum + 1}`;
+  }
+
+  async getNextPrepId() {
+    let maxNum = 11;
+    try {
+      const [rows] = await pool.query("SELECT id FROM preparation_items WHERE id LIKE 'PREP-%'");
+      if (rows && rows.length > 0) {
+        rows.forEach(r => {
+          const m = (r.id || '').match(/PREP-(\d+)/i);
+          if (m) {
+            const num = parseInt(m[1], 10);
+            if (!isNaN(num) && num > maxNum) maxNum = num;
+          }
+        });
+      }
+    } catch (e) {
+      // Database offline fallback
+    }
+    if (this.preparation && this.preparation.length > 0) {
+      this.preparation.forEach(p => {
+        const m = (p.id || '').match(/PREP-(\d+)/i);
+        if (m) {
+          const num = parseInt(m[1], 10);
+          if (!isNaN(num) && num > maxNum) maxNum = num;
+        }
+      });
+    }
+    return `PREP-${String(maxNum + 1).padStart(3, '0')}`;
+  }
+
   async createLoan(data) {
-    const nextNum = 1043 + this.loans.length - 5;
-    const loanId = `LN-${nextNum}`;
+    const loanId = await this.getNextLoanId();
     const hasReserved = Boolean(data.reservedDate && data.reservedDate.toString().trim() !== '');
 
     let checkoutDate = null;
@@ -1215,20 +1270,40 @@ class DataStore {
       conn = await pool.getConnection();
       await conn.beginTransaction();
 
+      // Ensure borrower exists to satisfy foreign key fk_loans_borrower
+      if (data.netid) {
+        const [bRows] = await conn.query('SELECT netid FROM borrowers WHERE netid = ?', [data.netid]);
+        if (!bRows || bRows.length === 0) {
+          const bName = data.borrower || data.borrowerName || data.netid;
+          const bUniv = data.universityId || data.studentId || '001999999';
+          const bEmail = data.email || `${data.netid}@albany.edu`;
+          const bDept = data.department || 'University Libraries';
+          const bRole = data.role || 'Undergraduate Student';
+          await conn.query(
+            'INSERT INTO borrowers (netid, name, university_id, email, department, role, open_loans, status) VALUES (?, ?, ?, ?, ?, ?, 0, "good-standing")',
+            [data.netid, bName, bUniv, bEmail, bDept, bRole]
+          );
+        }
+      }
+
       await conn.query(
         'INSERT INTO loans (id, equipment_id, borrower_netid, asset_tag, checkout_date, due_date, reserved_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
         [loanId, data.equipmentId, data.netid, assetTag, checkoutDate ? new Date(checkoutDate) : null, dueDate ? new Date(dueDate) : null, reservedDate ? new Date(reservedDate) : null, status]
       );
 
+      // Step B: Decrement equipment available count
       await conn.query(
-        'UPDATE equipment SET available_quantity = available_quantity - 1 WHERE id = ? AND available_quantity > 0;',
+        'UPDATE equipment SET available_quantity = GREATEST(0, available_quantity - 1) WHERE id = ?;',
         [data.equipmentId]
       );
 
-      await conn.query(
-        'UPDATE borrowers SET open_loans = (SELECT COUNT(*) FROM loans WHERE borrower_netid = ? AND status != "returned") WHERE netid = ?;',
-        [data.netid, data.netid]
-      );
+      // Step C: Increment borrower open loans
+      if (data.netid) {
+        await conn.query(
+          'UPDATE borrowers SET open_loans = (SELECT COUNT(*) FROM loans WHERE borrower_netid = ? AND status != "returned") WHERE netid = ?;',
+          [data.netid, data.netid]
+        );
+      }
 
       await conn.commit();
       conn.release();
@@ -1236,6 +1311,9 @@ class DataStore {
       if (conn) {
         await conn.rollback();
         conn.release();
+      }
+      if (e.code !== 'ECONNREFUSED' && e.code !== 'EPERM' && e.code !== 'ENOTFOUND') {
+        console.error('MySQL createLoan error:', e.message);
       }
     }
 
@@ -1245,7 +1323,19 @@ class DataStore {
       eq.available -= 1;
     }
     let borrower = await this.getBorrowerByNetId(data.netid);
-    if (borrower) {
+    if (!borrower && data.netid) {
+      borrower = {
+        netid: data.netid,
+        name: data.borrower || data.borrowerName || data.netid,
+        universityId: data.universityId || data.studentId || '001999999',
+        email: data.email || `${data.netid}@albany.edu`,
+        department: data.department || 'University Libraries',
+        role: data.role || 'Undergraduate Student',
+        openLoans: 1,
+        status: 'good-standing'
+      };
+      this.borrowers.push(borrower);
+    } else if (borrower) {
       borrower.openLoans = (borrower.openLoans || 0) + 1;
     }
 
@@ -1304,7 +1394,7 @@ class DataStore {
       }
 
       if (destination === 'prep-queue') {
-        const nextPrepId = `PREP-${String(this.preparation.length + 1).padStart(3, '0')}`;
+        const nextPrepId = await this.getNextPrepId();
         await conn.query(
           'INSERT INTO preparation_items (id, equipment_id, equipment_name, category, assigned_staff, target_date, status, current_step, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
           [nextPrepId, loan.equipmentId, loan.equipmentName, loan.category || 'Creative Technology', 'Unassigned', 'Oct 14, 2026', 'awaiting', 1, `Returned from ${id} in ${condition} condition`]
@@ -1341,6 +1431,47 @@ class DataStore {
     }
 
     return loan;
+  }
+
+  async deleteLoan(id) {
+    const loan = await this.getLoanById(id);
+    if (!loan) return false;
+    let conn;
+    try {
+      conn = await pool.getConnection();
+      await conn.beginTransaction();
+      await conn.query('DELETE FROM loans WHERE id = ?;', [id]);
+      if (loan.status !== 'returned') {
+        await conn.query(
+          'UPDATE equipment SET available_quantity = LEAST(total_quantity, available_quantity + 1) WHERE id = ?;',
+          [loan.equipmentId]
+        );
+      }
+      if (loan.borrowerNetId) {
+        await conn.query(
+          'UPDATE borrowers SET open_loans = (SELECT COUNT(*) FROM loans WHERE borrower_netid = ? AND status != "returned") WHERE netid = ?;',
+          [loan.borrowerNetId, loan.borrowerNetId]
+        );
+      }
+      await conn.commit();
+      conn.release();
+    } catch (e) {
+      if (conn) {
+        await conn.rollback();
+        conn.release();
+      }
+    }
+    const idx = this.loans.findIndex(l => l.id === id);
+    if (idx !== -1) this.loans.splice(idx, 1);
+    const eq = this.equipment.find(e => e.id === loan.equipmentId);
+    if (eq && loan.status !== 'returned') {
+      eq.available = Math.min(eq.total, eq.available + 1);
+    }
+    const borrower = this.borrowers.find(b => b.netid === loan.borrowerNetId);
+    if (borrower && borrower.openLoans > 0 && loan.status !== 'returned') {
+      borrower.openLoans -= 1;
+    }
+    return true;
   }
 
   // Preparation
