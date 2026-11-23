@@ -386,6 +386,45 @@ This document records identified system bugs, their visual manifestations, root 
 
 ---
 
+## Bug 10: Static Preparation Queue Summary Count on Preparation Pages
+
+### Screenshot
+![Bug 10: Static Preparation Queue Summary Count on Preparation Pages](../assets/bug-fixes/bug10.png)
+
+### Affected Views & Files
+- `preparation-all.html` (All Preparation Pipeline Items)
+- `preparation.html` (Preparation Awaiting Assignment Roster)
+- `preparation-progress.html` (In-Preparation Roster)
+- `preparation-ready.html` (Ready for Lending Staging)
+- `preparation-review.html` (Supervisor Review Queue)
+- `components.js` (`PreparationTabs`)
+- `api-client.js` (`syncPreparationQueues`, `syncGlobalTabBadges`)
+
+### Problem Description
+1. **Static Hardcoded Queue Summary Text:**
+   - On `preparation-all.html` ("All equipment") and other preparation pages, the summary banner header (`.preparation-summary strong`) contained hardcoded static markup: `<strong>11 items in the preparation queue</strong>`.
+   - When items were added to or processed in the preparation queue, the toolbar counter dynamically updated (`N items`), but the summary banner stayed permanently frozen at `"11 items in the preparation queue"`.
+
+### Root Cause
+- The preparation summary card markup was rendered statically in HTML without an identifier or API synchronization binding.
+- While `api-client.js` and `components.js` updated the table tools count and the tab badges, neither component targeted `.preparation-summary strong` or synchronized it with live KPI / queue metrics.
+
+### Technical Fix Implemented
+1. **Standardized Target Element ID in HTML:**
+   - Added `id="preparation-summary-count"` to the summary header across all 5 preparation queue pages:
+     ```html
+     <strong id="preparation-summary-count">11 items in the preparation queue</strong>
+     ```
+2. **Dynamic KPI Binding in `<preparation-tabs>` (`components.js`):**
+   - Updated `render()` and `updateCounts()` in `PreparationTabs` to target `#preparation-summary-count` / `.preparation-summary strong`.
+   - Set dynamically formatted text: `${countTotal} item${countTotal === 1 ? '' : 's'} in the preparation queue`.
+3. **Queue Synchronization & Real-time Update in `api-client.js`:**
+   - In `syncPreparationQueues()`, queried `summaryStrong` and updated the banner whenever preparation items are fetched and rendered (`fetchAndRenderPrep`).
+   - On initialization, performed a non-blocking fetch of `apiClient.getSummaryKPIs()` to ensure the banner count updates immediately upon page load.
+   - In `syncGlobalTabBadges()`, ensured global polling and KPI refresh events propagate the latest `kpis.preparation.total` directly into the banner element.
+
+---
+
 ## Verification & Testing Summary
 
 1. **Automated Unit & API Tests:**
@@ -396,14 +435,5 @@ This document records identified system bugs, their visual manifestations, root 
    - Verified that borrower names and university IDs render across all rows in `loans.html`, `loans-reserved.html`, and `loans-overdue.html`.
 4. **Dynamic Circulation & Inventory Updates:**
    - Verified end-to-end checkout execution: new loans generate unique incremental IDs, decrement equipment inventory, increment borrower open loans, and update UI metrics across all application pages.
-
----
-
-## Verification & Testing Summary
-
-1. **Automated Unit & API Tests:**
-   - Ran `npm test`: all 61 tests (6 health checks + 55 API and resource tests) pass.
-2. **Date Format Verification:**
-   - Confirmed zero occurrences of European date patterns (`DD Mon YYYY` or `en-GB`) across all HTML files, client JavaScript, and server data.
-3. **Data Integrity & Roster Display:**
-   - Verified that borrower names and university IDs render across all rows in `loans.html`, `loans-reserved.html`, and `loans-overdue.html`.
+5. **Preparation Queue Dynamic Counter Verification:**
+   - Verified live count updates in the preparation summary banner (`#preparation-summary-count`) across `preparation-all.html`, `preparation.html`, `preparation-progress.html`, `preparation-ready.html`, and `preparation-review.html`.

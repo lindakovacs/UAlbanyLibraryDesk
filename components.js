@@ -640,6 +640,11 @@
           try { sessionStorage.removeItem('current_preparation_id'); } catch (e) {}
         });
       });
+
+      const summaryStrong = document.getElementById('preparation-summary-count') || document.querySelector('.preparation-summary strong');
+      if (summaryStrong && countTotal != null) {
+        summaryStrong.textContent = `${countTotal} item${countTotal === 1 ? '' : 's'} in the preparation queue`;
+      }
     }
 
     updateCounts(kpis) {
@@ -654,6 +659,11 @@
       if (s3 && kpis.readyForLending != null) s3.textContent = kpis.readyForLending;
       const s4 = this.querySelector('.badge-all');
       if (s4 && kpis.total != null) s4.textContent = kpis.total;
+
+      const summaryStrong = document.getElementById('preparation-summary-count') || document.querySelector('.preparation-summary strong');
+      if (summaryStrong && kpis.total != null) {
+        summaryStrong.textContent = `${kpis.total} item${kpis.total === 1 ? '' : 's'} in the preparation queue`;
+      }
     }
 
     attributeChangedCallback(name, oldValue, newValue) {

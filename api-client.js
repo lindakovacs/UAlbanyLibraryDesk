@@ -2264,6 +2264,7 @@
     const prepSearch = document.getElementById('preparation-search');
     const countBadge = prepPanel.querySelector('.table-tools span:last-child') || prepPanel.querySelector('.table-tools span');
     const tbody = table.querySelector('tbody');
+    const summaryStrong = document.getElementById('preparation-summary-count') || document.querySelector('.preparation-summary strong');
 
     const tabs = document.querySelector('preparation-tabs');
     const activeTab = tabs ? (tabs.getAttribute('active') || '').toLowerCase() : '';
@@ -2291,6 +2292,19 @@
 
         if (countBadge) {
           countBadge.textContent = `${res.preparation.length} item${res.preparation.length === 1 ? '' : 's'}`;
+        }
+
+        if (summaryStrong) {
+          const isAllView = (activeTab === 'all' || p.includes('all'));
+          let totalCount = null;
+          if (isAllView && !query) {
+            totalCount = res.preparation.length;
+          } else if (apiClient.lastKPIs && apiClient.lastKPIs.preparation && apiClient.lastKPIs.preparation.total != null) {
+            totalCount = apiClient.lastKPIs.preparation.total;
+          }
+          if (totalCount != null) {
+            summaryStrong.textContent = `${totalCount} item${totalCount === 1 ? '' : 's'} in the preparation queue`;
+          }
         }
 
         if (tbody) {
@@ -2535,6 +2549,20 @@
           if (footerBtn && link) footerBtn.href = link;
         });
       });
+    }
+
+    if (summaryStrong) {
+      if (apiClient.lastKPIs && apiClient.lastKPIs.preparation && apiClient.lastKPIs.preparation.total != null) {
+        const t = apiClient.lastKPIs.preparation.total;
+        summaryStrong.textContent = `${t} item${t === 1 ? '' : 's'} in the preparation queue`;
+      } else {
+        apiClient.getSummaryKPIs().then(kpiRes => {
+          if (kpiRes && kpiRes.kpis && kpiRes.kpis.preparation && kpiRes.kpis.preparation.total != null) {
+            const t = kpiRes.kpis.preparation.total;
+            summaryStrong.textContent = `${t} item${t === 1 ? '' : 's'} in the preparation queue`;
+          }
+        }).catch(() => {});
+      }
     }
 
     bindStaticPreparationRows();
@@ -3727,6 +3755,12 @@
             if (s4 && kpis.preparation.total != null) s4.textContent = kpis.preparation.total;
           }
         });
+      }
+
+      // Update preparation summary banner count across preparation views
+      const summaryStrong = document.getElementById('preparation-summary-count') || document.querySelector('.preparation-summary strong');
+      if (summaryStrong && kpis.preparation && kpis.preparation.total != null) {
+        summaryStrong.textContent = `${kpis.preparation.total} item${kpis.preparation.total === 1 ? '' : 's'} in the preparation queue`;
       }
     } catch (e) {
       // Graceful fallback
