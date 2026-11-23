@@ -265,6 +265,100 @@
 
   window.LibraryDeskAPI = apiClient;
 
+  /* ==========================================================================
+     Clear & Accessible Form Error Validation Helpers
+     ========================================================================== */
+
+  function clearFormErrors(form) {
+    if (!form) return;
+    const existingBanner = form.querySelector('.form-error-banner, .login-error-banner');
+    if (existingBanner) existingBanner.remove();
+
+    form.querySelectorAll('.form-field-error').forEach(el => el.remove());
+    form.querySelectorAll('.field-invalid').forEach(el => {
+      el.classList.remove('field-invalid');
+      el.removeAttribute('aria-invalid');
+      el.removeAttribute('aria-describedby');
+    });
+  }
+
+  function showFormErrors(form, summaryTitle, errorList = [], fieldErrors = {}) {
+    if (!form) return;
+    clearFormErrors(form);
+
+    const banner = document.createElement('div');
+    banner.className = 'form-error-banner';
+    banner.setAttribute('role', 'alert');
+    banner.setAttribute('aria-live', 'assertive');
+
+    let listHtml = '';
+    if (errorList.length > 0) {
+      listHtml = `<ul>${errorList.map(msg => `<li>${escapeHtml(msg)}</li>`).join('')}</ul>`;
+    }
+
+    banner.innerHTML = `
+      <span class="error-icon" aria-hidden="true">!</span>
+      <div>
+        <strong>${escapeHtml(summaryTitle || 'Review and correct the following items:')}</strong>
+        ${listHtml}
+      </div>
+    `;
+
+    const firstChild = form.firstElementChild;
+    if (firstChild) {
+      form.insertBefore(banner, firstChild);
+    } else {
+      form.appendChild(banner);
+    }
+
+    let firstInvalidField = null;
+    Object.keys(fieldErrors).forEach(fieldId => {
+      const field = form.querySelector('#' + fieldId) || form.querySelector(`[name="${fieldId}"]`);
+      if (field) {
+        field.classList.add('field-invalid');
+        field.setAttribute('aria-invalid', 'true');
+        const errId = `${fieldId}-error`;
+        field.setAttribute('aria-describedby', errId);
+
+        const errMsg = document.createElement('span');
+        errMsg.className = 'form-field-error';
+        errMsg.id = errId;
+        errMsg.setAttribute('role', 'alert');
+        errMsg.textContent = fieldErrors[fieldId];
+
+        const parentContainer = field.closest('.form-field, .assignment-fields > div, div') || field.parentElement;
+        if (parentContainer && parentContainer !== form) {
+          parentContainer.appendChild(errMsg);
+        } else {
+          field.insertAdjacentElement('afterend', errMsg);
+        }
+
+        if (!firstInvalidField) {
+          firstInvalidField = field;
+        }
+
+        const clearFieldHandler = () => {
+          field.classList.remove('field-invalid');
+          field.removeAttribute('aria-invalid');
+          field.removeAttribute('aria-describedby');
+          errMsg.remove();
+          if (!form.querySelector('.field-invalid')) {
+            const b = form.querySelector('.form-error-banner');
+            if (b) b.remove();
+          }
+        };
+        field.addEventListener('input', clearFieldHandler, { once: true });
+        field.addEventListener('change', clearFieldHandler, { once: true });
+      }
+    });
+
+    if (firstInvalidField) {
+      firstInvalidField.focus();
+    } else {
+      banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
   // Initialize form event hooks once DOM is ready
   function initApiFormHooks() {
     // 1. Handle login form submission
@@ -295,31 +389,29 @@
 
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        clearFormErrors(loginForm);
+
         const netidInput = document.getElementById('netid');
         const passwordInput = document.getElementById('password');
         const submitBtn = loginForm.querySelector('button[type="submit"]');
 
-        let errorBanner = loginForm.querySelector('.login-error-banner');
-        if (errorBanner) errorBanner.remove();
-
         const netid = netidInput ? netidInput.value.trim() : '';
         const password = passwordInput ? passwordInput.value : '';
 
-        if (!netid || !password) {
-          errorBanner = document.createElement('div');
-          errorBanner.className = 'login-error-banner';
-          errorBanner.setAttribute('role', 'alert');
-          errorBanner.style.cssText = `
-            background: #fdf2f2;
-            border: 1px solid #f8d7da;
-            color: #8c1d1e;
-            padding: 0.75rem 1rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            margin-bottom: 1rem;
-          `;
-          errorBanner.textContent = 'Enter both NetID and password.';
-          loginForm.insertBefore(errorBanner, loginForm.querySelector('.form-field'));
+        const loginErrors = [];
+        const loginFieldErrors = {};
+
+        if (!netid) {
+          loginErrors.push('NetID is required.');
+          loginFieldErrors['netid'] = 'Enter your UAlbany NetID credentials.';
+        }
+        if (!password) {
+          loginErrors.push('Password is required.');
+          loginFieldErrors['password'] = 'Enter your account password.';
+        }
+
+        if (loginErrors.length > 0) {
+          showFormErrors(loginForm, 'Authentication credentials required:', loginErrors, loginFieldErrors);
           return;
         }
 
@@ -360,20 +452,10 @@
             displayMessage = 'Cannot connect to authentication server. Check connection or restart the backend.';
           }
 
-          errorBanner = document.createElement('div');
-          errorBanner.className = 'login-error-banner';
-          errorBanner.setAttribute('role', 'alert');
-          errorBanner.style.cssText = `
-            background: #fdf2f2;
-            border: 1px solid #f8d7da;
-            color: #8c1d1e;
-            padding: 0.75rem 1rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            margin-bottom: 1rem;
-          `;
-          errorBanner.textContent = displayMessage;
-          loginForm.insertBefore(errorBanner, loginForm.querySelector('.form-field'));
+          showFormErrors(loginForm, 'Sign-in unsuccessful:', [displayMessage], {
+            'netid': 'Check your NetID credentials.',
+            'password': 'Check your password.'
+          });
         }
       });
     }
@@ -385,40 +467,109 @@
       checkoutForm.dataset.apiBound = 'true';
       checkoutForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        clearFormErrors(checkoutForm);
+
         const borrowerInput = document.getElementById('borrower-name');
         const netidInput = document.getElementById('borrower-netid');
-        const eqSelect = document.getElementById('equipment-select');
-        const assetTagInput = document.getElementById('asset-tag');
-        const submitBtn = checkoutForm.querySelector('button[type="submit"]');
-
-        const checkoutDateInput = document.getElementById('checkout-date');
-        const dueDateInput = document.getElementById('due-date');
-        const reservedDateInput = document.getElementById('reserved-date');
-
-        const hasReserved = Boolean(reservedDateInput && reservedDateInput.value.trim() !== '');
-        const hasCheckout = Boolean(checkoutDateInput && checkoutDateInput.value.trim() !== '');
-
-        if (hasReserved && hasCheckout) {
-          alert('Both checkout date and reserved date cannot be filled at the same time. Clear one of the dates to proceed.');
-          return;
-        }
-
-        if (!hasReserved && (!dueDateInput || !dueDateInput.value.trim())) {
-          alert('Return due date is required for equipment checkout.');
-          return;
-        }
-
         const studentIdInput = document.getElementById('student-id');
         const emailInput = document.getElementById('borrower-email');
         const roleSelect = document.getElementById('borrower-role');
+        const eqSelect = document.getElementById('equipment-select');
+        const assetTagInput = document.getElementById('asset-tag');
+        const checkoutDateInput = document.getElementById('checkout-date');
+        const dueDateInput = document.getElementById('due-date');
+        const reservedDateInput = document.getElementById('reserved-date');
+        const submitBtn = checkoutForm.querySelector('button[type="submit"]');
+
+        const errors = [];
+        const fieldErrors = {};
+
+        // 1. Borrower Information Validation
+        const borrowerName = borrowerInput ? borrowerInput.value.trim() : '';
+        if (!borrowerName) {
+          errors.push('Borrower full name is required.');
+          fieldErrors['borrower-name'] = 'Enter the borrower full name.';
+        }
+
+        const netid = netidInput ? netidInput.value.trim().toLowerCase() : '';
+        if (!netid) {
+          errors.push('Borrower NetID is required.');
+          fieldErrors['borrower-netid'] = 'Enter the borrower UAlbany NetID (e.g. emma.wilson).';
+        } else if (!/^[a-z0-9._-]+$/i.test(netid)) {
+          errors.push('NetID format is invalid.');
+          fieldErrors['borrower-netid'] = 'NetID must contain letters, numbers, dots, or hyphens.';
+        }
+
+        const studentId = studentIdInput ? studentIdInput.value.trim() : '';
+        if (studentId && !/^\d{9}$/.test(studentId)) {
+          errors.push('University ID must be a 9-digit number.');
+          fieldErrors['student-id'] = 'Enter a valid 9-digit University ID (e.g. 001482759).';
+        }
+
+        const email = emailInput ? emailInput.value.trim() : '';
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          errors.push('Email address format is invalid.');
+          fieldErrors['borrower-email'] = 'Enter a valid email address (e.g. name@ualbany.edu).';
+        }
+
+        // 2. Equipment Validation
+        const equipmentId = eqSelect ? eqSelect.value.trim() : '';
+        if (!equipmentId) {
+          errors.push('Equipment selection is required.');
+          fieldErrors['equipment-select'] = 'Select an equipment item to check out.';
+        } else {
+          const selectedOpt = eqSelect.options[eqSelect.selectedIndex];
+          if (selectedOpt && (selectedOpt.disabled || selectedOpt.textContent.includes('[Checked out]'))) {
+            errors.push('The selected equipment item is currently out of stock.');
+            fieldErrors['equipment-select'] = 'This equipment item has 0 available units. Choose an available item.';
+          }
+        }
+
+        // 3. Date Validation & Conflict Resolution
+        const hasReserved = Boolean(reservedDateInput && reservedDateInput.value.trim() !== '');
+        const hasCheckout = Boolean(checkoutDateInput && checkoutDateInput.value.trim() !== '');
+        const checkoutVal = checkoutDateInput ? checkoutDateInput.value.trim() : '';
+        const dueVal = dueDateInput ? dueDateInput.value.trim() : '';
+        const reservedVal = reservedDateInput ? reservedDateInput.value.trim() : '';
+
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+
+        if (hasReserved && hasCheckout) {
+          errors.push('Both checkout date and reserved date cannot be filled together.');
+          fieldErrors['reserved-date'] = 'Clear the reserved date for an immediate checkout, or clear the checkout date for a reservation hold.';
+          fieldErrors['checkout-date'] = 'Choose either immediate checkout or future reservation hold.';
+        } else if (hasReserved) {
+          if (reservedVal < todayStr) {
+            errors.push('Reservation date cannot be in the past.');
+            fieldErrors['reserved-date'] = 'Select today or a future date for reservation hold.';
+          }
+        } else {
+          // Standard immediate checkout
+          if (!dueVal) {
+            errors.push('Return due date is required for checkout.');
+            fieldErrors['due-date'] = 'Select an expected return due date.';
+          } else if (checkoutVal && dueVal < checkoutVal) {
+            errors.push('Return due date cannot be earlier than the checkout date.');
+            fieldErrors['due-date'] = `Due date must be on or after the checkout date (${checkoutVal}).`;
+          }
+        }
+
+        if (errors.length > 0) {
+          showFormErrors(checkoutForm, 'Review and correct the following items before submitting checkout:', errors, fieldErrors);
+          return;
+        }
 
         const loanPayload = {
-          borrower: borrowerInput ? borrowerInput.value.trim() : '',
-          netid: netidInput ? netidInput.value.trim() : '',
-          universityId: studentIdInput ? studentIdInput.value.trim() : '',
-          email: emailInput ? emailInput.value.trim() : '',
+          borrower: borrowerName,
+          netid: netid,
+          universityId: studentId,
+          email: email,
           role: roleSelect ? roleSelect.value : '',
-          equipmentId: eqSelect ? eqSelect.value : '',
+          equipmentId: equipmentId,
           assetTag: assetTagInput ? assetTagInput.value.trim() : '',
           checkoutDate: hasReserved ? null : (hasCheckout ? checkoutDateInput.value.trim() : new Date().toISOString()),
           dueDate: hasReserved ? null : (dueDateInput ? dueDateInput.value.trim() : ''),
@@ -439,33 +590,56 @@
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
           }
-          alert(err.data?.message || err.message || 'Failed to complete checkout');
+          showFormErrors(checkoutForm, 'Checkout could not be completed:', [
+            err.data?.message || err.message || 'Failed to complete checkout transaction.'
+          ]);
         }
       });
     }
 
     // 3. Handle return form submission (return-item.html)
+    const returnForm = document.querySelector('form.assignment-form[action*="loans.html"]');
     const isReturnPage = window.location.pathname.includes('return-item') || document.getElementById('loan-select');
-    if (checkoutForm && isReturnPage && !checkoutForm.dataset.apiBound) {
-      checkoutForm.dataset.apiBound = 'true';
-      checkoutForm.addEventListener('submit', async (e) => {
+    if (returnForm && isReturnPage && !returnForm.dataset.returnApiBound) {
+      returnForm.dataset.returnApiBound = 'true';
+      returnForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        clearFormErrors(returnForm);
+
         const loanSelect = document.getElementById('loan-select');
         const conditionSelect = document.getElementById('equipment-condition');
         const destinationSelect = document.getElementById('next-destination');
         const notesInput = document.getElementById('return-notes');
-        const submitBtn = checkoutForm.querySelector('button[type="submit"]');
+        const submitBtn = returnForm.querySelector('button[type="submit"]');
 
-        const loanId = loanSelect ? loanSelect.value : '';
+        const errors = [];
+        const fieldErrors = {};
+
+        const loanId = loanSelect ? loanSelect.value.trim() : '';
         if (!loanId) {
-          alert('Select an open loan to return');
+          errors.push('Select an open loan to return.');
+          fieldErrors['loan-select'] = 'Select an active equipment loan from the dropdown.';
+        }
+
+        const condition = conditionSelect ? conditionSelect.value : 'good';
+        const destination = destinationSelect ? destinationSelect.value : 'ready-shelf';
+        const notes = notesInput ? notesInput.value.trim() : '';
+
+        // If condition is damaged or missing-accessory, require explanatory notes
+        if ((condition === 'damaged' || condition === 'missing-accessory') && !notes) {
+          errors.push('Inspection notes are required when reporting damage or missing accessories.');
+          fieldErrors['return-notes'] = 'Describe the damaged or missing components for staff follow-up.';
+        }
+
+        if (errors.length > 0) {
+          showFormErrors(returnForm, 'Review and correct the following items before processing return:', errors, fieldErrors);
           return;
         }
 
         const returnPayload = {
-          condition: conditionSelect ? conditionSelect.value : 'good',
-          destination: destinationSelect ? destinationSelect.value : 'ready-shelf',
-          notes: notesInput ? notesInput.value.trim() : ''
+          condition: condition,
+          destination: destination,
+          notes: notes
         };
 
         const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Confirm return';
@@ -486,7 +660,9 @@
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
           }
-          alert(err.data?.message || err.message || 'Failed to process return');
+          showFormErrors(returnForm, 'Return check-in could not be processed:', [
+            err.data?.message || err.message || 'Failed to process return transaction.'
+          ]);
         }
       });
     }
@@ -1660,6 +1836,24 @@
         const to = toInput ? toInput.value : '';
         const search = searchInput ? searchInput.value.trim() : '';
 
+        // Validate date timeframe ordering
+        if (from && to && from > to) {
+          const reportForm = document.getElementById('report-form') || (runBtn ? runBtn.closest('form, section') : null);
+          showFormErrors(reportForm, 'Date timeframe error:', [
+            `Start date (${from}) cannot be later than end date (${to}). Adjust the date range to continue.`
+          ], {
+            'report-from': 'Start date must be on or before end date.',
+            'report-to': 'End date must be on or after start date.'
+          });
+          if (runBtn && isManualRun) {
+            runBtn.disabled = false;
+            runBtn.textContent = 'Run report';
+          }
+          return;
+        } else {
+          clearFormErrors(document.getElementById('report-form') || (runBtn ? runBtn.closest('form, section') : null));
+        }
+
         // Update summary display
         if (summarySemester && semesterSelect) {
           const selectedOption = semesterSelect.options[semesterSelect.selectedIndex];
@@ -1847,6 +2041,24 @@
         const from = fromInput ? fromInput.value : '';
         const to = toInput ? toInput.value : '';
         const search = searchInput ? searchInput.value.trim() : '';
+
+        // Validate date timeframe ordering
+        if (from && to && from > to) {
+          const reportForm = document.getElementById('report-form') || (runBtn ? runBtn.closest('form, section') : null);
+          showFormErrors(reportForm, 'Date timeframe error:', [
+            `Start date (${from}) cannot be later than end date (${to}). Adjust the date range to continue.`
+          ], {
+            'report-from': 'Start date must be on or before end date.',
+            'report-to': 'End date must be on or after start date.'
+          });
+          if (runBtn && isManualRun) {
+            runBtn.disabled = false;
+            runBtn.textContent = 'Run report';
+          }
+          return;
+        } else {
+          clearFormErrors(document.getElementById('report-form') || (runBtn ? runBtn.closest('form, section') : null));
+        }
 
         if (summarySemester && semesterSelect) {
           const opt = semesterSelect.options[semesterSelect.selectedIndex];
@@ -2839,9 +3051,48 @@
           assignForm.dataset.apiBound = 'true';
           assignForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const staff = staffSelect ? staffSelect.value : '';
-            const tDate = targetDateInput ? targetDateInput.value : '';
+            clearFormErrors(assignForm);
+
+            const staff = staffSelect ? staffSelect.value.trim() : '';
+            const tDate = targetDateInput ? targetDateInput.value.trim() : '';
             const instructions = instInput ? instInput.value : '';
+
+            const errors = [];
+            const fieldErrors = {};
+
+            if (!staff || staff === 'Select staff member' || staff === 'Unassigned') {
+              errors.push('Staff specialist assignment is required.');
+              fieldErrors['staff-member'] = 'Select a staff member from the dropdown to assign this task.';
+            }
+
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${yyyy}-${mm}-${dd}`;
+
+            if (!tDate) {
+              errors.push('Target completion date is required.');
+              fieldErrors['target-date'] = 'Select an expected target completion date.';
+            } else if (tDate < todayStr) {
+              errors.push('Target completion date cannot be in the past.');
+              fieldErrors['target-date'] = 'Select today or a future date for task completion.';
+            }
+
+            const taskCheckboxes = assignForm.querySelectorAll('input[name="task"]');
+            const anyTaskSelected = Array.from(taskCheckboxes).some(cb => cb.checked);
+            if (taskCheckboxes.length > 0 && !anyTaskSelected) {
+              errors.push('At least one preparation task must be selected.');
+              const firstCb = taskCheckboxes[0];
+              if (firstCb) {
+                fieldErrors[firstCb.id || firstCb.name] = 'Check at least one required preparation task.';
+              }
+            }
+
+            if (errors.length > 0) {
+              showFormErrors(assignForm, 'Review and correct assignment details before proceeding:', errors, fieldErrors);
+              return;
+            }
 
             let formattedDate = effectiveTargetDate || item.targetDate || 'Oct 15, 2026';
             if (tDate) {
@@ -2938,9 +3189,18 @@
           submitBtn.dataset.bound = 'true';
           submitBtn.addEventListener('click', async (e) => {
             e.preventDefault();
+            const checkboxes = checklistItemsContainer ? checklistItemsContainer.querySelectorAll('input[type="checkbox"]') : [];
+            const unchecked = Array.from(checkboxes).filter(cb => !cb.checked);
+            if (checkboxes.length > 0 && unchecked.length > 0) {
+              const checklistCard = document.querySelector('.preparation-card') || document.querySelector('main');
+              showFormErrors(checklistCard, 'Preparation steps incomplete:', [
+                `All ${checkboxes.length} checklist steps must be verified and checked before submitting for supervisor review (${unchecked.length} pending). If work is in progress, click "Save progress".`
+              ], {});
+              return;
+            }
+
             const notes = issueNotes ? issueNotes.value : '';
             const stepsCompleted = [];
-            const checkboxes = checklistItemsContainer ? checklistItemsContainer.querySelectorAll('input[type="checkbox"]') : [];
             checkboxes.forEach(cb => {
               stepsCompleted.push({ id: cb.getAttribute('data-id'), completed: true });
             });

@@ -3378,3 +3378,82 @@ tbody tr:last-child td {
     flex-basis: auto;
   }
 }
+
+/* ==========================================================================
+   Form Validation & User Feedback Styles
+   ========================================================================== */
+
+.form-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: #fdf2f2;
+  border: 1px solid #fad2cf;
+  border-left: 4px solid #d9383a;
+  color: #8c1d1e;
+  padding: 0.85rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.form-error-banner .error-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: #f8d7da;
+  color: #d9383a;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.form-error-banner ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.form-error-banner li {
+  margin-bottom: 0.2rem;
+}
+
+.form-field-error {
+  display: block;
+  color: #d9383a;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 0.35rem;
+  line-height: 1.3;
+}
+
+.field-invalid {
+  border-color: #d9383a !important;
+  background-color: #fffbfa !important;
+  box-shadow: 0 0 0 3px rgba(217, 56, 58, 0.15) !important;
+}
+
+.field-invalid:focus {
+  border-color: #b91c1c !important;
+  box-shadow: 0 0 0 3px rgba(217, 56, 58, 0.25) !important;
+  outline: none !important;
+}
+
+.form-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 4px solid #16a34a;
+  color: #166534;
+  padding: 0.85rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  margin-bottom: 1.25rem;
+}
