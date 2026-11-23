@@ -892,6 +892,48 @@
     };
   }
 
+  function getEquipmentImage(item) {
+    if (!item) return null;
+    const id = item.id || item.equipmentId || '';
+    const name = (item.name || item.equipmentName || '').toLowerCase();
+
+    const map = {
+      'EQ-001': 'assets/equipment/Mirrorless Camera Kit.png',
+      'EQ-002': 'assets/equipment/Nintendo Switch.png',
+      'EQ-003': 'assets/equipment/H4-Zoom-Audio-Recording-Kit.png',
+      'EQ-004': 'assets/equipment/3D-Scanning-Kit.png',
+      'EQ-005': 'assets/equipment/Rode Wireless-GO-Microphone-system.png',
+      'EQ-006': 'assets/equipment/PlayStation5.png',
+      'EQ-007': 'assets/equipment/Arcade-Controller.png',
+      'EQ-008': 'assets/equipment/H1-Zoom-kit.png',
+      'EQ-009': 'assets/equipment/M30-Gamepad.png',
+      'EQ-010': 'assets/equipment/Owl-Video-Conference-Camera.png',
+      'EQ-011': 'assets/equipment/Portable-Podcasting-Kit.png',
+      'EQ-012': 'assets/equipment/SmallRig-All-in-One-Smartphone-Video-Kit.png',
+      'EQ-013': 'assets/equipment/SN30Pro-Gamepad.png',
+      'EQ-014': 'assets/equipment/Game-Console.png'
+    };
+
+    if (map[id]) return map[id];
+
+    if (name.includes('mirrorless') || name.includes('camera kit')) return map['EQ-001'];
+    if (name.includes('switch')) return map['EQ-002'];
+    if (name.includes('h4 zoom')) return map['EQ-003'];
+    if (name.includes('3d scan') || name.includes('revopoint')) return map['EQ-004'];
+    if (name.includes('rode wireless')) return map['EQ-005'];
+    if (name.includes('playstation') || name.includes('ps5')) return map['EQ-006'];
+    if (name.includes('arcade')) return map['EQ-007'];
+    if (name.includes('h1 zoom')) return map['EQ-008'];
+    if (name.includes('m30')) return map['EQ-009'];
+    if (name.includes('owl')) return map['EQ-010'];
+    if (name.includes('podcasting') || name.includes('h6')) return map['EQ-011'];
+    if (name.includes('smallrig')) return map['EQ-012'];
+    if (name.includes('sn30')) return map['EQ-013'];
+    if (name.includes('game console') || name === 'console') return map['EQ-014'];
+
+    return null;
+  }
+
   function getEquipmentIcon(item) {
     const cat = ((item && item.category) || '').toLowerCase();
     const name = ((item && item.name) || '').toLowerCase();
@@ -936,12 +978,14 @@
             const badgeClass = isAvail ? 'ready' : 'in-progress';
             const badgeText = isAvail ? 'Ready to borrow' : 'Currently on loan';
             const iconSvg = getEquipmentIcon(item);
+            const imgUrl = getEquipmentImage(item);
+            const imageHtml = imgUrl
+              ? `<div class="equipment-card-image"><img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" /></div>`
+              : `<div class="catalog-icon">${iconSvg}</div>`;
 
             article.innerHTML = `
-              <div class="catalog-icon">
-                ${iconSvg}
-              </div>
-              <div>
+              ${imageHtml}
+              <div class="equipment-card-content">
                 <h2>${escapeHtml(item.name)}</h2>
                 <p>${escapeHtml(item.id)} · ${escapeHtml(item.category)}</p>
               </div>

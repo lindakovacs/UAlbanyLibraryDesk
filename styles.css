@@ -1769,15 +1769,30 @@ main {
   font-size: 1.1rem;
 }
 
+.equipment-hero-container {
+  width: 100%;
+  margin: 0 0 1.5rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
 .equipment-hero {
-  height: 12.5rem;
+  display: block;
+  width: 100%;
+  height: 14rem;
+  object-fit: cover;
+  object-position: center;
   margin: 0 0 1.5rem;
   background:
     radial-gradient(circle at 22% 55%, rgb(255 255 255 / 28%) 0 7%, transparent 7.5%),
     linear-gradient(110deg, #34383d 0%, #858b92 32%, #cbd0d5 52%, #565b61 72%, #22262b 100%);
-  border-radius: 0.4rem;
+  border-radius: 0.5rem;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%);
   overflow: hidden;
+}
+
+.equipment-hero-container .equipment-hero {
+  margin: 0;
 }
 
 .equipment-collection-heading {
@@ -1877,6 +1892,13 @@ main {
   background: #fff;
   border: 1px solid #e4dfea;
   border-radius: 0.5rem;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.equipment-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(70, 22, 107, 0.08);
 }
 
 .equipment-card::before {
@@ -1887,6 +1909,38 @@ main {
   background: #f7f3fa;
   border-radius: 0.5rem 0.5rem 0 0;
   content: "";
+}
+
+.equipment-card:has(.equipment-card-image)::before {
+  display: none;
+}
+
+.equipment-card-image {
+  grid-area: image;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 11rem;
+  margin: -1rem -1rem 0;
+  background: #faf8fc;
+  border-bottom: 1px solid #eeeaf2;
+  border-radius: 0.5rem 0.5rem 0 0;
+  overflow: hidden;
+  padding: 0.85rem;
+  box-sizing: border-box;
+}
+
+.equipment-card-image img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  transition: transform 0.25s ease;
+}
+
+.equipment-card:hover .equipment-card-image img {
+  transform: scale(1.04);
 }
 
 .catalog-icon {
@@ -1919,6 +1973,7 @@ main {
   font-size: 0.9rem;
 }
 
+.equipment-card-content,
 .equipment-card > div:nth-child(2) {
   grid-area: content;
 }
@@ -2369,6 +2424,10 @@ tbody tr:last-child td {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .equipment-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .page-header,
   main,
   .page-footer {
@@ -2469,6 +2528,10 @@ tbody tr:last-child td {
   .header-actions {
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .equipment-grid {
+    grid-template-columns: 1fr;
   }
 }
 
