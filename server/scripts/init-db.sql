@@ -516,17 +516,17 @@ ON DUPLICATE KEY UPDATE `status`=VALUES(`status`), `reserved_date`=VALUES(`reser
 
 -- Seed Preparation Queue Items (11 records matching UI queue screenshots)
 INSERT INTO `preparation_items` (`id`, `equipment_id`, `equipment_name`, `category`, `assigned_staff`, `target_date`, `status`, `current_step`, `notes`) VALUES
-('PREP-001', 'EQ-014', 'Game Console', 'Gaming Consoles and Accessories', 'Unassigned', '15 Oct 2026', 'awaiting', 1, 'Needs physical inspection & sanitization wipe'),
-('PREP-002', 'EQ-001', 'Mirrorless Camera Kit', 'Creative Technology', 'Unassigned', '15 Oct 2026', 'awaiting', 1, 'Routine prep and sanitization after return'),
-('PREP-003', 'EQ-003', 'H4 Zoom Audio Recording Kit', 'Creative Technology', 'Unassigned', '16 Oct 2026', 'awaiting', 1, 'Awaiting staff assignment for inspection'),
-('PREP-004', 'EQ-012', 'SmallRig All-in-One Smartphone Video Kit', 'Creative Technology', 'Unassigned', '18 Oct 2026', 'awaiting', 1, 'Awaiting staff assignment for inspection'),
-('PREP-005', 'EQ-006', 'PlayStation 5', 'Gaming Consoles and Accessories', 'John Doe', '15 Oct 2026', 'in-prep', 3, 'Cleaning console ports and verifying firmware updates'),
-('PREP-006', 'EQ-010', 'Owl 3 Video Conference Camera', 'Creative Technology', 'Maria Santos', '15 Oct 2026', 'in-prep', 2, 'Testing 360-degree lens and speaker calibration'),
-('PREP-007', 'EQ-002', 'Nintendo Switch', 'Gaming Consoles and Accessories', 'Alex Chen', '17 Oct 2026', 'in-prep', 3, 'Checking Joy-Con drift and cleaning screen'),
-('PREP-008', 'EQ-011', 'Portable Podcasting Kit (Zoom H6)', 'Creative Technology', 'Alex Chen', '15 Oct 2026', 'review', 4, 'Sanitization complete; awaiting supervisor sign-off'),
-('PREP-009', 'EQ-005', 'Rode Wireless GO II Microphone System', 'Creative Technology', 'Maria Santos', '16 Oct 2026', 'review', 4, 'Battery health test passed; awaiting supervisor sign-off'),
-('PREP-010', 'EQ-004', '3D Scanning Kit (Revopoint POP 3 Plus)', 'Creative Technology', 'John Doe', '14 Oct 2026', 'ready', 4, 'Calibration verified; staged for circulation'),
-('PREP-011', 'EQ-009', 'M30 Gamepad', 'Gaming Consoles and Accessories', 'Maria Santos', '14 Oct 2026', 'ready', 4, 'Pairing reset, sanitized, ready for loan')
+('PREP-001', 'EQ-014', 'Game Console', 'Gaming Consoles and Accessories', 'Unassigned', 'Oct 15, 2026', 'awaiting', 1, 'Needs physical inspection & sanitization wipe'),
+('PREP-002', 'EQ-001', 'Mirrorless Camera Kit', 'Creative Technology', 'Unassigned', 'Oct 15, 2026', 'awaiting', 1, 'Routine prep and sanitization after return'),
+('PREP-003', 'EQ-003', 'H4 Zoom Audio Recording Kit', 'Creative Technology', 'Unassigned', 'Oct 16, 2026', 'awaiting', 1, 'Awaiting staff assignment for inspection'),
+('PREP-004', 'EQ-012', 'SmallRig All-in-One Smartphone Video Kit', 'Creative Technology', 'Unassigned', 'Oct 18, 2026', 'awaiting', 1, 'Awaiting staff assignment for inspection'),
+('PREP-005', 'EQ-006', 'PlayStation 5', 'Gaming Consoles and Accessories', 'John Doe', 'Oct 15, 2026', 'in-prep', 3, 'Cleaning console ports and verifying firmware updates'),
+('PREP-006', 'EQ-010', 'Owl 3 Video Conference Camera', 'Creative Technology', 'Maria Santos', 'Oct 15, 2026', 'in-prep', 2, 'Testing 360-degree lens and speaker calibration'),
+('PREP-007', 'EQ-002', 'Nintendo Switch', 'Gaming Consoles and Accessories', 'Alex Chen', 'Oct 17, 2026', 'in-prep', 3, 'Checking Joy-Con drift and cleaning screen'),
+('PREP-008', 'EQ-011', 'Portable Podcasting Kit (Zoom H6)', 'Creative Technology', 'Alex Chen', 'Oct 15, 2026', 'review', 4, 'Sanitization complete; awaiting supervisor sign-off'),
+('PREP-009', 'EQ-005', 'Rode Wireless GO II Microphone System', 'Creative Technology', 'Maria Santos', 'Oct 16, 2026', 'review', 4, 'Battery health test passed; awaiting supervisor sign-off'),
+('PREP-010', 'EQ-004', '3D Scanning Kit (Revopoint POP 3 Plus)', 'Creative Technology', 'John Doe', 'Oct 14, 2026', 'ready', 4, 'Calibration verified; staged for circulation'),
+('PREP-011', 'EQ-009', 'M30 Gamepad', 'Gaming Consoles and Accessories', 'Maria Santos', 'Oct 14, 2026', 'ready', 4, 'Pairing reset, sanitized, ready for loan')
 ON DUPLICATE KEY UPDATE `status`=VALUES(`status`), `assigned_staff`=VALUES(`assigned_staff`), `equipment_name`=VALUES(`equipment_name`);
 
 -- Seed Preparation Checklist Steps

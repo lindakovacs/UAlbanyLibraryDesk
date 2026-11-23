@@ -119,6 +119,15 @@
     document.head.appendChild(style);
   }
 
+  function formatToUSDate(str) {
+    if (!str) return str;
+    const match = String(str).match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+    if (match) {
+      return `${match[2]} ${match[1]}, ${match[3]}`;
+    }
+    return str;
+  }
+
   /* ==========================================================================
      Canonical Preparation Dataset & Status Hydration
      ========================================================================== */
@@ -129,7 +138,7 @@
       equipmentName: 'Game Console',
       category: 'Gaming Consoles and Accessories',
       assignedStaff: 'Unassigned',
-      targetDate: '15 Oct 2026',
+      targetDate: 'Oct 15, 2026',
       status: 'awaiting',
       currentStep: 1,
       checklist: [
@@ -146,7 +155,7 @@
       equipmentName: 'Mirrorless Camera Kit',
       category: 'Creative Technology',
       assignedStaff: 'Unassigned',
-      targetDate: '15 Oct 2026',
+      targetDate: 'Oct 15, 2026',
       status: 'awaiting',
       currentStep: 1,
       checklist: [
@@ -163,7 +172,7 @@
       equipmentName: 'H4 Zoom Audio Recording Kit',
       category: 'Creative Technology',
       assignedStaff: 'Unassigned',
-      targetDate: '16 Oct 2026',
+      targetDate: 'Oct 16, 2026',
       status: 'awaiting',
       currentStep: 1,
       checklist: [
@@ -180,7 +189,7 @@
       equipmentName: 'SmallRig All-in-One Smartphone Video Kit',
       category: 'Creative Technology',
       assignedStaff: 'Unassigned',
-      targetDate: '18 Oct 2026',
+      targetDate: 'Oct 18, 2026',
       status: 'awaiting',
       currentStep: 1,
       checklist: [
@@ -197,7 +206,7 @@
       equipmentName: 'PlayStation 5',
       category: 'Gaming Consoles and Accessories',
       assignedStaff: 'John Doe',
-      targetDate: '15 Oct 2026',
+      targetDate: 'Oct 15, 2026',
       status: 'in-prep',
       currentStep: 3,
       checklist: [
@@ -214,7 +223,7 @@
       equipmentName: 'Owl 3 Video Conference Camera',
       category: 'Creative Technology',
       assignedStaff: 'Maria Santos',
-      targetDate: '15 Oct 2026',
+      targetDate: 'Oct 15, 2026',
       status: 'in-prep',
       currentStep: 2,
       checklist: [
@@ -231,7 +240,7 @@
       equipmentName: 'Nintendo Switch',
       category: 'Gaming Consoles and Accessories',
       assignedStaff: 'Alex Chen',
-      targetDate: '17 Oct 2026',
+      targetDate: 'Oct 17, 2026',
       status: 'in-prep',
       currentStep: 3,
       checklist: [
@@ -248,7 +257,7 @@
       equipmentName: 'Portable Podcasting Kit (Zoom H6)',
       category: 'Creative Technology',
       assignedStaff: 'Alex Chen',
-      targetDate: '15 Oct 2026',
+      targetDate: 'Oct 15, 2026',
       status: 'review',
       currentStep: 4,
       checklist: [
@@ -265,7 +274,7 @@
       equipmentName: 'Rode Wireless GO II Microphone System',
       category: 'Creative Technology',
       assignedStaff: 'Maria Santos',
-      targetDate: '16 Oct 2026',
+      targetDate: 'Oct 16, 2026',
       status: 'review',
       currentStep: 4,
       checklist: [
@@ -282,7 +291,7 @@
       equipmentName: '3D Scanning Kit (Revopoint POP 3 Plus)',
       category: 'Creative Technology',
       assignedStaff: 'John Doe',
-      targetDate: '14 Oct 2026',
+      targetDate: 'Oct 14, 2026',
       status: 'ready',
       currentStep: 4,
       checklist: [
@@ -299,7 +308,7 @@
       equipmentName: 'M30 Gamepad',
       category: 'Gaming Consoles and Accessories',
       assignedStaff: 'Maria Santos',
-      targetDate: '14 Oct 2026',
+      targetDate: 'Oct 14, 2026',
       status: 'ready',
       currentStep: 4,
       checklist: [
@@ -970,13 +979,114 @@
     // 6. Ensure status badges have uniform colors across all views
     enforceAllStatusBadgeColors();
 
-    // 7. Synchronous hydration of preparation workflow views
+    // 7. Dynamic Overview Header Date (always today's date)
+    updateOverviewTodayDate(document);
+
+    // 8. Dynamic Date Pickers (default to today's date, allow future dates)
+    initDatePickers(document);
+
+    // 9. Synchronous hydration of preparation workflow views
     const isPrepWorkflowPage = window.location.pathname.includes('preparation-details') ||
       window.location.pathname.includes('preparation-assignment') ||
       window.location.pathname.includes('preparation-checklist') ||
       window.location.pathname.includes('preparation-review-details');
     if (isPrepWorkflowPage) {
       hydratePreparationUI(document);
+    }
+  }
+
+  function updateOverviewTodayDate(root) {
+    if (!root) root = document;
+    const timeEl = root.getElementById ? root.getElementById('overview-today-date') : root.querySelector('.overview-heading time');
+    if (timeEl) {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      timeEl.setAttribute('datetime', `${yyyy}-${mm}-${dd}`);
+      timeEl.textContent = new Intl.DateTimeFormat('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      }).format(now);
+    }
+  }
+
+  function initDatePickers(root) {
+    if (!root) root = document;
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+
+    const checkoutDateInput = root.getElementById ? root.getElementById('checkout-date') : root.querySelector('#checkout-date');
+    const dueDateInput = root.getElementById ? root.getElementById('due-date') : root.querySelector('#due-date');
+    const reservedDateInput = root.getElementById ? root.getElementById('reserved-date') : root.querySelector('#reserved-date');
+    const targetDateInput = root.getElementById ? root.getElementById('target-date') : root.querySelector('#target-date');
+
+    if (checkoutDateInput) {
+      if (!checkoutDateInput.value || checkoutDateInput.value < todayStr) {
+        checkoutDateInput.value = todayStr;
+      }
+      checkoutDateInput.min = todayStr;
+      if (!checkoutDateInput.dataset.boundDateLimits) {
+        checkoutDateInput.dataset.boundDateLimits = 'true';
+        checkoutDateInput.addEventListener('change', () => {
+          if (dueDateInput && checkoutDateInput.value) {
+            dueDateInput.min = checkoutDateInput.value;
+            if (dueDateInput.value && dueDateInput.value < checkoutDateInput.value) {
+              dueDateInput.value = checkoutDateInput.value;
+            }
+          }
+        });
+        checkoutDateInput.addEventListener('input', () => {
+          if (checkoutDateInput.value.trim() && reservedDateInput) {
+            reservedDateInput.value = '';
+            if (dueDateInput) dueDateInput.required = true;
+          }
+        });
+      }
+    }
+
+    if (dueDateInput) {
+      if (!dueDateInput.value || dueDateInput.value < todayStr) {
+        dueDateInput.value = (checkoutDateInput && checkoutDateInput.value) ? checkoutDateInput.value : todayStr;
+      }
+      dueDateInput.min = (checkoutDateInput && checkoutDateInput.value) ? checkoutDateInput.value : todayStr;
+    }
+
+    if (reservedDateInput) {
+      reservedDateInput.min = todayStr;
+      if (!reservedDateInput.dataset.boundDateLimits) {
+        reservedDateInput.dataset.boundDateLimits = 'true';
+        reservedDateInput.addEventListener('focus', () => {
+          if (!reservedDateInput.value) {
+            reservedDateInput.value = todayStr;
+          }
+        });
+        reservedDateInput.addEventListener('input', () => {
+          if (reservedDateInput.value.trim() && checkoutDateInput) {
+            checkoutDateInput.value = '';
+            if (dueDateInput) {
+              dueDateInput.value = '';
+              dueDateInput.required = false;
+            }
+          } else if (!reservedDateInput.value.trim() && dueDateInput) {
+            dueDateInput.required = true;
+            if (checkoutDateInput && !checkoutDateInput.value) checkoutDateInput.value = todayStr;
+            if (!dueDateInput.value) dueDateInput.value = todayStr;
+          }
+        });
+      }
+    }
+
+    if (targetDateInput) {
+      targetDateInput.min = todayStr;
+      if (!targetDateInput.value || targetDateInput.value < todayStr) {
+        targetDateInput.value = todayStr;
+      }
     }
   }
 
@@ -1001,7 +1111,7 @@
     try {
       savedTargetDate = sessionStorage.getItem('prep_target_date_' + eqId) || sessionStorage.getItem('prep_target_date_' + item.id);
     } catch (e) {}
-    const effectiveTargetDate = savedTargetDate || item.targetDate;
+    const effectiveTargetDate = formatToUSDate(savedTargetDate || item.targetDate);
 
     // Common equipment detail header elements
     const nameEl = root.getElementById ? root.getElementById('equipment-name') : root.querySelector('#equipment-name');
@@ -1088,16 +1198,25 @@
 
     const targetDateInput = root.getElementById ? root.getElementById('target-date') : root.querySelector('#target-date');
     if (targetDateInput) {
-      if (effectiveTargetDate) {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+      targetDateInput.min = todayStr;
+
+      if (effectiveTargetDate && item.status !== 'awaiting') {
         try {
           const parsed = new Date(effectiveTargetDate);
           if (!isNaN(parsed.getTime())) {
-            const yyyy = parsed.getFullYear();
-            const mm = String(parsed.getMonth() + 1).padStart(2, '0');
-            const dd = String(parsed.getDate()).padStart(2, '0');
-            targetDateInput.value = `${yyyy}-${mm}-${dd}`;
+            const py = parsed.getFullYear();
+            const pm = String(parsed.getMonth() + 1).padStart(2, '0');
+            const pd = String(parsed.getDate()).padStart(2, '0');
+            targetDateInput.value = `${py}-${pm}-${pd}`;
           }
         } catch (e) {}
+      } else if (!targetDateInput.value || targetDateInput.value < todayStr) {
+        targetDateInput.value = todayStr;
       }
 
       if (!targetDateInput.dataset.boundTargetSync) {
@@ -1108,7 +1227,7 @@
             try {
               const [yyyy, mm, dd] = val.split('-');
               const dObj = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-              const formatted = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(dObj);
+              const formatted = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(dObj);
               const headerTarget = root.querySelector('.equipment-target strong') || (typeof document !== 'undefined' ? document.querySelector('.equipment-target strong') : null);
               if (headerTarget) {
                 headerTarget.textContent = formatted;

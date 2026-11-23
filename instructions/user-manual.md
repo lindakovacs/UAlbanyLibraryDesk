@@ -223,7 +223,8 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
 
 ### Step-by-Step Instructions:
 1. Click **Overview** in the sidebar.
-2. Review the top KPI summary cards:
+2. Review the top KPI summary cards and header banner:
+   - **Header Date Banner:** Dynamically resolves and displays today's current calendar date (e.g. `Sunday, November 22, 2026`) in standard US long format upon staff sign-in.
    - **Total Equipment:** Complete catalog inventory count across categories.
    - **Currently on Loan:** Total equipment currently in patron possession.
    - **Reserved:** Held equipment kits claimed for future pickup (`02`).
@@ -286,12 +287,9 @@ The interface features an intuitive, unified 3-part layout designed for rapid on
    - *Warning Check:* If the patron has overdue items or holds, an alert banner will notify staff.
 3. In the **Equipment Item** dropdown, select the requested item (e.g. `EQ-001 - Mirrorless Camera Kit`).
    - The system displays the currently available shelf stock. Items with 0 stock cannot be selected.
-4. Select the **Loan Duration**:
-   - `3 Days` (Standard high-demand kits)
-   - `7 Days` (Standard course equipment)
-   - `14 Days` (Special research loans)
-   - `Semester` (Faculty/Staff long-term reservation)
-   The system automatically computes the exact **Due Date & Time**.
+4. Select the **Loan Duration & Dates**:
+   - The date picker tool automatically defaults to today's date for immediate checkout and enables selecting any date in the future for return due dates.
+   - To stage a future equipment claim instead of immediate checkout, enter a **Reserved Date** (the date picker defaults to today and enables future date selection). The date picker restricts historical past dates on new forms while existing records already in the system maintain their historical timestamps.
 5. Ensure the patron agrees to the UAlbany Equipment Lending Policy terms.
 6. Click **Complete Checkout**.
    - The system executes an atomic transaction in MySQL: the equipment quantity decrements by 1, the patron's active loans increment by 1, and an active loan record is generated.

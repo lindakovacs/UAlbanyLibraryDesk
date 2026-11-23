@@ -408,9 +408,16 @@
           return;
         }
 
+        const studentIdInput = document.getElementById('student-id');
+        const emailInput = document.getElementById('borrower-email');
+        const roleSelect = document.getElementById('borrower-role');
+
         const loanPayload = {
           borrower: borrowerInput ? borrowerInput.value.trim() : '',
           netid: netidInput ? netidInput.value.trim() : '',
+          universityId: studentIdInput ? studentIdInput.value.trim() : '',
+          email: emailInput ? emailInput.value.trim() : '',
+          role: roleSelect ? roleSelect.value : '',
           equipmentId: eqSelect ? eqSelect.value : '',
           assetTag: assetTagInput ? assetTagInput.value.trim() : '',
           checkoutDate: hasReserved ? null : (hasCheckout ? checkoutDateInput.value.trim() : new Date().toISOString()),
@@ -545,6 +552,10 @@
 
     // 20. Enforce Purple Styling for Awaiting Review Badges
     enforceReviewBadgeColor();
+
+    // 21. Dynamic Overview Header Date & Form Date Pickers
+    if (typeof updateOverviewTodayDate === 'function') updateOverviewTodayDate();
+    if (typeof initDatePickers === 'function') initDatePickers();
   }
 
   function escapeHtml(str) {
@@ -607,6 +618,13 @@
         return `${m}/${d}/${y.slice(-2)}, ${hour12}:${minStr} ${ampm} EST`;
       }
 
+      // If midnight UTC (created from date-only input YYYY-MM-DD), avoid rolling back day in Western timezones
+      if (/T00:00:00(\.000)?Z?$/i.test(str)) {
+        const datePart = str.split('T')[0];
+        const [y, m, d] = datePart.split('-');
+        return `${m}/${d}/${y.slice(-2)} EST`;
+      }
+
       // Date parsing for ISO string (e.g. 2026-10-06T14:30:00.000Z)
       const dt = new Date(dateVal);
       if (isNaN(dt.getTime())) return str + ' EST';
@@ -628,6 +646,15 @@
     } catch (e) {
       return `${dateVal} EST`;
     }
+  }
+
+  function formatToUSDate(str) {
+    if (!str) return str;
+    const match = String(str).match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+    if (match) {
+      return `${match[2]} ${match[1]}, ${match[3]}`;
+    }
+    return str;
   }
 
   function formatStatusBadge(badge, statusInput) {
@@ -826,6 +853,73 @@
             }
           }
         });
+      }
+
+      // Date Picker Tool: default to today's date and allow future selections
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+
+      const checkoutDateInput = document.getElementById('checkout-date');
+      const dueDateInput = document.getElementById('due-date');
+      const reservedDateInput = document.getElementById('reserved-date');
+
+      if (checkoutDateInput) {
+        if (!checkoutDateInput.value || checkoutDateInput.value < todayStr) {
+          checkoutDateInput.value = todayStr;
+        }
+        checkoutDateInput.min = todayStr;
+        if (!checkoutDateInput.dataset.boundDateLimits) {
+          checkoutDateInput.dataset.boundDateLimits = 'true';
+          checkoutDateInput.addEventListener('change', () => {
+            if (dueDateInput && checkoutDateInput.value) {
+              dueDateInput.min = checkoutDateInput.value;
+              if (dueDateInput.value && dueDateInput.value < checkoutDateInput.value) {
+                dueDateInput.value = checkoutDateInput.value;
+              }
+            }
+          });
+          checkoutDateInput.addEventListener('input', () => {
+            if (checkoutDateInput.value.trim() && reservedDateInput) {
+              reservedDateInput.value = '';
+              if (dueDateInput) dueDateInput.required = true;
+            }
+          });
+        }
+      }
+
+      if (dueDateInput) {
+        if (!dueDateInput.value || dueDateInput.value < todayStr) {
+          dueDateInput.value = (checkoutDateInput && checkoutDateInput.value) ? checkoutDateInput.value : todayStr;
+        }
+        dueDateInput.min = (checkoutDateInput && checkoutDateInput.value) ? checkoutDateInput.value : todayStr;
+      }
+
+      if (reservedDateInput) {
+        reservedDateInput.min = todayStr;
+        if (!reservedDateInput.dataset.boundDateLimits) {
+          reservedDateInput.dataset.boundDateLimits = 'true';
+          reservedDateInput.addEventListener('focus', () => {
+            if (!reservedDateInput.value) {
+              reservedDateInput.value = todayStr;
+            }
+          });
+          reservedDateInput.addEventListener('input', () => {
+            if (reservedDateInput.value.trim() && checkoutDateInput) {
+              checkoutDateInput.value = '';
+              if (dueDateInput) {
+                dueDateInput.value = '';
+                dueDateInput.required = false;
+              }
+            } else if (!reservedDateInput.value.trim() && dueDateInput) {
+              dueDateInput.required = true;
+              if (checkoutDateInput && !checkoutDateInput.value) checkoutDateInput.value = todayStr;
+              if (!dueDateInput.value) dueDateInput.value = todayStr;
+            }
+          });
+        }
       }
     } catch (e) {
       // Fallback gracefully
@@ -1736,7 +1830,7 @@
         const date1 = new Date(y1, m1 - 1, d1);
         const date2 = new Date(y2, m2 - 1, d2);
         const mNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        return `${date1.getDate()} ${mNames[date1.getMonth()]} ${date1.getFullYear()} – ${date2.getDate()} ${mNames[date2.getMonth()]} ${date2.getFullYear()}`;
+        return `${mNames[date1.getMonth()]} ${date1.getDate()}, ${date1.getFullYear()} – ${mNames[date2.getMonth()]} ${date2.getDate()}, ${date2.getFullYear()}`;
       } catch (e) {
         return `${fromStr} – ${toStr}`;
       }
@@ -2599,7 +2693,7 @@
       try {
         savedTargetDate = sessionStorage.getItem('prep_target_date_' + currentId) || sessionStorage.getItem('prep_target_date_' + targetPrepId);
       } catch (e) {}
-      const effectiveTargetDate = savedTargetDate || item.targetDate;
+      const effectiveTargetDate = formatToUSDate(savedTargetDate || item.targetDate);
 
       // Common header elements across steps 1-4
       const nameHeading = document.getElementById('equipment-name');
@@ -2679,16 +2773,25 @@
 
         const targetDateInput = document.getElementById('target-date');
         if (targetDateInput) {
-          if (effectiveTargetDate) {
+          const now = new Date();
+          const yyyyNow = now.getFullYear();
+          const mmNow = String(now.getMonth() + 1).padStart(2, '0');
+          const ddNow = String(now.getDate()).padStart(2, '0');
+          const todayStr = `${yyyyNow}-${mmNow}-${ddNow}`;
+          targetDateInput.min = todayStr;
+
+          if (effectiveTargetDate && item.status !== 'awaiting') {
             try {
               const parsed = new Date(effectiveTargetDate);
               if (!isNaN(parsed.getTime())) {
-                const yyyy = parsed.getFullYear();
-                const mm = String(parsed.getMonth() + 1).padStart(2, '0');
-                const dd = String(parsed.getDate()).padStart(2, '0');
-                targetDateInput.value = `${yyyy}-${mm}-${dd}`;
+                const py = parsed.getFullYear();
+                const pm = String(parsed.getMonth() + 1).padStart(2, '0');
+                const pd = String(parsed.getDate()).padStart(2, '0');
+                targetDateInput.value = `${py}-${pm}-${pd}`;
               }
             } catch (e) {}
+          } else if (!targetDateInput.value || targetDateInput.value < todayStr) {
+            targetDateInput.value = todayStr;
           }
 
           if (!targetDateInput.dataset.boundTargetSync) {
@@ -2700,7 +2803,7 @@
                   const parts = val.split('-');
                   if (parts.length === 3) {
                     const dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                    const formatted = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(dObj);
+                    const formatted = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(dObj);
                     const headerTarget = document.querySelector('.equipment-target strong');
                     if (headerTarget) {
                       headerTarget.textContent = formatted;
@@ -2740,13 +2843,13 @@
             const tDate = targetDateInput ? targetDateInput.value : '';
             const instructions = instInput ? instInput.value : '';
 
-            let formattedDate = effectiveTargetDate || item.targetDate || '15 Oct 2026';
+            let formattedDate = effectiveTargetDate || item.targetDate || 'Oct 15, 2026';
             if (tDate) {
               try {
                 const parts = tDate.split('-');
                 if (parts.length === 3) {
                   const dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                  formattedDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(dObj);
+                  formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(dObj);
                 }
               } catch (e) {}
             }
@@ -2836,8 +2939,16 @@
           submitBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             const notes = issueNotes ? issueNotes.value : '';
+            const stepsCompleted = [];
+            const checkboxes = checklistItemsContainer ? checklistItemsContainer.querySelectorAll('input[type="checkbox"]') : [];
+            checkboxes.forEach(cb => {
+              stepsCompleted.push({ id: cb.getAttribute('data-id'), completed: true });
+            });
             try {
-              await apiClient.updatePreparation(targetPrepId, { status: 'review', currentStep: 4, notes });
+              sessionStorage.setItem('prep_completed_' + currentId, 'true');
+            } catch (e) {}
+            try {
+              await apiClient.updatePreparation(targetPrepId, { status: 'review', currentStep: 4, notes, checklist: stepsCompleted });
               window.location.href = `preparation-review-details.html?id=${encodeURIComponent(currentId)}`;
             } catch (err) {
               window.location.href = `preparation-review-details.html?id=${encodeURIComponent(currentId)}`;
@@ -2885,18 +2996,31 @@
           }
         }
 
+        const headerBadge = document.querySelector('.equipment-detail-heading .status-badge');
+        if (headerBadge) {
+          if (item.status === 'ready') {
+            formatStatusBadge(headerBadge, 'ready');
+          } else {
+            formatStatusBadge(headerBadge, 'review');
+          }
+        }
+
+        const isCompletedPrep = item.status === 'review' || item.status === 'ready' || (sessionStorage.getItem('prep_completed_' + currentId) === 'true');
+
         const checklistHeading = document.querySelector('.checklist-heading span');
-        if (checklistHeading && item.checklist) {
-          const completedCount = item.checklist.filter(s => s.completed).length;
-          checklistHeading.textContent = `${completedCount} / ${item.checklist.length} complete`;
+        if (checklistHeading) {
+          const totalSteps = (item.checklist && item.checklist.length) || 4;
+          const completedCount = isCompletedPrep ? totalSteps : (item.checklist ? item.checklist.filter(s => s.completed).length : 0);
+          checklistHeading.textContent = `${completedCount} / ${totalSteps} complete`;
         }
 
         const reviewItemsContainer = document.querySelector('.review-items');
         if (reviewItemsContainer && item.checklist && item.checklist.length > 0) {
           reviewItemsContainer.innerHTML = '';
           item.checklist.forEach(step => {
+            const isDone = isCompletedPrep || step.completed;
             const div = document.createElement('div');
-            div.innerHTML = `<span>${escapeHtml(step.title)}</span><strong>${step.completed ? 'Complete' : 'Pending'}</strong>`;
+            div.innerHTML = `<span>${escapeHtml(step.title)}</span><strong>${isDone ? 'Complete' : 'Pending'}</strong>`;
             reviewItemsContainer.appendChild(div);
           });
         }
@@ -2991,6 +3115,22 @@
     if (overviewHeading && user.name) {
       const firstName = user.name.split(' ')[0];
       overviewHeading.innerHTML = `Good afternoon, ${firstName}<span class="text-primary">.</span>`;
+    }
+
+    // Update Overview date banner to today's date dynamically
+    const overviewTime = document.getElementById('overview-today-date') || document.querySelector('.overview-heading time');
+    if (overviewTime) {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      overviewTime.setAttribute('datetime', `${yyyy}-${mm}-${dd}`);
+      overviewTime.textContent = new Intl.DateTimeFormat('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      }).format(now);
     }
 
     // Update Profile page details on profile.html

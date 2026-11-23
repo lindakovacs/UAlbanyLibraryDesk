@@ -34,7 +34,27 @@
                 library at a glance.
               </p>
             </div>
-            <time datetime="2026-10-11">Sunday, October 11, 2026</time>
+            <time id="overview-today-date"></time>
+            <script>
+              (function () {
+                try {
+                  var timeEl = document.getElementById('overview-today-date');
+                  if (timeEl) {
+                    var now = new Date();
+                    var y = now.getFullYear();
+                    var m = String(now.getMonth() + 1).padStart(2, '0');
+                    var d = String(now.getDate()).padStart(2, '0');
+                    timeEl.setAttribute('datetime', y + '-' + m + '-' + d);
+                    timeEl.textContent = new Intl.DateTimeFormat('en-US', {
+                      weekday: 'long',
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric'
+                    }).format(now);
+                  }
+                } catch (e) {}
+              })();
+            </script>
           </section>
 
           <section class="overview-stats" aria-label="Library statistics">
@@ -260,7 +280,7 @@
                 ><button type="button" id="overview-btn-run-report">Run report</button>
               </div>
               <div class="checkout-report-summary">
-                <strong id="overview-summary-semester">Fall 2026 (current)</strong> · <span id="overview-summary-dates">24 Aug 2026 – 18 Dec 2026</span>
+                <strong id="overview-summary-semester">Fall 2026 (current)</strong> · <span id="overview-summary-dates">Aug 24, 2026 – Dec 18, 2026</span>
                 <span id="overview-summary-totals">38 checkouts · 3.8 days avg</span>
               </div>
               <table>

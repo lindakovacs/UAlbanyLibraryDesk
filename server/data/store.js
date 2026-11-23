@@ -18,7 +18,7 @@ const defaultStaff = {
   workstationId: 'DESK-CIRC-02 (Uptown)',
   permissions: ['checkout', 'return', 'review', 'reports', 'supervisor', 'admin'],
   status: 'active',
-  shiftDate: '11 Oct 2026'
+  shiftDate: 'Oct 11, 2026'
 };
 
 const specialistStaff = {
@@ -33,7 +33,7 @@ const specialistStaff = {
   workstationId: 'DESK-CIRC-01 (Uptown)',
   permissions: ['checkout', 'return', 'preparation'],
   status: 'active',
-  shiftDate: '11 Oct 2026'
+  shiftDate: 'Oct 11, 2026'
 };
 
 const initialStaffList = [
@@ -402,7 +402,7 @@ const initialPreparation = [
     equipmentName: 'Game Console',
     category: 'Gaming Consoles and Accessories',
     assignedStaff: 'Unassigned',
-    targetDate: '15 Oct 2026',
+    targetDate: 'Oct 15, 2026',
     status: 'awaiting',
     currentStep: 1,
     checklist: [
@@ -419,7 +419,7 @@ const initialPreparation = [
     equipmentName: 'Mirrorless Camera Kit',
     category: 'Creative Technology',
     assignedStaff: 'Unassigned',
-    targetDate: '15 Oct 2026',
+    targetDate: 'Oct 15, 2026',
     status: 'awaiting',
     currentStep: 1,
     checklist: [
@@ -436,7 +436,7 @@ const initialPreparation = [
     equipmentName: 'H4 Zoom Audio Recording Kit',
     category: 'Creative Technology',
     assignedStaff: 'Unassigned',
-    targetDate: '16 Oct 2026',
+    targetDate: 'Oct 16, 2026',
     status: 'awaiting',
     currentStep: 1,
     checklist: [
@@ -453,7 +453,7 @@ const initialPreparation = [
     equipmentName: 'SmallRig All-in-One Smartphone Video Kit',
     category: 'Creative Technology',
     assignedStaff: 'Unassigned',
-    targetDate: '18 Oct 2026',
+    targetDate: 'Oct 18, 2026',
     status: 'awaiting',
     currentStep: 1,
     checklist: [
@@ -470,7 +470,7 @@ const initialPreparation = [
     equipmentName: 'PlayStation 5',
     category: 'Gaming Consoles and Accessories',
     assignedStaff: 'John Doe',
-    targetDate: '15 Oct 2026',
+    targetDate: 'Oct 15, 2026',
     status: 'in-prep',
     currentStep: 3,
     checklist: [
@@ -487,7 +487,7 @@ const initialPreparation = [
     equipmentName: 'Owl 3 Video Conference Camera',
     category: 'Creative Technology',
     assignedStaff: 'Maria Santos',
-    targetDate: '15 Oct 2026',
+    targetDate: 'Oct 15, 2026',
     status: 'in-prep',
     currentStep: 2,
     checklist: [
@@ -504,7 +504,7 @@ const initialPreparation = [
     equipmentName: 'Nintendo Switch',
     category: 'Gaming Consoles and Accessories',
     assignedStaff: 'Alex Chen',
-    targetDate: '17 Oct 2026',
+    targetDate: 'Oct 17, 2026',
     status: 'in-prep',
     currentStep: 3,
     checklist: [
@@ -521,7 +521,7 @@ const initialPreparation = [
     equipmentName: 'Portable Podcasting Kit (Zoom H6)',
     category: 'Creative Technology',
     assignedStaff: 'Alex Chen',
-    targetDate: '15 Oct 2026',
+    targetDate: 'Oct 15, 2026',
     status: 'review',
     currentStep: 4,
     checklist: [
@@ -538,7 +538,7 @@ const initialPreparation = [
     equipmentName: 'Rode Wireless GO II Microphone System',
     category: 'Creative Technology',
     assignedStaff: 'Maria Santos',
-    targetDate: '16 Oct 2026',
+    targetDate: 'Oct 16, 2026',
     status: 'review',
     currentStep: 4,
     checklist: [
@@ -555,7 +555,7 @@ const initialPreparation = [
     equipmentName: '3D Scanning Kit (Revopoint POP 3 Plus)',
     category: 'Creative Technology',
     assignedStaff: 'John Doe',
-    targetDate: '14 Oct 2026',
+    targetDate: 'Oct 14, 2026',
     status: 'ready',
     currentStep: 4,
     checklist: [
@@ -572,7 +572,7 @@ const initialPreparation = [
     equipmentName: 'M30 Gamepad',
     category: 'Gaming Consoles and Accessories',
     assignedStaff: 'Maria Santos',
-    targetDate: '14 Oct 2026',
+    targetDate: 'Oct 14, 2026',
     status: 'ready',
     currentStep: 4,
     checklist: [
@@ -1186,16 +1186,24 @@ class DataStore {
     let reservedDate = null;
     let status = 'active';
 
+    const parseLocalDate = (dStr) => {
+      if (!dStr) return null;
+      if (typeof dStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dStr.trim())) {
+        return new Date(`${dStr.trim()}T12:00:00Z`).toISOString();
+      }
+      return new Date(dStr).toISOString();
+    };
+
     if (hasReserved) {
       // Reserved item: only reservedDate is filled; checkoutDate is null; status is reserved
-      reservedDate = new Date(data.reservedDate).toISOString();
+      reservedDate = parseLocalDate(data.reservedDate);
       checkoutDate = null;
-      dueDate = data.dueDate ? new Date(data.dueDate).toISOString() : null;
+      dueDate = data.dueDate ? parseLocalDate(data.dueDate) : null;
       status = 'reserved';
     } else {
       // Checked out item: checkoutDate is filled, dueDate is required, reservedDate is null, normal status
-      checkoutDate = data.checkoutDate ? new Date(data.checkoutDate).toISOString() : new Date().toISOString();
-      dueDate = data.dueDate ? new Date(data.dueDate).toISOString() : new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+      checkoutDate = data.checkoutDate ? parseLocalDate(data.checkoutDate) : new Date().toISOString();
+      dueDate = data.dueDate ? parseLocalDate(data.dueDate) : new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
       reservedDate = null;
       status = data.status || 'active';
     }
@@ -1248,7 +1256,7 @@ class DataStore {
       category: eq ? eq.category : 'General',
       borrowerNetId: data.netid,
       borrowerName: data.borrower || (borrower ? borrower.name : data.netid),
-      universityId: borrower ? borrower.universityId : (data.universityId || '001999999'),
+      universityId: data.universityId || (borrower ? borrower.universityId : (data.studentId || '001999999')),
       checkoutDate,
       dueDate,
       reservedDate,
@@ -1299,7 +1307,7 @@ class DataStore {
         const nextPrepId = `PREP-${String(this.preparation.length + 1).padStart(3, '0')}`;
         await conn.query(
           'INSERT INTO preparation_items (id, equipment_id, equipment_name, category, assigned_staff, target_date, status, current_step, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
-          [nextPrepId, loan.equipmentId, loan.equipmentName, loan.category || 'Creative Technology', 'Unassigned', '14 Oct 2026', 'awaiting', 1, `Returned from ${id} in ${condition} condition`]
+          [nextPrepId, loan.equipmentId, loan.equipmentName, loan.category || 'Creative Technology', 'Unassigned', 'Oct 14, 2026', 'awaiting', 1, `Returned from ${id} in ${condition} condition`]
         );
       }
 
@@ -1495,6 +1503,9 @@ class DataStore {
         params.push(id);
         await pool.query(`UPDATE preparation_items SET ${updates.join(', ')} WHERE LOWER(id) = LOWER(?);`, params);
       }
+      if (data.status === 'review' || data.status === 'ready') {
+        await pool.query('UPDATE preparation_checklist_items SET completed = 1 WHERE LOWER(preparation_id) = LOWER(?);', [id]).catch(() => {});
+      }
     } catch (e) {
       // fallback
     }
@@ -1503,7 +1514,14 @@ class DataStore {
     if (!item) return null;
     if (data.assignedStaff !== undefined) item.assignedStaff = data.assignedStaff;
     if (data.targetDate !== undefined) item.targetDate = data.targetDate;
-    if (data.status !== undefined) item.status = data.status;
+    if (data.status !== undefined) {
+      item.status = data.status;
+      if (data.status === 'review' || data.status === 'ready') {
+        if (item.checklist) {
+          item.checklist.forEach(s => { s.completed = true; });
+        }
+      }
+    }
     if (data.currentStep !== undefined) item.currentStep = data.currentStep;
     if (data.checklist !== undefined) item.checklist = data.checklist;
     if (data.notes !== undefined) item.notes = data.notes;
