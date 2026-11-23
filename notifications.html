@@ -36,7 +36,7 @@
             <div class="section-heading">
               <div>
                 <h2 id="alerts-list-heading">Active alerts</h2>
-                <p>5 items needing attention</p>
+                <p>6 items needing attention</p>
               </div>
               <button
                 type="button"
@@ -49,13 +49,16 @@
 
             <div class="tabs" role="tablist" style="padding: 0 1.25rem 0.5rem; display: flex; gap: 0.5rem; border-bottom: 1px solid #e8e1ed">
               <button class="tab-link active-tab" type="button" style="background: none; border: 0; font: inherit; cursor: pointer" onclick="filterAlerts('all', this)">
-                All alerts <span>5</span>
+                All alerts <span>6</span>
               </button>
               <button class="tab-link" type="button" style="background: none; border: 0; font: inherit; cursor: pointer" onclick="filterAlerts('overdue', this)">
                 Overdue <span>1</span>
               </button>
               <button class="tab-link" type="button" style="background: none; border: 0; font: inherit; cursor: pointer" onclick="filterAlerts('due', this)">
                 Due today <span>2</span>
+              </button>
+              <button class="tab-link" type="button" style="background: none; border: 0; font: inherit; cursor: pointer" onclick="filterAlerts('reserved', this)">
+                Reserved <span>1</span>
               </button>
               <button class="tab-link" type="button" style="background: none; border: 0; font: inherit; cursor: pointer" onclick="filterAlerts('prep', this)">
                 Preparation <span>2</span>
@@ -138,7 +141,32 @@
                 </div>
               </article>
 
-              <!-- Alert 4: Preparation review -->
+              <!-- Alert 4: Reserved hold -->
+              <article class="alert-card" data-category="reserved" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; background: #fff; border: 1px solid #bae6fd; border-left: 4px solid #0284c7; border-radius: 0.5rem; gap: 1rem">
+                <div style="display: flex; gap: 1rem; align-items: flex-start">
+                  <span style="display: grid; width: 2.25rem; height: 2.25rem; place-items: center; background: #e0f2fe; color: #0284c7; border-radius: 50%; font-weight: bold; flex-shrink: 0">&#128197;</span>
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem">
+                      <strong style="color: #252525; font-size: 0.95rem">Reserved hold: Noah Thompson</strong>
+                      <span class="loan-status reserved">Reserved</span>
+                    </div>
+                    <p style="margin: 0 0 0.35rem; color: #5f6872; font-size: 0.85rem">
+                      3D Scanning Kit (Revopoint POP 3 Plus) (EQ-004) is claimed for patron pickup. University ID: 001583902.
+                    </p>
+                    <small style="color: #8c8295; font-size: 0.75rem">Reserved date: Oct 14, 2026, 9:00 AM EST</small>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-shrink: 0">
+                  <a class="primary-action" href="loan-details.html?id=LN-1039" style="padding: 0.45rem 0.85rem; font-size: 0.8rem">
+                    View reservation
+                  </a>
+                  <a class="secondary-action" href="loans-reserved.html" style="padding: 0.45rem 0.85rem; font-size: 0.8rem">
+                    Reserved queue
+                  </a>
+                </div>
+              </article>
+
+              <!-- Alert 5: Preparation review -->
               <article class="alert-card" data-category="prep" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; background: #fff; border: 1px solid #d8cfe0; border-left: 4px solid #46166b; border-radius: 0.5rem; gap: 1rem">
                 <div style="display: flex; gap: 1rem; align-items: flex-start">
                   <span style="display: grid; width: 2.25rem; height: 2.25rem; place-items: center; background: #f1ebf6; color: #46166b; border-radius: 50%; font-weight: bold; flex-shrink: 0">&#10003;</span>

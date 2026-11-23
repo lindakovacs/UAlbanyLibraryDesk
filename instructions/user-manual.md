@@ -27,6 +27,8 @@
 10. [Standard Operating Procedure 6: Equipment Preparation & Inspection Pipeline](#10-sop-6-equipment-preparation--inspection-pipeline)
 11. [Standard Operating Procedure 7: Borrower Directory & Patron Lookup](#11-sop-7-borrower-directory--patron-lookup)
 12. [Standard Operating Procedure 8: Circulation Reports & Analytics](#12-sop-8-circulation-reports--analytics)
+    - [12.1 Supervisor View: Full Reports & Analytics Generation](#121-supervisor-view-full-reports--analytics-generation)
+    - [12.2 Specialist View: Restricted Access & Role Enforcement](#122-specialist-view-restricted-access--role-enforcement)
 13. [Standard Operating Procedure 9: Notifications & Alert Center](#13-sop-9-notifications--alert-center)
 14. [Architecture: Dynamic Population with Offline Fallback](#14-architecture-dynamic-population-with-offline-fallback)
 15. [Known System Limitations & Operational Boundaries](#15-known-system-limitations--operational-boundaries)
@@ -494,9 +496,15 @@ Items fully certified, inspected, and ready to be placed on library shelves:
 **File:** `reports.html`  
 **When to Use:** Preparing monthly circulation summaries, equipment utilization reviews, and semester audits.
 
+---
+
+### 12.1 Supervisor View: Full Reports & Analytics Generation
+
+Circulation Supervisors have administrative privileges to configure, run, review, and export comprehensive equipment circulation reports.
+
 ![Circulation Reports and Equipment Utilization Analytics](../assets/screenshots/reports.png)
 
-### Step-by-Step Instructions:
+#### Step-by-Step Instructions:
 1. Click **Reports** in the navigation sidebar.
 2. Configure report parameters:
    - **Semester Selector:** Choose *Summer 2026*, *Fall 2026*, *Spring 2026*, or *Full Academic Year*.
@@ -512,6 +520,43 @@ Items fully certified, inspected, and ready to be placed on library shelves:
 
 ---
 
+### 12.2 Specialist View: Restricted Access & Role Enforcement
+
+When staff members signed in with the **Circulation Specialist** role (e.g., `linda.kovacs.spec`, `veronica.dindial.spec`) navigate to `reports.html`, the system enforces automated role-based access restrictions to protect institutional analytics and prevent unauthorized report generation.
+
+![Restricted Reports View for Circulation Specialists](../assets/screenshots/reports-restricted.png)
+
+#### Visual Indicators & System Behaviors:
+
+1. **Access Restriction Banner (`#reports-role-restriction`):**
+   - Appears prominently at the top of the page above the report configuration controls.
+   - Features a high-visibility alert banner (`#fdf2f2` background with `#f8b4b4` border) displaying the lock icon (`🔒`) and header **Supervisor Access Required**.
+   - Identifies the signed-in user and current role:
+     > *"Administrative circulation reports and utilization statistics are reserved for **Circulation Supervisors**. You are currently signed in as **[Staff Name]** (Circulation Specialist)."*
+   - Provides an inline hyperlink directly to the login portal: *"To generate or view institutional reports, sign in with a Supervisor account (e.g. Linda Kovacs)."*
+
+2. **Locked Form Controls:**
+   - All input controls within `#report-form` are programmatically disabled (`disabled = true`) and dimmed to 60% opacity to prevent form submission:
+     - **Semester Selector** dropdown is disabled.
+     - **From** and **To** date pickers are disabled.
+     - **Search equipment** text input is disabled.
+     - **Run report** button is disabled.
+     - **Export CSV** button is disabled.
+   - The **Report Summary Totals** card is dimmed to indicate that metrics cannot be calculated.
+
+3. **Protected Data Table:**
+   - The report data table (`#report-rows`) does not render any checkout or equipment utilization rows.
+   - Instead, the table body displays a centered warning:
+     > `🔒 Access Restricted: Circulation reports are reserved for Circulation Supervisors.`
+
+4. **Account Elevation Procedure:**
+   - If a Circulation Specialist requires access to circulation metrics or semester audit reports:
+     1. Click the **sign in with a Supervisor account** link in the restriction banner or select **Sign out** from the staff user menu.
+     2. Authenticate at `/login.html` using a Circulation Supervisor account (e.g., NetID: `linda.kovacs`, `veronica.dindial`, `rym.mahiddine`, `wendy.ouedraogo`, `amari.scott`, `abby.adams`).
+     3. Once authenticated as a Supervisor, re-open `reports.html`. All form controls, search filters, reporting metrics, and CSV export functionality will be fully accessible.
+
+---
+
 ## 13. SOP 9: Notifications & Alert Center
 
 **File:** `notifications.html`  
@@ -521,11 +566,13 @@ Items fully certified, inspected, and ready to be placed on library shelves:
 
 ### Step-by-Step Instructions:
 1. Click **Notifications** in the sidebar.
-2. Review alerts categorized by priority:
-   - 🔴 **High Priority:** Loans 3+ days overdue requiring phone outreach or bursar hold.
-   - 🟡 **Medium Priority:** Loans due before today's 10:00 PM closing.
-   - 🟣 **Review Alerts:** Equipment waiting in supervisor review queue for >24 hours.
-3. Click the action button on any notification card to jump directly to the relevant loan record or equipment task.
+2. Review alerts categorized by priority tabs:
+   - 🔴 **Overdue:** Loans 3+ days overdue requiring phone outreach or bursar hold.
+   - 🟡 **Due today:** Loans due before today's 10:00 PM closing.
+   - 🔵 **Reserved:** Equipment reserved by patrons awaiting front-desk pickup.
+   - 🟣 **Preparation:** Equipment waiting in preparation or supervisor review queues.
+3. Click the filter tabs (**All alerts**, **Overdue**, **Due today**, **Reserved**, **Preparation**) to narrow down the active alert list.
+4. Click the action button on any notification card to jump directly to the relevant loan record, reservation details, or equipment preparation task.
 
 ---
 

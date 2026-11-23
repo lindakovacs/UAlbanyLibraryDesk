@@ -2806,21 +2806,44 @@
     const isNotifications = window.location.pathname.includes('notifications');
     if (!isNotifications) return;
     try {
-      const [kpiRes, overdueRes, dueRes, prepRes] = await Promise.all([
+      const [kpiRes, overdueRes, dueRes, reservedRes, prepRes] = await Promise.all([
         apiClient.getSummaryKPIs().catch(() => null),
         apiClient.getLoans({ status: 'overdue' }).catch(() => null),
         apiClient.getLoans({ status: 'due-today' }).catch(() => null),
+        apiClient.getLoans({ status: 'reserved' }).catch(() => null),
         apiClient.getPreparation({ status: 'awaiting' }).catch(() => null)
       ]);
 
       const overdueLoans = (overdueRes && overdueRes.loans) || [];
       const dueLoans = (dueRes && dueRes.loans) || [];
+      const reservedLoans = (reservedRes && reservedRes.loans) || [];
       const prepItems = (prepRes && prepRes.preparation) || [];
-      const totalAlerts = overdueLoans.length + dueLoans.length + prepItems.length;
+      const totalAlerts = overdueLoans.length + dueLoans.length + reservedLoans.length + prepItems.length;
+
+      // Update section heading subtext
+      const headingP = document.querySelector('.dashboard-section .section-heading p');
+      if (headingP) {
+        headingP.textContent = `${totalAlerts} item${totalAlerts === 1 ? '' : 's'} needing attention`;
+      }
 
       // Update tab counter badges
       const tabs = document.querySelectorAll('.tabs .tab-link');
-      if (tabs.length >= 4) {
+      if (tabs.length >= 5) {
+        const allBadge = tabs[0].querySelector('span');
+        if (allBadge) allBadge.textContent = totalAlerts;
+
+        const overdueBadge = tabs[1].querySelector('span');
+        if (overdueBadge) overdueBadge.textContent = overdueLoans.length;
+
+        const dueBadge = tabs[2].querySelector('span');
+        if (dueBadge) dueBadge.textContent = dueLoans.length;
+
+        const reservedBadge = tabs[3].querySelector('span');
+        if (reservedBadge) reservedBadge.textContent = reservedLoans.length;
+
+        const prepBadge = tabs[4].querySelector('span');
+        if (prepBadge) prepBadge.textContent = prepItems.length;
+      } else if (tabs.length >= 4) {
         const allBadge = tabs[0].querySelector('span');
         if (allBadge) allBadge.textContent = totalAlerts;
 
@@ -2836,7 +2859,7 @@
 
       // Populate notifications list dynamically from live database records
       const listContainer = document.querySelector('.notifications-list');
-      if (listContainer && (overdueLoans.length > 0 || dueLoans.length > 0 || prepItems.length > 0)) {
+      if (listContainer && (overdueLoans.length > 0 || dueLoans.length > 0 || reservedLoans.length > 0 || prepItems.length > 0)) {
         listContainer.innerHTML = '';
 
         // Overdue alerts
@@ -2895,6 +2918,35 @@
           listContainer.appendChild(card);
         });
 
+        // Reserved alerts
+        reservedLoans.forEach(loan => {
+          const card = document.createElement('article');
+          card.className = 'alert-card';
+          card.dataset.category = 'reserved';
+          card.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; background: #fff; border: 1px solid #bae6fd; border-left: 4px solid #0284c7; border-radius: 0.5rem; gap: 1rem';
+          const resDate = loan.reservedDate ? formatShortEST(loan.reservedDate) : 'Claimed for future pickup';
+          card.innerHTML = `
+            <div style="display: flex; gap: 1rem; align-items: flex-start">
+              <span style="display: grid; width: 2.25rem; height: 2.25rem; place-items: center; background: #e0f2fe; color: #0284c7; border-radius: 50%; font-weight: bold; flex-shrink: 0">&#128197;</span>
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem">
+                  <strong style="color: #252525; font-size: 0.95rem">Reserved hold: ${escapeHtml(loan.borrowerName || loan.borrower || 'Patron')}</strong>
+                  <span class="loan-status reserved">Reserved</span>
+                </div>
+                <p style="margin: 0 0 0.35rem; color: #5f6872; font-size: 0.85rem">
+                  ${escapeHtml(loan.equipmentName || loan.equipmentId)} (${escapeHtml(loan.equipmentId)}) is claimed for patron pickup. University ID: ${escapeHtml(loan.universityId || loan.borrowerNetId || loan.netid || '—')}.
+                </p>
+                <small style="color: #8c8295; font-size: 0.75rem">Reserved date: ${escapeHtml(resDate)}</small>
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-shrink: 0">
+              <a class="primary-action" href="loan-details.html?id=${encodeURIComponent(loan.id)}" style="padding: 0.45rem 0.85rem; font-size: 0.8rem">View reservation</a>
+              <a class="secondary-action" href="loans-reserved.html" style="padding: 0.45rem 0.85rem; font-size: 0.8rem">Reserved queue</a>
+            </div>
+          `;
+          listContainer.appendChild(card);
+        });
+
         // Awaiting preparation alerts
         prepItems.forEach(item => {
           const card = document.createElement('article');
@@ -2922,6 +2974,16 @@
           `;
           listContainer.appendChild(card);
         });
+
+        // Reapply active tab filter if not 'all'
+        const activeTab = document.querySelector('.tabs .tab-link.active-tab');
+        if (activeTab && typeof filterAlerts === 'function') {
+          const onclickAttr = activeTab.getAttribute('onclick') || '';
+          const match = onclickAttr.match(/filterAlerts\('([^']+)'/);
+          if (match && match[1] && match[1] !== 'all') {
+            filterAlerts(match[1], activeTab);
+          }
+        }
       }
     } catch (e) {
       // Gracefully preserve static HTML content as fallback
