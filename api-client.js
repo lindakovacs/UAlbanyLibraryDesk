@@ -1075,12 +1075,22 @@
         });
       }
 
-      // Date Picker Tool: default to today's date and allow future selections
+      // Date Picker Tool & Today Date Header: default to today's date and allow future selections
       const now = new Date();
       const yyyy = now.getFullYear();
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const dd = String(now.getDate()).padStart(2, '0');
       const todayStr = `${yyyy}-${mm}-${dd}`;
+      const formattedShortDate = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }).format(now);
+
+      const todayDateEl = document.getElementById('new-loan-today-date') || document.querySelector('.equipment-detail-panel .equipment-target strong');
+      if (todayDateEl) {
+        todayDateEl.textContent = formattedShortDate;
+      }
 
       const checkoutDateInput = document.getElementById('checkout-date');
       const dueDateInput = document.getElementById('due-date');
@@ -1147,6 +1157,16 @@
   }
 
   async function syncReturnSelect() {
+    const returnCheckinEl = document.getElementById('return-checkin-date') || document.querySelector('.equipment-detail-panel .equipment-target strong');
+    if (returnCheckinEl && (window.location.pathname.includes('return-item') || document.getElementById('loan-select'))) {
+      const now = new Date();
+      returnCheckinEl.textContent = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }).format(now);
+    }
+
     const select = document.getElementById('loan-select');
     if (!select) return;
     try {
@@ -3589,6 +3609,15 @@
       if (netidDisplay && user.netid) netidDisplay.textContent = `UAlbany NetID: ${user.netid}`;
       const initialsIcon = document.querySelector('.equipment-detail-icon');
       if (initialsIcon) initialsIcon.textContent = getInitials(user.name);
+
+      const shiftDateEl = document.getElementById('profile-current-shift-date') || document.querySelector('.equipment-detail-panel .equipment-target strong');
+      if (shiftDateEl) {
+        shiftDateEl.textContent = new Intl.DateTimeFormat('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        }).format(new Date());
+      }
 
       // Update definition lists on profile.html
       document.querySelectorAll('.detail-list div').forEach(row => {

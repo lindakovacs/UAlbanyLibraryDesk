@@ -425,6 +425,47 @@ This document records identified system bugs, their visual manifestations, root 
 
 ---
 
+## Bug 11: Static Past Date on Equipment Checkout Form Header
+
+### Screenshot
+![Bug 11: Static Past Date on Equipment Checkout Form Header](../assets/bug-fixes/bug11.png)
+
+### Affected Views & Files
+- `new-loan.html` (New Loan Equipment Checkout Form)
+- `return-item.html` (Equipment Return Check-In Form)
+- `profile.html` (Staff Profile & Current Shift)
+- `components.js` (`updateTodayDates`, `initDatePickers`)
+- `api-client.js` (`syncNewLoanPage`, `syncReturnSelect`, `syncUserSessionUI`)
+
+### Problem Description
+1. **Static Past "Today" Date on Equipment Checkout Form:**
+   - On `new-loan.html` (**New equipment checkout**), the header card metadata in `.equipment-target` displayed a hardcoded static date: `Today` over `Oct 11, 2026` inside the red highlight box in `bug11.png`.
+   - While the checkout and due date picker fields below were dynamically populated with the current system date (e.g. `11/24/2026`), the header banner remained permanently frozen on the past seed date `Oct 11, 2026`.
+   - Similarly, `return-item.html` (`Check-in Date`) and `profile.html` (`Current Shift`) contained static `Oct 11, 2026` text instead of dynamically reflecting today's date.
+
+### Root Cause
+- The `.equipment-target` block on `new-loan.html` was rendered as static HTML (`<strong>Oct 11, 2026</strong>`) without an element identifier or dynamic JavaScript binding.
+- While `initDatePickers()` and `syncNewLoanPage()` dynamically configured `<input type="date">` values, neither function queried or updated the header's `.equipment-target strong` element.
+
+### Technical Fix Implemented
+1. **Standardized Target Element IDs in HTML:**
+   - Added `id="new-loan-today-date"` to `new-loan.html`:
+     ```html
+     <div class="equipment-target">
+       <span>Today</span>
+       <strong id="new-loan-today-date">Oct 11, 2026</strong>
+     </div>
+     ```
+   - Added `id="return-checkin-date"` to `return-item.html` and `id="profile-current-shift-date"` to `profile.html`.
+2. **Dynamic Client Date Formatting in `components.js`:**
+   - Implemented `updateTodayDates()` to format the current calendar date (`new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })`) and populate `#new-loan-today-date`, `#return-checkin-date`, and `#profile-current-shift-date`.
+   - Hooked date resolution into `initDatePickers()` and the main DOM initialization cycle.
+3. **Dynamic Initialization in `api-client.js`:**
+   - Updated `syncNewLoanPage()` to resolve `formattedShortDate` from `new Date()` and dynamically update `#new-loan-today-date` upon page load.
+   - Updated `syncReturnSelect()` and `syncUserSessionUI()` to dynamically update check-in and shift dates.
+
+---
+
 ## Verification & Testing Summary
 
 1. **Automated Unit & API Tests:**
@@ -437,3 +478,5 @@ This document records identified system bugs, their visual manifestations, root 
    - Verified end-to-end checkout execution: new loans generate unique incremental IDs, decrement equipment inventory, increment borrower open loans, and update UI metrics across all application pages.
 5. **Preparation Queue Dynamic Counter Verification:**
    - Verified live count updates in the preparation summary banner (`#preparation-summary-count`) across `preparation-all.html`, `preparation.html`, `preparation-progress.html`, `preparation-ready.html`, and `preparation-review.html`.
+6. **Dynamic Checkout & Check-In Header Dates:**
+   - Verified that `new-loan.html` dynamically renders the current calendar date under "Today" (matching the date picker value), and confirmed that `return-item.html` and `profile.html` dynamically update to the current date.

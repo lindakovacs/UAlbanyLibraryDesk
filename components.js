@@ -1005,11 +1005,18 @@
     }
   }
 
-  function updateOverviewTodayDate(root) {
+  function updateTodayDates(root) {
     if (!root) root = document;
+    const now = new Date();
+    const formattedShortDate = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(now);
+
+    // 1. Dynamic Overview Header Date (always today's date)
     const timeEl = root.getElementById ? root.getElementById('overview-today-date') : root.querySelector('.overview-heading time');
     if (timeEl) {
-      const now = new Date();
       const yyyy = now.getFullYear();
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const dd = String(now.getDate()).padStart(2, '0');
@@ -1021,7 +1028,42 @@
         year: 'numeric'
       }).format(now);
     }
+
+    // 2. Dynamic New Loan Checkout Form "Today" Date
+    const newLoanToday = root.getElementById ? root.getElementById('new-loan-today-date') : null;
+    if (newLoanToday) {
+      newLoanToday.textContent = formattedShortDate;
+    } else {
+      const targetStrong = root.querySelector ? root.querySelector('.equipment-detail-panel .equipment-target strong') : null;
+      if (targetStrong && (window.location.pathname.includes('new-loan') || (root.querySelector && root.querySelector('#checkout-date')))) {
+        targetStrong.textContent = formattedShortDate;
+      }
+    }
+
+    // 3. Dynamic Return Form "Check-in Date"
+    const returnCheckin = root.getElementById ? root.getElementById('return-checkin-date') : null;
+    if (returnCheckin) {
+      returnCheckin.textContent = formattedShortDate;
+    } else {
+      const targetStrong = root.querySelector ? root.querySelector('.equipment-detail-panel .equipment-target strong') : null;
+      if (targetStrong && (window.location.pathname.includes('return-item') || (root.querySelector && root.querySelector('#loan-select')))) {
+        targetStrong.textContent = formattedShortDate;
+      }
+    }
+
+    // 4. Dynamic Profile Page "Current Shift" Date
+    const profileShift = root.getElementById ? root.getElementById('profile-current-shift-date') : null;
+    if (profileShift) {
+      profileShift.textContent = formattedShortDate;
+    } else {
+      const targetStrong = root.querySelector ? root.querySelector('.equipment-detail-panel .equipment-target strong') : null;
+      if (targetStrong && window.location.pathname.includes('profile')) {
+        targetStrong.textContent = formattedShortDate;
+      }
+    }
   }
+
+  const updateOverviewTodayDate = updateTodayDates;
 
   function initDatePickers(root) {
     if (!root) root = document;
@@ -1030,6 +1072,16 @@
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
     const todayStr = `${yyyy}-${mm}-${dd}`;
+    const formattedShortDate = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(now);
+
+    const newLoanHeader = root.getElementById ? root.getElementById('new-loan-today-date') : null;
+    if (newLoanHeader) {
+      newLoanHeader.textContent = formattedShortDate;
+    }
 
     const checkoutDateInput = root.getElementById ? root.getElementById('checkout-date') : root.querySelector('#checkout-date');
     const dueDateInput = root.getElementById ? root.getElementById('due-date') : root.querySelector('#due-date');
